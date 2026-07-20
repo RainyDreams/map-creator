@@ -1,0 +1,113 @@
+/**
+ * 地图几何与投影模块：
+ * - 模块级解析 china.json，把 Polygon/MultiPolygon 预编译为 SVG path 字符串
+ *   （坐标已做等距圆柱投影：x = lng·cos(中纬)，y = -lat，单位仍是"度"，缩放由 SVG transform 完成）
+ * - 主图裁剪到 lat >= 17.5（南沙等归入右下角"南海诸岛"小插图）
+ */
+import chinaJson from '@/assets/china.json'
+
+export interface GeoFeature {
+  /** 省份全称；china.json 中南海诸岛要素 name 为空串 */
+  name: string
+  /** 预投影后的 SVG path */
+  d: string
+  /** [lng, lat]（GeoJSON properties.centroid，可能缺失） */
+  centroid: [number, number] | null
+}
+
+interface RawFeature {
+  properties?: { name?: string; centroid?: [number, number] }
+  geometry?: { type: string; coordinates: unknown }
+}
+
+const raw = chinaJson as unknown as { features: RawFeature[] }
+
+/** 中纬 35.5° 的余弦修正，抵消等距圆柱投影的横向拉伸 */
+export const KX = Math.cos((35.5 * Math.PI) / 180)
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+function ringToPath(ring: number[][]): string {
+  let d = ''
+  for (const pt of ring) {
+    const x = round2(pt[0] * KX)
+    const y = round2(-pt[1])
+    d += d ? `L${x},${y}` : `M${x},${y}`
+  }
+  return `${d}Z`
+}
+
+function buildPath(geom?: RawFeature['geometry']): string {
+  if (!geom) return ''
+  if (geom.type === 'Polygon') {
+    return (geom.coordinates as number[][][]).map(ringToPath).join('')
+  }
+  if (geom.type === 'MultiPolygon') {
+    return (geom.coordinates as number[][][][])
+      .map((poly) => poly.map(ringToPath).join(''))
+      .join('')
+  }
+  return ''
+}
+
+export const GEO_FEATURES: GeoFeature[] = raw.features.map((f) => ({
+  name: f.properties?.name ?? '',
+  d: buildPath(f.geometry),
+  centroid: f.properties?.centroid ?? null,
+}))
+
+const shapeByName = new Map(GEO_FEATURES.filter((f) => f.name !== '').map((f) => [f.name, f]))
+
+export function getProvinceShape(name: string): GeoFeature | undefined {
+  return shapeByName.get(name)
+}
+
+/* ---------------- 画布布局常量（虚拟坐标，配合 SVG viewBox 自适应缩放） ---------------- */
+
+export const DESIGN_W = 1200
+/** 地图/标注列顶部留白 */
+export const TOP = 16
+export const BOTTOM = 24
+/** 主图区域左右边界（外侧留给标注列） */
+export const MAP_X0 = 300
+export const MAP_X1 = 900
+
+const LNG_MIN = 73.4
+const LNG_MAX = 135.2
+const LAT_MAX = 53.7
+/** 主图纬度下限（以南内容只出现在小插图中） */
+const MAIN_MIN_LAT = 17.5
+const FULL_MIN_LAT = 3.2
+
+export const MAP_SCALE = (MAP_X1 - MAP_X0) / ((LNG_MAX - LNG_MIN) * KX)
+export const MAP_H = (LAT_MAX - MAIN_MIN_LAT) * MAP_SCALE
+
+/** 主图 path 组的整体 transform（path 坐标 = (lng·KX, -lat)） */
+export const MAP_TRANSFORM = `translate(${round2(MAP_X0 - MAP_SCALE * LNG_MIN * KX)} ${round2(
+  TOP + MAP_SCALE * LAT_MAX,
+)}) scale(${MAP_SCALE.toFixed(5)})`
+
+/** 经纬度 → 主图画布坐标（质心、引线端点用） */
+export function projectToMap(lng: number, lat: number): [number, number] {
+  return [MAP_X0 + (lng - LNG_MIN) * KX * MAP_SCALE, TOP + (LAT_MAX - lat) * MAP_SCALE]
+}
+
+/** 右下角"南海诸岛"小插图（完整范围等比缩放） */
+export const INSET = (() => {
+  const w = 104
+  const scale = w / ((LNG_MAX - LNG_MIN) * KX)
+  const h = (LAT_MAX - FULL_MIN_LAT) * scale
+  const x = MAP_X1 - w - 8
+  const y = TOP + MAP_H - h - 8
+  return {
+    x,
+    y,
+    w,
+    h,
+    transform: `translate(${round2(x - scale * LNG_MIN * KX)} ${round2(
+      y + scale * LAT_MAX,
+    )}) scale(${scale.toFixed(5)})`,
+  }
+})()
