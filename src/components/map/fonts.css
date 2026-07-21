@@ -1,12 +1,39 @@
 /*
- * 阿里妈妈数黑体（AlimamaShuHeiTi-Bold，免费可商用）子集：
- * 仅含 ASCII 数字/字母/常用符号（约 9KB），专供年份大字使用，
- * 避免 MaShanZheng 数字字形不佳。中文标题仍用 MaShanZheng。
+ * 画布字体注册（均为免费可商用字体的子集化 woff2）：
+ * - AlimamaShuHeiTi：阿里妈妈数黑体，仅 ASCII，专供年份数字
+ * - MaShanZheng：马善政毛笔体（SIL OFL），标题/省份名
+ * - NotoSansSC：思源黑体（SIL OFL），干净正文
+ * - ZCOOLXiaoWei：站酷小薇体（免费可商用），宋体感标题
+ * - ZCOOLQingKeHuangYou：站酷高端黑（免费可商用），粗展示
  */
 @font-face {
   font-family: 'AlimamaShuHeiTi';
   src: url('../../assets/fonts/AlimamaShuHeiTi-Bold-subset.woff2') format('woff2');
   font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NotoSansSC';
+  src: url('../../assets/fonts/NotoSansSC-subset.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ZCOOLXiaoWei';
+  src: url('../../assets/fonts/ZCOOLXiaoWei-subset.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ZCOOLQingKeHuangYou';
+  src: url('../../assets/fonts/ZCOOLQingKeHuangYou-subset.woff2') format('woff2');
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }

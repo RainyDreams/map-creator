@@ -107,48 +107,72 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
         </clipPath>
       </defs>
 
-      {/* 主图省份（裁剪掉 17.5°N 以南，南沙等只进小插图） */}
+      {/* 主图省份（裁剪掉 17.5°N 以南，南沙等只进小插图）；无名要素为十段线细多边形，用引线色填充+描边保证亚像素厚度下仍可见 */}
       <g clipPath="url(#cf-main-clip)">
         <g transform={MAP_TRANSFORM}>
-          {GEO_FEATURES.map((f, i) => (
-            <path
-              key={f.name || `feature-${i}`}
-              d={f.d}
-              fill={fillByName.get(f.name) ?? theme.provinceBase}
-              stroke="#ffffff"
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-              strokeLinejoin="round"
-            />
-          ))}
+          {GEO_FEATURES.map((f, i) =>
+            f.name === '' ? (
+              <path
+                key={`dash-${i}`}
+                d={f.d}
+                fill={theme.leaderLine}
+                stroke={theme.leaderLine}
+                strokeWidth={1.2}
+                vectorEffect="non-scaling-stroke"
+              />
+            ) : (
+              <path
+                key={f.name}
+                d={f.d}
+                fill={fillByName.get(f.name) ?? theme.provinceBase}
+                stroke="#ffffff"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+              />
+            ),
+          )}
         </g>
       </g>
 
-      {/* 南海诸岛小插图 */}
+      {/* 南海诸岛小插图：白底增强对比，十段线细多边形用引线色填充+描边 */}
       <rect
         x={INSET.x}
         y={INSET.y}
         width={INSET.w}
         height={INSET.h}
         rx={3}
-        fill={theme.footerBg}
+        fill="#ffffff"
         stroke={theme.leaderLine}
         strokeWidth={1}
-        opacity={0.9}
+        opacity={0.75}
       />
       <g clipPath="url(#cf-inset-clip)">
         <g transform={INSET.transform}>
-          {GEO_FEATURES.map((f, i) => (
-            <path
-              key={`inset-${f.name || i}`}
-              d={f.d}
-              fill={fillByName.get(f.name) ?? theme.provinceBase}
-              stroke="#ffffff"
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-              strokeLinejoin="round"
-            />
-          ))}
+          {GEO_FEATURES.map((f, i) =>
+            f.name === '' ? (
+              <path
+                key={`inset-dash-${i}`}
+                d={f.d}
+                fill={theme.leaderLine}
+                stroke={theme.leaderLine}
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+              />
+            ) : (
+              // 白底小插图上白色描边会隐形，海南/台湾/南海诸岛必须用引线色描边才能看清轮廓
+              <path
+                key={`inset-${f.name}`}
+                d={f.d}
+                fill={fillByName.get(f.name) ?? theme.provinceBase}
+                stroke={theme.leaderLine}
+                strokeWidth={0.8}
+                strokeOpacity={0.65}
+                vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+              />
+            ),
+          )}
         </g>
       </g>
 

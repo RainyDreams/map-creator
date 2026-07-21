@@ -94,6 +94,32 @@ export const PRESET_THEMES: ThemeConfig[] = [
     textColor: '#44403c',
     leaderLine: '#b5b0ab',
   },
+  {
+    id: 'cartoon',
+    name: '活力卡通',
+    canvasBg: 'linear-gradient(150deg, #fff7e0 0%, #ffe9f0 55%, #e0f2ff 100%)',
+    footerBg: '#fff1d6',
+    provinceBase: '#f3ead9',
+    provinceActive: ['#ff9f68', '#ffd166', '#6bcbef', '#ff8fab', '#95d5b2', '#c39bd3', '#ffb703', '#80ed99'],
+    accent: '#e63946',
+    yearColor: '#f3722c',
+    titleColor: '#3d405b',
+    textColor: '#4a4e69',
+    leaderLine: '#f4a261',
+  },
+  {
+    id: 'ink',
+    name: '水墨丹青',
+    canvasBg: 'linear-gradient(165deg, #f7f5ef 0%, #efeee6 55%, #e6e5da 100%)',
+    footerBg: '#eeece2',
+    provinceBase: '#dcdcd2',
+    provinceActive: ['#5c677d', '#7d8597', '#33415c', '#9aa5b1', '#6d7b8d', '#5c677d', '#7d8597', '#33415c'],
+    accent: '#1b263b',
+    yearColor: '#33415c',
+    titleColor: '#1b263b',
+    textColor: '#3a4557',
+    leaderLine: '#8d99ae',
+  },
 ]
 
 export const DEFAULT_THEME = PRESET_THEMES[0]

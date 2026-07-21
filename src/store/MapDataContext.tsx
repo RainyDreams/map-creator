@@ -9,6 +9,12 @@ import {
 } from 'react'
 import { EMPTY_MAP_DATA, newId, type MapData, type StudentEntry } from '@/types'
 import { DEFAULT_THEME, presetById, type ThemeConfig } from '@/utils/themes'
+import {
+  DEFAULT_FONT_SLOTS,
+  ensureCustomFontsLoaded,
+  type CustomFont,
+  type FontSlot,
+} from '@/utils/fonts'
 
 const STORAGE_KEY = 'cenfan-map-store-v2'
 const LEGACY_KEY = 'cenfan-map-data-v1'
@@ -16,6 +22,12 @@ const LEGACY_KEY = 'cenfan-map-data-v1'
 interface Persisted {
   data: MapData
   theme: ThemeConfig
+  /** 画布分模块字体槽位 */
+  fontSlots: Record<FontSlot, string>
+  /** 用户上传的自定义字体（dataURL 持久化） */
+  customFonts: CustomFont[]
+  /** 校徽/班徽图片（dataURL，已压缩） */
+  badge: string | null
 }
 
 export interface MapDataContextValue {
@@ -36,6 +48,15 @@ export interface MapDataContextValue {
   /** 画布主题（预设或自定义），持久化 */
   theme: ThemeConfig
   setTheme: (theme: ThemeConfig) => void
+  /** 分模块字体槽位与操作 */
+  fontSlots: Record<FontSlot, string>
+  setFontSlot: (slot: FontSlot, fontId: string) => void
+  customFonts: CustomFont[]
+  addCustomFont: (font: CustomFont) => void
+  removeCustomFont: (fontId: string) => void
+  /** 校徽/班徽 */
+  badge: string | null
+  setBadge: (dataUrl: string | null) => void
 }
 
 const MapDataContext = createContext<MapDataContextValue | null>(null)
@@ -50,7 +71,9 @@ function normalizeData(raw: unknown): MapData | null {
     students: d.students,
     teachers: d.teachers,
     showTeachers: d.showTeachers !== false,
-    titleAlign: d.titleAlign === 'center' ? 'center' : 'left',
+    titleAlign:
+      d.titleAlign === 'center' ? 'center' : d.titleAlign === 'right' ? 'right' : 'left',
+    subtitle: typeof d.subtitle === 'string' ? d.subtitle : '',
   }
 }
 
@@ -63,29 +86,67 @@ function normalizeTheme(raw: unknown): ThemeConfig {
   return DEFAULT_THEME
 }
 
+function normalizeFontSlots(raw: unknown): Record<FontSlot, string> {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_FONT_SLOTS }
+  return { ...DEFAULT_FONT_SLOTS, ...(raw as Record<FontSlot, string>) }
+}
+
+function normalizeCustomFonts(raw: unknown): CustomFont[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (f): f is CustomFont =>
+      !!f && typeof f === 'object' &&
+      typeof (f as CustomFont).id === 'string' &&
+      typeof (f as CustomFont).name === 'string' &&
+      typeof (f as CustomFont).dataUrl === 'string',
+  )
+}
+
 function loadInitial(): Persisted {
   try {
     const rawV2 = localStorage.getItem(STORAGE_KEY)
     if (rawV2) {
       const parsed = JSON.parse(rawV2) as Partial<Persisted>
       const data = normalizeData(parsed.data)
-      if (data) return { data, theme: normalizeTheme(parsed.theme) }
+      if (data) {
+        return {
+          data,
+          theme: normalizeTheme(parsed.theme),
+          fontSlots: normalizeFontSlots(parsed.fontSlots),
+          customFonts: normalizeCustomFonts(parsed.customFonts),
+          badge: typeof parsed.badge === 'string' ? parsed.badge : null,
+        }
+      }
     }
     // 迁移 v1：仅存了 MapData
     const rawV1 = localStorage.getItem(LEGACY_KEY)
     if (rawV1) {
       const data = normalizeData(JSON.parse(rawV1))
-      if (data) return { data, theme: DEFAULT_THEME }
+      if (data) {
+        return {
+          data,
+          theme: DEFAULT_THEME,
+          fontSlots: { ...DEFAULT_FONT_SLOTS },
+          customFonts: [],
+          badge: null,
+        }
+      }
     }
   } catch {
     // 数据损坏则回退空白
   }
-  return { data: EMPTY_MAP_DATA, theme: DEFAULT_THEME }
+  return {
+    data: EMPTY_MAP_DATA,
+    theme: DEFAULT_THEME,
+    fontSlots: { ...DEFAULT_FONT_SLOTS },
+    customFonts: [],
+    badge: null,
+  }
 }
 
 export function MapDataProvider({ children }: { children: ReactNode }) {
   const [persisted, setPersisted] = useState<Persisted>(loadInitial)
-  const { data, theme } = persisted
+  const { data, theme, fontSlots, customFonts, badge } = persisted
 
   useEffect(() => {
     try {
@@ -94,6 +155,11 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
       // 存储失败（如隐私模式）静默忽略
     }
   }, [persisted])
+
+  // 启动与变更时注册自定义字体（FontFace API，幂等）
+  useEffect(() => {
+    void ensureCustomFontsLoaded(customFonts)
+  }, [customFonts])
 
   const setData = useCallback(
     (updater: MapData | ((prev: MapData) => MapData)) => {
@@ -130,9 +196,76 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const setFontSlot = useCallback(
+    (slot: FontSlot, fontId: string) =>
+      setPersisted((prev) => ({
+        ...prev,
+        fontSlots: { ...prev.fontSlots, [slot]: fontId },
+      })),
+    [],
+  )
+
+  const addCustomFont = useCallback(
+    (font: CustomFont) =>
+      setPersisted((prev) => ({
+        ...prev,
+        customFonts: [...prev.customFonts.filter((f) => f.id !== font.id), font],
+      })),
+    [],
+  )
+
+  const removeCustomFont = useCallback(
+    (fontId: string) =>
+      setPersisted((prev) => ({
+        ...prev,
+        customFonts: prev.customFonts.filter((f) => f.id !== fontId),
+        // 引用该字体的槽位回退默认，避免悬空引用
+        fontSlots: Object.fromEntries(
+          Object.entries(prev.fontSlots).map(([slot, id]) => [
+            slot,
+            id === fontId ? DEFAULT_FONT_SLOTS[slot as FontSlot] : id,
+          ]),
+        ) as Record<FontSlot, string>,
+      })),
+    [],
+  )
+
+  const setBadge = useCallback(
+    (dataUrl: string | null) => setPersisted((prev) => ({ ...prev, badge: dataUrl })),
+    [],
+  )
+
   const value = useMemo(
-    () => ({ data, setData, resetData, importStudents, theme, setTheme }),
-    [data, setData, resetData, importStudents, theme, setTheme],
+    () => ({
+      data,
+      setData,
+      resetData,
+      importStudents,
+      theme,
+      setTheme,
+      fontSlots,
+      setFontSlot,
+      customFonts,
+      addCustomFont,
+      removeCustomFont,
+      badge,
+      setBadge,
+    }),
+    [
+      data,
+      setData,
+      resetData,
+      importStudents,
+      theme,
+      setTheme,
+      fontSlots,
+      setFontSlot,
+      customFonts,
+      addCustomFont,
+      removeCustomFont,
+      badge,
+      setBadge,
+    ],
   )
 
   return <MapDataContext.Provider value={value}>{children}</MapDataContext.Provider>

@@ -18,6 +18,7 @@ import MetaForm from '@/components/entry/MetaForm'
 import StudentTable from '@/components/entry/StudentTable'
 import TeacherTable from '@/components/entry/TeacherTable'
 import ThemePicker from '@/components/theme/ThemePicker'
+import { FontPanel } from '@/components/entry/FontPanel'
 
 /**
  * 录入页容器：垂直滚动布局。
@@ -79,6 +80,7 @@ export default function EntryPage() {
         <StudentTable />
         <TeacherTable />
         <ThemePicker />
+        <FontPanel />
 
         <p className="pb-2 text-center text-xs text-stone-400">
           所有内容自动保存在本机浏览器，刷新不丢失

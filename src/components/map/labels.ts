@@ -17,7 +17,7 @@ import { getProvinceShape, MAP_H, MAP_X0, MAP_X1, projectToMap, TOP, BOTTOM } fr
 export interface LabelBlock {
   province: string
   /** 已排好版的 "姓名　城市 大学" 行（直辖市/港澳省略城市） */
-  lines: string[]
+  lines: StudentLineParts[]
   /** 文本锚点 x（左列右对齐 / 右列左对齐） */
   anchorX: number
   textAnchor: 'start' | 'end'
@@ -67,13 +67,20 @@ export function provinceShortName(province: string): string {
  * - 城市已包含在大学名中（如"北京大学"）；
  * - 城市与省份同名（直辖市/港澳，如北京/北京市、香港/香港特别行政区），此时直接 `姓名　大学`。
  */
-export function studentLine(s: StudentEntry, province: string): string {
+export interface StudentLineParts {
+  /** 姓名段（人名字体） */
+  person: string
+  /** 城市+大学段（地点字体） */
+  place: string
+}
+
+export function studentLineParts(s: StudentEntry, province: string): StudentLineParts {
   const name = s.name.trim() || '（未命名）'
   const uni = s.university.trim() || '（未填大学）'
   const city = s.city.trim()
   const sameAsProvince = city !== '' && city.replace(/市$/, '') === provinceShortName(province)
   const showCity = city !== '' && !sameAsProvince && !uni.includes(city)
-  return showCity ? `${name}　${city} ${uni}` : `${name}　${uni}`
+  return { person: name, place: showCity ? `${city} ${uni}` : uni }
 }
 
 const BASE_HEADER = 16
@@ -211,7 +218,7 @@ export function computeLabelLayout(
       const h = headerH + i.students.length * lineH
       const block: LabelBlock = {
         province: i.province,
-        lines: i.students.map((s) => studentLine(s, i.province)),
+        lines: i.students.map((s) => studentLineParts(s, i.province)),
         anchorX: side === 'left' ? MAP_X0 - 16 : MAP_X1 + 16,
         textAnchor: side === 'left' ? 'end' : 'start',
         headerBaseline: y + headerH - 8 * scale,

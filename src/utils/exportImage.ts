@@ -40,13 +40,16 @@ function sanitize(s: string): string {
   return s.trim().replace(/[\\/:*?"<>|\s]+/g, '-')
 }
 
-/** 导出前确保书法/展示字体已加载，否则 SVG/位图里会渲染成兜底字体 */
+/** 导出前确保画布字体已加载，否则 SVG/位图里会渲染成兜底字体 */
 async function ensureFontsLoaded(): Promise<void> {
   try {
     await Promise.race([
       (async () => {
         await document.fonts.load('20px "MaShanZheng"', '蹭饭图')
         await document.fonts.load('700 20px "AlimamaShuHeiTi"', '2026')
+        await document.fonts.load('20px "NotoSansSC"', '北京')
+        await document.fonts.load('20px "ZCOOLXiaoWei"', '北京')
+        await document.fonts.load('20px "ZCOOLQingKeHuangYou"', '北京')
         await document.fonts.ready
       })(),
       new Promise((resolve) => setTimeout(resolve, 4000)),
@@ -71,8 +74,10 @@ async function withOffscreenClone<T>(
   fn: (clone: HTMLElement) => Promise<T>,
 ): Promise<T> {
   const holder = document.createElement('div')
+  // 注意：不能用 visibility:hidden / opacity:0——会被 html-to-image 作为计算样式
+  // 内联进序列化结果，导致导出整张空白。离屏定位本身已足够隐藏。
   holder.style.cssText =
-    'position:fixed;left:-99999px;top:0;z-index:-1;pointer-events:none;visibility:hidden;'
+    'position:fixed;left:-99999px;top:0;pointer-events:none;'
   const clone = node.cloneNode(true) as HTMLElement
   clone.style.width = `${EXPORT_BASE_W}px`
   clone.style.maxWidth = 'none'

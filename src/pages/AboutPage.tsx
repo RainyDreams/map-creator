@@ -28,8 +28,10 @@ export default function AboutPage() {
           <dd className="text-stone-700">蹭饭图生成器</dd>
           <dt className="text-stone-400">开发者</dt>
           <dd className="text-stone-700">赤峰二中2026届zxy</dd>
+          <dt className="text-stone-400">公众号</dt>
+          <dd className="text-stone-700">《零本》</dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.1.0</dd>
+          <dd className="text-stone-700">v1.2.0</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a
@@ -55,6 +57,21 @@ export default function AboutPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="space-y-2">
+        <SectionTitle>地图数据来源与合规声明</SectionTitle>
+        <p>
+          本应用使用的中国地图轮廓数据来源于<strong>阿里云 DataV.GeoAtlas</strong>
+          （公开 GeoJSON 数据，区域 adcode 以中华人民共和国民政部行政区划代码为准），
+          城市定位点坐标来源于同一数据集的行政区划中心点。
+        </p>
+        <p>
+          本地图为<strong>示意地图</strong>，仅用于毕业去向信息展示，
+          <strong>不作为行政区划界线勘定依据</strong>；城市定位点为行政区几何中心近似值，
+          仅用于标注示意，不代表高校实际校址。国家版图示意图已包含南海诸岛及断续线，
+          使用时请保持地图完整。
+        </p>
       </section>
 
       <section className="space-y-2">

@@ -3,6 +3,7 @@ import { Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince } from '@/utils/geo'
+import { slotFontFamily } from '@/utils/fonts'
 import { exportNodeToPng, type ExportQuality } from '@/utils/exportImage'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
@@ -10,18 +11,19 @@ import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
 import '@/components/map/fonts.css'
 import type { StudentEntry } from '@/types'
 
-/** 年份大字专用展示字体：阿里妈妈数黑体子集；加载失败时退回 Georgia 系衬线粗体 */
-const YEAR_FONT = '"AlimamaShuHeiTi","Georgia","Times New Roman",serif'
-
 /**
  * 地图页面：顶部工具栏（导出 PNG）+ 整幅"蹭饭图"画布。
  * 画布为导出目标：标题区 / 地图 SVG / 老师名单 / 未定位提示 / 底部来源条 全部包含在内。
  */
 export default function MapPage() {
-  const { data, theme } = useMapData()
+  const { data, theme, fontSlots, customFonts, badge } = useMapData()
   const canvasRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+
+  /** 分模块字体栈 */
+  const yearFont = slotFontFamily('year', fontSlots, customFonts)
+  const titleFont = slotFontFamily('title', fontSlots, customFonts)
 
   /** 学生 → 省份分组（保持录入顺序，保证色块与列序稳定）；无法定位的单独收集 */
   const { groups, unlocated } = useMemo(() => {
@@ -44,7 +46,12 @@ export default function MapPage() {
   /** 标题中已包含年份字符串（如"2026届 高三（2）班"含"2026"）时，不再渲染大号年份艺术字 */
   const yearInTitle = data.year.trim() !== '' && data.title.includes(data.year.trim())
   const showYear = data.year.trim() !== '' && !yearInTitle
-  const titleCentered = data.titleAlign === 'center'
+  const alignClass =
+    data.titleAlign === 'center'
+      ? 'justify-center text-center'
+      : data.titleAlign === 'right'
+        ? 'justify-end text-right'
+        : ''
 
   async function handleExport(quality: ExportQuality) {
     const node = canvasRef.current
@@ -109,34 +116,48 @@ export default function MapPage() {
             className="relative overflow-hidden rounded-xl border border-amber-200/60 shadow-sm"
             style={{ background: theme.canvasBg }}
           >
-            {/* 标题区：年份艺术字 + 班级标题（均为空时不渲染占位）；titleAlign 控制居左/居中 */}
+            {/* 标题区：班徽 + 年份艺术字 + 班级标题 + 英文副标题；titleAlign 控制居左/中/右 */}
             {hasHeader && (
-              <div
-                className={`flex flex-wrap items-end gap-x-5 gap-y-1 px-8 pt-6 pb-1 ${
-                  titleCentered ? 'justify-center text-center' : ''
-                }`}
-              >
-                {showYear && (
-                  <span
-                    className="text-6xl leading-none tracking-wider"
-                    style={{
-                      fontFamily: YEAR_FONT,
-                      fontWeight: 700,
-                      color: theme.yearColor,
-                      textShadow: '1px 2px 0 rgba(255,255,255,0.65), 2px 5px 10px rgba(180,120,30,0.25)',
-                      transform: 'skewX(-5deg)',
-                    }}
+              <div className={`px-8 pt-6 pb-1 ${alignClass}`}>
+                <div className={`flex flex-wrap items-end gap-x-5 gap-y-1 ${alignClass}`}>
+                  {badge !== null && (
+                    <img
+                      src={badge}
+                      alt="班徽"
+                      className="mb-0.5 h-12 w-12 rounded-full object-contain"
+                    />
+                  )}
+                  {showYear && (
+                    <span
+                      className="text-6xl leading-none tracking-wider"
+                      style={{
+                        fontFamily: yearFont,
+                        fontWeight: 700,
+                        color: theme.yearColor,
+                        textShadow:
+                          '1px 2px 0 rgba(255,255,255,0.65), 2px 5px 10px rgba(180,120,30,0.25)',
+                        transform: 'skewX(-5deg)',
+                      }}
+                    >
+                      {data.year}
+                    </span>
+                  )}
+                  {data.title.trim() !== '' && (
+                    <span
+                      className="pb-1 text-3xl"
+                      style={{ fontFamily: titleFont, color: theme.titleColor }}
+                    >
+                      {data.title}
+                    </span>
+                  )}
+                </div>
+                {data.subtitle.trim() !== '' && (
+                  <p
+                    className="mt-1 text-sm tracking-[0.25em] uppercase opacity-70"
+                    style={{ fontFamily: titleFont, color: theme.titleColor }}
                   >
-                    {data.year}
-                  </span>
-                )}
-                {data.title.trim() !== '' && (
-                  <span
-                    className="font-calligraphy pb-1 text-3xl"
-                    style={{ color: theme.titleColor }}
-                  >
-                    {data.title}
-                  </span>
+                    {data.subtitle}
+                  </p>
                 )}
               </div>
             )}
@@ -144,8 +165,9 @@ export default function MapPage() {
             {/* "蹭饭图"三个大字：右侧竖排，书法感朱红 */}
             <div
               aria-hidden
-              className="font-calligraphy pointer-events-none absolute top-16 right-2 z-10 leading-none select-none"
+              className="pointer-events-none absolute top-16 right-2 z-10 leading-none select-none"
               style={{
+                fontFamily: titleFont,
                 writingMode: 'vertical-rl',
                 fontSize: '58px',
                 letterSpacing: '0.12em',
@@ -183,9 +205,12 @@ export default function MapPage() {
               className="border-t border-amber-200/50 py-1.5 text-center"
               style={{ backgroundColor: theme.footerBg }}
             >
-              <span className="text-[10px] tracking-[0.18em] text-stone-400">
-                本图片由 map.linkbrain.top 生成
-              </span>
+              <div className="text-[10px] tracking-[0.18em] text-stone-400">
+                <p>本图片由 map.linkbrain.top 生成</p>
+                <p className="mt-0.5 tracking-normal text-stone-400/80">
+                  地图数据来源：阿里云 DataV.GeoAtlas｜本图为示意图，不作为行政区划界线依据
+                </p>
+              </div>
             </div>
           </div>
         </div>

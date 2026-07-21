@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router'
 import { MapDataProvider } from '@/store/MapDataContext'
+import { Toaster } from '@/components/ui/sonner'
 import EntryPage from '@/pages/EntryPage'
 import MapPage from '@/pages/MapPage'
 import AgreementPage from '@/pages/AgreementPage'
@@ -159,6 +160,7 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/about" element={<AboutPage />} />
       </Routes>
+      <Toaster position="top-center" richColors />
     </MapDataProvider>
   )
 }

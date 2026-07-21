@@ -118,7 +118,6 @@ const LNG_MAX = 135.2
 const LAT_MAX = 53.7
 /** 主图纬度下限（以南内容只出现在小插图中） */
 const MAIN_MIN_LAT = 17.5
-const FULL_MIN_LAT = 3.2
 
 export const MAP_SCALE = (MAP_X1 - MAP_X0) / ((LNG_MAX - LNG_MIN) * KX)
 export const MAP_H = (LAT_MAX - MAIN_MIN_LAT) * MAP_SCALE
@@ -133,11 +132,20 @@ export function projectToMap(lng: number, lat: number): [number, number] {
   return [MAP_X0 + (lng - LNG_MIN) * KX * MAP_SCALE, TOP + (LAT_MAX - lat) * MAP_SCALE]
 }
 
-/** 右下角"南海诸岛"小插图（完整范围等比缩放） */
+/**
+ * 右下角"南海诸岛"小插图：只呈现南部海域范围（海南 + 南海诸岛 + 十段线），
+ * 而非整幅中国地图——这正是小插图存在的意义（凸显南海诸岛归属）。
+ * 范围：东经 104.5°–123.5°、北纬 2°–24.8°。
+ */
+const INSET_LNG_MIN = 104.5
+const INSET_LNG_MAX = 123.5
+const INSET_LAT_MAX = 24.8
+const INSET_LAT_MIN = 2.0
+
 export const INSET = (() => {
-  const w = 104
-  const scale = w / ((LNG_MAX - LNG_MIN) * KX)
-  const h = (LAT_MAX - FULL_MIN_LAT) * scale
+  const w = 128
+  const scale = w / ((INSET_LNG_MAX - INSET_LNG_MIN) * KX)
+  const h = (INSET_LAT_MAX - INSET_LAT_MIN) * scale
   const x = MAP_X1 - w - 8
   const y = TOP + MAP_H - h - 8
   return {
@@ -145,8 +153,8 @@ export const INSET = (() => {
     y,
     w,
     h,
-    transform: `translate(${round2(x - scale * LNG_MIN * KX)} ${round2(
-      y + scale * LAT_MAX,
+    transform: `translate(${round2(x - scale * INSET_LNG_MIN * KX)} ${round2(
+      y + scale * INSET_LAT_MAX,
     )}) scale(${scale.toFixed(5)})`,
   }
 })()
