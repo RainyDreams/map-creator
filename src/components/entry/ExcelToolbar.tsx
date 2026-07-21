@@ -86,7 +86,7 @@ export default function ExcelToolbar() {
           variant="outline"
           size="sm"
           onClick={downloadTemplate}
-          className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900"
+          className="border-stone-200 bg-white text-stone-600 hover:bg-stone-100 hover:text-stone-900"
         >
           <Download className="size-4" />
           下载模板
@@ -97,7 +97,7 @@ export default function ExcelToolbar() {
           size="sm"
           disabled={parsing}
           onClick={() => fileInputRef.current?.click()}
-          className="border-stone-300 bg-stone-50 text-stone-700 hover:bg-stone-100 hover:text-stone-900"
+          className="border-stone-200 bg-white text-stone-600 hover:bg-stone-100 hover:text-stone-900"
         >
           <Upload className="size-4" />
           {parsing ? '解析中…' : '上传 Excel'}
@@ -115,7 +115,7 @@ export default function ExcelToolbar() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="size-5 text-amber-600" />
+              <FileSpreadsheet className="size-5 text-stone-400" />
               确认导入名单
             </DialogTitle>
             <DialogDescription>
@@ -126,11 +126,11 @@ export default function ExcelToolbar() {
           {r && (
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-md bg-amber-50 px-2 py-2">
-                  <div className="text-lg font-semibold text-amber-800">
+                <div className="rounded-md bg-stone-100 px-2 py-2">
+                  <div className="text-lg font-semibold text-stone-800">
                     {r.students.length}
                   </div>
-                  <div className="text-xs text-amber-700">名学生</div>
+                  <div className="text-xs text-stone-500">名学生</div>
                 </div>
                 <div className="rounded-md bg-stone-100 px-2 py-2">
                   <div className="text-lg font-semibold text-stone-700">
@@ -147,7 +147,7 @@ export default function ExcelToolbar() {
               </div>
 
               {r.teachers.length > 0 && (
-                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <p className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
                   提示：解析到 {r.teachers.length} 名老师，导入时将一并
                   <strong>替换</strong>现有老师名单。
                 </p>
@@ -192,7 +192,7 @@ export default function ExcelToolbar() {
             <Button
               type="button"
               onClick={() => applyImport('replace')}
-              className="bg-amber-600 text-white hover:bg-amber-700"
+              className="bg-stone-900 text-white hover:bg-stone-700"
             >
               替换现有名单
             </Button>

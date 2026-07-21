@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router'
 import { MapDataProvider } from '@/store/MapDataContext'
 import EntryPage from '@/pages/EntryPage'
@@ -7,29 +7,76 @@ import AgreementPage from '@/pages/AgreementPage'
 import PrivacyPage from '@/pages/PrivacyPage'
 import AboutPage from '@/pages/AboutPage'
 import SiteFooter from '@/components/layout/SiteFooter'
-import { ClipboardList, Map as MapIcon } from 'lucide-react'
+import { ClipboardList, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type TabKey = 'entry' | 'map'
 
+const SIDEBAR_COLLAPSED_KEY = 'cenfan-sidebar-collapsed'
+
+function loadSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 /**
  * Creator 外壳：
- * - 桌面端（md 及以上）：左录入、右地图，双栏实时联动
+ * - 桌面端（md 及以上）：左录入、右地图，双栏实时联动；录入栏可折叠，折叠状态持久化
  * - 手机端：底部 Tab 栏在“录入 / 地图”之间切换
  */
 function Creator() {
   const [tab, setTab] = useState<TabKey>('entry')
+  const [collapsed, setCollapsed] = useState<boolean>(loadSidebarCollapsed)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0')
+    } catch {
+      // 隐私模式等写入失败时静默忽略
+    }
+  }, [collapsed])
 
   return (
-    <div className="flex h-dvh flex-col bg-amber-50/60">
+    <div className="flex h-dvh flex-col bg-stone-100">
       {/* 桌面端双栏 */}
       <div className="hidden min-h-0 flex-1 md:flex">
-        <aside className="flex w-[420px] shrink-0 flex-col border-r border-amber-200/70 bg-white/80">
+        <aside
+          className={cn(
+            'relative flex shrink-0 flex-col overflow-hidden bg-white transition-[width] duration-300 ease-in-out',
+            collapsed ? 'w-0' : 'w-[420px] border-r border-stone-200',
+          )}
+        >
+          {/* 折叠按钮：悬浮于录入栏右上角（页头右上为空白区） */}
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            aria-label="收起录入栏"
+            title="收起录入栏"
+            className="absolute top-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-md border border-stone-200 bg-white text-stone-400 shadow-sm transition-colors hover:bg-stone-50 hover:text-stone-700"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
           <div className="min-h-0 flex-1">
             <EntryPage />
           </div>
           <SiteFooter />
         </aside>
-        <main className="min-w-0 flex-1">
+        <main className="relative min-w-0 flex-1">
+          {/* 折叠后的展开悬浮钮：贴在地图区左缘 */}
+          {collapsed && (
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              aria-label="展开录入栏"
+              title="展开录入栏"
+              className="absolute top-1/2 left-0 z-20 flex h-16 w-6 -translate-y-1/2 items-center justify-center rounded-r-lg border border-l-0 border-stone-200 bg-white text-stone-400 shadow-md transition-colors hover:w-7 hover:text-stone-700"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          )}
           <MapPage />
         </main>
       </div>
@@ -43,7 +90,7 @@ function Creator() {
           <SiteFooter />
         </div>
       )}
-      <nav className="flex shrink-0 border-t border-amber-200/70 bg-white md:hidden">
+      <nav className="flex shrink-0 border-t border-stone-200 bg-white md:hidden">
         <TabButton
           active={tab === 'entry'}
           onClick={() => setTab('entry')}
@@ -77,7 +124,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
-        active ? 'font-semibold text-amber-700' : 'text-stone-400'
+        active ? 'font-semibold text-stone-900' : 'text-stone-400 hover:text-stone-600'
       }`}
     >
       {icon}

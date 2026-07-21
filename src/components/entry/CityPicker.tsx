@@ -113,7 +113,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
           onKeyDown={onEnterKeyDown}
           placeholder="自动推断，可修改"
           aria-label={ariaLabel}
-          className="h-9 border-stone-200 bg-white focus-visible:ring-amber-300"
+          className="h-9 border-stone-200 bg-white focus-visible:ring-stone-300"
         />
         <p className="flex items-center gap-1 text-[11px] text-stone-400">
           <WifiOff className="h-3 w-3 shrink-0" />
@@ -144,7 +144,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
       <Select value={province} onValueChange={handleProvinceChange}>
         <SelectTrigger
           aria-label={`${ariaLabel ?? ''}所在省份`}
-          className="col-span-1 h-9 w-full border-stone-200 bg-white focus:ring-amber-300"
+          className="col-span-1 h-9 w-full min-w-0 border-stone-200 bg-white focus:ring-stone-300 [&>span]:truncate"
         >
           <SelectValue placeholder="省份" />
         </SelectTrigger>
@@ -168,7 +168,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
             aria-label={ariaLabel ?? '城市'}
             disabled={!province}
             className={cn(
-              'col-span-1 h-9 w-full justify-between border-stone-200 bg-white px-3 font-normal hover:bg-white',
+              'col-span-1 h-9 w-full min-w-0 justify-between border-stone-200 bg-white px-3 font-normal hover:bg-white',
               !value && 'text-muted-foreground',
             )}
           >

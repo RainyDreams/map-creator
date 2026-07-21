@@ -14,7 +14,7 @@ import type { StudentEntry } from '@/types'
  * 画布为导出目标：标题区 / 地图 SVG / 老师名单 / 未定位提示 / 底部来源条 全部包含在内。
  */
 export default function MapPage() {
-  const { data } = useMapData()
+  const { data, theme } = useMapData()
   const canvasRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -56,7 +56,7 @@ export default function MapPage() {
   return (
     <div className="flex h-full flex-col">
       {/* 工具栏（不参与导出） */}
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-200/70 bg-white/70 px-4 py-2.5">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2.5">
         <div className="min-w-0">
           <h1 className="text-sm font-semibold text-stone-700">蹭饭图预览</h1>
           <p className="truncate text-xs text-stone-400">
@@ -79,7 +79,7 @@ export default function MapPage() {
             size="sm"
             onClick={() => handleExport('ultra')}
             disabled={exporting !== null}
-            className="bg-amber-600 text-white hover:bg-amber-700"
+            className="bg-stone-900 text-white hover:bg-stone-700"
             title="超清矢量栅格化导出（≥4000px 宽）"
           >
             {exporting === 'ultra' ? (
@@ -99,18 +99,16 @@ export default function MapPage() {
             ref={canvasRef}
             data-testid="map-canvas"
             className="relative overflow-hidden rounded-xl border border-amber-200/60 shadow-sm"
-            style={{
-              background:
-                'radial-gradient(ellipse at 32% 18%, #fdf6df 0%, #f9edcb 55%, #f4e2b4 100%)',
-            }}
+            style={{ background: theme.canvasBg }}
           >
             {/* 标题区：年份艺术字 + 班级标题（均为空时不渲染占位） */}
             {hasHeader && (
               <div className="flex flex-wrap items-end gap-x-5 gap-y-1 px-8 pt-6 pb-1">
                 {data.year.trim() !== '' && (
                   <span
-                    className="font-calligraphy text-6xl leading-none tracking-wider text-amber-600"
+                    className="font-calligraphy text-6xl leading-none tracking-wider"
                     style={{
+                      color: theme.yearColor,
                       textShadow: '1px 2px 0 rgba(255,255,255,0.65), 2px 5px 10px rgba(180,120,30,0.25)',
                       transform: 'skewX(-5deg)',
                     }}
@@ -119,7 +117,10 @@ export default function MapPage() {
                   </span>
                 )}
                 {data.title.trim() !== '' && (
-                  <span className="font-calligraphy pb-1 text-3xl text-stone-700">
+                  <span
+                    className="font-calligraphy pb-1 text-3xl"
+                    style={{ color: theme.titleColor }}
+                  >
                     {data.title}
                   </span>
                 )}
@@ -134,7 +135,7 @@ export default function MapPage() {
                 writingMode: 'vertical-rl',
                 fontSize: '58px',
                 letterSpacing: '0.12em',
-                color: '#b0312a',
+                color: theme.accent,
                 opacity: 0.92,
                 textShadow: '1px 2px 0 rgba(255,255,255,0.55), 2px 5px 12px rgba(160,60,30,0.28)',
               }}
@@ -146,7 +147,7 @@ export default function MapPage() {
             <ChinaMap
               groups={groups}
               reserveLeftBottom={
-                data.teachers.length > 0
+                data.showTeachers && data.teachers.length > 0
                   ? Math.round((110 + data.teachers.length * 24) * 1.3)
                   : 0
               }
@@ -164,7 +165,10 @@ export default function MapPage() {
             <UnlocatedBlock students={unlocated} />
 
             {/* 底部来源条：画布的一部分，随导出一起进 PNG；极小字、克制不喧宾夺主 */}
-            <div className="border-t border-amber-200/50 bg-[#f6ecd3] py-1.5 text-center">
+            <div
+              className="border-t border-amber-200/50 py-1.5 text-center"
+              style={{ backgroundColor: theme.footerBg }}
+            >
               <span className="text-[10px] tracking-[0.18em] text-stone-400">
                 本图片由 map.linkbrain.top 生成
               </span>

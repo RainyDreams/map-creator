@@ -73,15 +73,15 @@ export default function StudentTable() {
   const filledCount = students.filter((s) => !isRowEmpty(s)).length
 
   return (
-    <Card className="rounded-xl border-amber-200/70 bg-white shadow-sm">
+    <Card className="rounded-xl border-stone-200 bg-white shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base text-stone-700">
-          <GraduationCap className="h-4 w-4 text-amber-600" />
+          <GraduationCap className="h-4 w-4 text-stone-400" />
           学生名单
           {filledCount > 0 && (
             <Badge
               variant="secondary"
-              className="ml-auto bg-amber-100 text-amber-800 hover:bg-amber-100"
+              className="ml-auto bg-stone-100 text-stone-600 hover:bg-stone-100"
             >
               已填 {filledCount} 人
             </Badge>
@@ -90,7 +90,7 @@ export default function StudentTable() {
       </CardHeader>
       <CardContent className="space-y-3">
         {students.length === 0 && (
-          <p className="rounded-lg border border-dashed border-amber-300/80 bg-amber-50/60 px-3 py-6 text-center text-sm text-stone-500">
+          <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-6 text-center text-sm text-stone-500">
             还没有学生，点击下方「添加一行」开始录入
           </p>
         )}
@@ -121,7 +121,7 @@ export default function StudentTable() {
                   onKeyDown={handleEnterOnLastRow(s.id)}
                   placeholder="姓名"
                   aria-label={`第 ${index + 1} 行姓名`}
-                  className="h-9 border-stone-200 bg-white focus-visible:ring-amber-300"
+                  className="h-9 border-stone-200 bg-white focus-visible:ring-stone-300"
                 />
                 <Button
                   type="button"
@@ -135,8 +135,8 @@ export default function StudentTable() {
                 </Button>
               </div>
 
-              {/* 第二行：大学 + 省/市联动（接口不可用时降级为手动输入） */}
-              <div className="mt-2 grid grid-cols-2 gap-2 pl-8 sm:grid-cols-4">
+              {/* 第二行：大学（整行） */}
+              <div className="mt-2 pl-8">
                 <Input
                   value={s.university}
                   onChange={(e) => updateRow(s.id, { university: e.target.value })}
@@ -144,8 +144,12 @@ export default function StudentTable() {
                   onKeyDown={handleEnterOnLastRow(s.id)}
                   placeholder="大学"
                   aria-label={`第 ${index + 1} 行大学`}
-                  className="col-span-2 h-9 border-stone-200 bg-white focus-visible:ring-amber-300"
+                  className="h-9 w-full border-stone-200 bg-white focus-visible:ring-stone-300"
                 />
+              </div>
+
+              {/* 第三行：省 / 市联动，各占半行（接口不可用时降级为手动输入） */}
+              <div className="mt-2 grid grid-cols-2 gap-2 pl-8">
                 <CityPicker
                   value={s.city}
                   onChange={(city) => updateRow(s.id, { city })}
@@ -169,7 +173,7 @@ export default function StudentTable() {
           type="button"
           variant="outline"
           onClick={addRow}
-          className="w-full border-dashed border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+          className="w-full border-dashed border-stone-300 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
         >
           <Plus className="h-4 w-4" />
           添加一行

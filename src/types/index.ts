@@ -23,6 +23,8 @@ export interface MapData {
   year: string
   students: StudentEntry[]
   teachers: TeacherEntry[]
+  /** 老师名单是否在地图上显示（关闭开关时图上隐藏，数据保留） */
+  showTeachers: boolean
 }
 
 export const EMPTY_MAP_DATA: MapData = {
@@ -30,6 +32,7 @@ export const EMPTY_MAP_DATA: MapData = {
   year: '',
   students: [],
   teachers: [],
+  showTeachers: true,
 }
 
 export function newId(): string {

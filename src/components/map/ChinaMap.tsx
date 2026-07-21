@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { StudentEntry } from '@/types'
+import { useMapData } from '@/store/MapDataContext'
 import { prefetchCityCenters } from '@/utils/cities'
 import {
   DESIGN_W,
@@ -13,21 +14,6 @@ import {
 } from './geo'
 import { computeLabelLayout, type CityCenterMap } from './labels'
 import { LabelColumns } from './LabelColumns'
-
-/** 无学生省份：浅米色 */
-const EMPTY_FILL = '#ece4cf'
-/** 有学生省份：低饱和暖色轮换 */
-const ACTIVE_FILLS = [
-  '#f0b26b',
-  '#e89a6a',
-  '#ecc369',
-  '#dd9264',
-  '#e5b05f',
-  '#e9c07f',
-  '#df9f7e',
-  '#e6bd57',
-]
-const DOT_FILL = '#c2410c'
 
 export interface ChinaMapProps {
   /** 省份全称 → 该省学生列表（已在外层分组好） */
@@ -44,6 +30,7 @@ export interface ChinaMapProps {
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
 export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: ChinaMapProps) {
+  const { theme } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
 
   /** 省份集合的稳定键，用于触发城市坐标预取 */
@@ -79,13 +66,14 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
 
   const fillByName = useMemo(() => {
     const m = new Map<string, string>()
+    const actives = theme.provinceActive
     let i = 0
     for (const name of groups.keys()) {
-      m.set(name, ACTIVE_FILLS[i % ACTIVE_FILLS.length])
+      m.set(name, actives[i % actives.length])
       i += 1
     }
     return m
-  }, [groups])
+  }, [groups, theme.provinceActive])
 
   /** 城市级定位圆点：每省一个主点（引线起点/点簇中心），多城市时逐城一个小副点 */
   const dots = useMemo(() => {
@@ -126,7 +114,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
             <path
               key={f.name || `feature-${i}`}
               d={f.d}
-              fill={fillByName.get(f.name) ?? EMPTY_FILL}
+              fill={fillByName.get(f.name) ?? theme.provinceBase}
               stroke="#ffffff"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
@@ -143,9 +131,10 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
         width={INSET.w}
         height={INSET.h}
         rx={3}
-        fill="#f6eeda"
-        stroke="#d3c19a"
+        fill={theme.footerBg}
+        stroke={theme.leaderLine}
         strokeWidth={1}
+        opacity={0.9}
       />
       <g clipPath="url(#cf-inset-clip)">
         <g transform={INSET.transform}>
@@ -153,7 +142,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
             <path
               key={`inset-${f.name || i}`}
               d={f.d}
-              fill={fillByName.get(f.name) ?? EMPTY_FILL}
+              fill={fillByName.get(f.name) ?? theme.provinceBase}
               stroke="#ffffff"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
@@ -170,8 +159,8 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
       {dots.map((d) =>
         d.primary ? (
           <g key={`dot-${d.key}`}>
-            <circle cx={d.x} cy={d.y} r={5.5} fill={DOT_FILL} opacity={0.25} />
-            <circle cx={d.x} cy={d.y} r={3.5} fill={DOT_FILL} stroke="#ffffff" strokeWidth={1.4} />
+            <circle cx={d.x} cy={d.y} r={5.5} fill={theme.accent} opacity={0.25} />
+            <circle cx={d.x} cy={d.y} r={3.5} fill={theme.accent} stroke="#ffffff" strokeWidth={1.4} />
           </g>
         ) : (
           <circle
@@ -179,7 +168,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
             cx={d.x}
             cy={d.y}
             r={2.6}
-            fill={DOT_FILL}
+            fill={theme.accent}
             stroke="#ffffff"
             strokeWidth={1.1}
             opacity={0.9}
