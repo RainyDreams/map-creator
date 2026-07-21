@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# wrangler 本地缓存
+.wrangler/
+__*.mjs
+*-check.png
+visual-*.png
+smoke-*.png
+map-screenshot.png
