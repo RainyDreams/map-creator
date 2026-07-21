@@ -5,13 +5,15 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 export default function PrivacyPage() {
   return (
     <StaticPageLayout title="隐私政策">
-      <p className="text-xs text-stone-400">版本 v2.0.0 · 生效日期：2026 年 7 月 21 日 · 最后更新：2026 年 7 月 21 日</p>
+      <p className="text-xs text-stone-400">版本 v2.1.0 · 生效日期：2026 年 7 月 21 日 · 最后更新：2026 年 7 月 21 日</p>
 
       <p className="flex items-start gap-2 rounded-xl border border-amber-200/70 bg-white/70 p-4 text-stone-600">
         <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-amber-600" />
         <span>
-          一句话总结：蹭饭图生成器是纯前端应用，您录入的所有数据只保存在自己的浏览器里，
+          一句话总结：蹭饭图生成器是纯前端应用，您录入的所有名单数据只保存在自己的浏览器里，
           我们<strong className="text-stone-700">不收集、不传输、不共享</strong>您的任何名单数据。
+          此外，我们使用 Microsoft Clarity 进行<strong className="text-stone-700">匿名化</strong>的
+          页面使用行为分析（不涉及您的名单内容），详见本政策第四条。
         </span>
       </p>
 
@@ -22,7 +24,7 @@ export default function PrivacyPage() {
           （个人开发者，下同「我们」）。
         </p>
         <p>
-          联系方式：<span className="text-stone-500">【占位】map@linkbrain.top（联系邮箱，待启用；亦可先通过「关于」页面公示的方式留言）</span>。
+          联系方式：<a href="mailto:linkbrain@lingben.top" className="text-amber-700 underline-offset-2 hover:underline">linkbrain@lingben.top</a>。
         </p>
       </section>
 
@@ -45,20 +47,42 @@ export default function PrivacyPage() {
       </section>
 
       <section className="space-y-2">
-        <SectionTitle>三、「不收集、不传输、不共享」声明</SectionTitle>
+        <SectionTitle>三、「名单数据不收集、不传输、不共享」声明</SectionTitle>
         <ul className="list-disc space-y-1 pl-5">
           <li><strong className="text-stone-700">不收集</strong>：不收集您的姓名、学校、联系方式等任何个人信息；不设账号体系，不要求注册或登录；</li>
           <li><strong className="text-stone-700">不传输</strong>：不将您录入的名单数据、导出图片或 Excel 文件上传至任何服务器或第三方平台；</li>
-          <li><strong className="text-stone-700">不共享</strong>：不向任何第三方提供、出售或共享您的信息；不使用任何第三方统计、广告或行为追踪脚本。</li>
+          <li><strong className="text-stone-700">不共享</strong>：不向任何第三方提供、出售或共享您的名单数据。</li>
         </ul>
+        <p>
+          需要说明的是：本服务使用 Microsoft Clarity 进行匿名化的页面使用行为分析（见第四条），
+          该分析针对页面交互行为（如点击位置、滚动深度），<strong className="text-stone-700">不涉及亦不包含
+          您录入的名单内容</strong>；除此之外，本服务不使用任何第三方广告或追踪脚本。
+        </p>
       </section>
 
       <section className="space-y-2">
         <SectionTitle>四、Cookie 与同类技术</SectionTitle>
+        <p>本服务使用的 Cookie 与同类技术如下，按用途分为两类：</p>
+        <p><strong className="text-stone-700">（一）功能所必需的本地存储（localStorage，非 Cookie）</strong></p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>保存您的名单数据、主题与字体配置、界面偏好（如录入栏折叠状态与宽度）、首次访问的协议同意状态；</li>
+          <li>该等内容仅驻留于您的设备，您可以随时按照本政策第八条所述方式清除。</li>
+        </ul>
+        <p><strong className="text-stone-700">（二）Microsoft Clarity 行为分析 Cookie</strong></p>
         <p>
-          本服务<strong className="text-stone-700">不使用 Cookie</strong> 进行追踪或识别。本服务仅使用浏览器
-          localStorage 实现功能所必需的本地保存（名单数据、主题与界面偏好），该等技术所保存的内容
-          仅驻留于您的设备，您可以随时按照本政策第八条所述方式清除。
+          为改进产品体验，本服务接入了微软提供的 Microsoft Clarity 网站行为分析工具
+          （隐私政策：privacy.microsoft.com/privacystatement）。Clarity 可能写入下列 Cookie：
+        </p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li><code className="rounded bg-stone-100 px-1">_clck</code>：持久化本站点内的匿名用户标识（保存期约 1 年）；</li>
+          <li><code className="rounded bg-stone-100 px-1">_clsk</code>：标识同一次访问会话内的页面浏览（保存期约 1 天）；</li>
+          <li><code className="rounded bg-stone-100 px-1">CLID</code>、<code className="rounded bg-stone-100 px-1">MR</code>、<code className="rounded bg-stone-100 px-1">SM</code>、<code className="rounded bg-stone-100 px-1">MUID</code>：微软用于识别匿名用户与负载均衡的第一方/第三方 Cookie。</li>
+        </ul>
+        <p>
+          Clarity 收集的内容为页面交互行为（如点击、滚动、页面停留）与设备/浏览器的一般性技术信息，
+          微软默认对页面中的敏感文本进行遮蔽处理；本服务页面中您录入名单的表单区域不会被用于任何分析目的。
+          我们依据您首次访问时弹窗中的同意启用该工具；如您不同意，可在浏览器设置中清除并禁用本站
+          Cookie（核心功能不受影响）。
         </p>
       </section>
 
@@ -78,7 +102,8 @@ export default function PrivacyPage() {
         <SectionTitle>六、第三方资源</SectionTitle>
         <p>
           页面渲染所需的字体、地图边界数据等静态资源均已随页面一同打包或托管于本站点，加载时
-          不附带您的任何录入内容。当您在微信内置浏览器中打开本服务时，页面会按需加载腾讯提供的
+          不附带您的任何录入内容。本服务接入 Microsoft Clarity（clarity.ms）用于匿名化使用行为
+          分析，详见本政策第四条。当您在微信内置浏览器中打开本服务时，页面会按需加载腾讯提供的
           微信 JS-SDK 脚本（res.wx.qq.com）以实现分享卡片配置，该请求由您的浏览器直接向腾讯发起，
           其信息处理以腾讯的相关隐私政策为准。页脚中的备案查询链接（beian.miit.gov.cn、
           beian.mps.gov.cn）为监管部门官方网站，其隐私政策以各网站公示为准。

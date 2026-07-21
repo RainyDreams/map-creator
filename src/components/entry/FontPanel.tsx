@@ -5,18 +5,20 @@ import { useMapData } from '@/store/MapDataContext'
 import {
   CUSTOM_FONT_MAX_BYTES,
   FONT_SLOT_LABELS,
-  PRESET_FONTS,
   customFontFamilyName,
   presetFontById,
   type CustomFont,
   type FontSlot,
 } from '@/utils/fonts'
+import { FontSelect } from '@/components/entry/FontSelect'
 import { newId } from '@/types'
 
-const SLOTS: FontSlot[] = ['year', 'title', 'province', 'person', 'place']
+// 标题相关的两个槽位（标题大字 / 标题中的数字）已上移到「班级信息」标题控制区，
+// 本面板只保留地图标注相关的三个槽位
+const SLOTS: FontSlot[] = ['province', 'person', 'place']
 
 /**
- * 字体设置面板：5 个槽位独立选字体（预设 + 用户上传），
+ * 字体设置面板：地图标注类槽位（省份名/姓名/城市大学）独立选字体（预设 + 用户上传），
  * 上传按钮刻意做小——主要路径是预设字体。
  */
 export function FontPanel() {
@@ -85,28 +87,16 @@ export function FontPanel() {
 
       <div className="space-y-2.5">
         {SLOTS.map((slot) => (
-          <label key={slot} className="flex items-center gap-2">
+          <div key={slot} className="flex items-center gap-2">
             <span className="w-20 shrink-0 text-xs text-stone-500 md:w-24">
               {FONT_SLOT_LABELS[slot]}
             </span>
-            <select
+            <FontSelect
               value={fontSlots[slot]}
-              onChange={(e) => setFontSlot(slot, e.target.value)}
-              className="h-8 min-w-0 flex-1 rounded-md border border-stone-200 bg-white px-2 text-xs text-stone-700 outline-none focus:border-stone-400 md:h-9 md:text-sm"
-            >
-              {PRESET_FONTS.map((f) => (
-                <option key={f.id} value={f.id} style={{ fontFamily: f.family }}>
-                  {f.name}
-                  {f.note ? `（${f.note}）` : ''}
-                </option>
-              ))}
-              {customFonts.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}（自定义）
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={(id) => setFontSlot(slot, id)}
+              ariaLabel={FONT_SLOT_LABELS[slot]}
+            />
+          </div>
         ))}
       </div>
 

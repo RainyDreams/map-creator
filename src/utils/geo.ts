@@ -2,7 +2,13 @@
  * 地理工具：把学生条目解析到省级行政区，供地图分组与定位使用。
  * GeoJSON（src/assets/china.json）中的省份 properties.name 为全称（如“北京市”“广西壮族自治区”），
  * 本文件的 PROVINCE_NAMES 与之保持一致。
+ *
+ * 城市→省份查询分两层：
+ * 1. CITY_TO_PROVINCE：常见高校城市静态表（快速路径）；
+ * 2. city-province.json：全国 370 个地级市的完整映射（与 /api/cities 同源生成，17KB 打包进前端），
+ *    保证下拉能选到的城市在地图上一定能定位——修复“API 有数据却提示无法定位”的问题。
  */
+import cityProvinceJson from '@/assets/city-province.json'
 
 export const PROVINCE_NAMES = [
   '北京市', '天津市', '河北省', '山西省', '内蒙古自治区',
@@ -152,10 +158,15 @@ export function normalizeProvinceName(name: string): ProvinceName | null {
   return PROVINCE_ALIASES[cleaned] ?? null
 }
 
-/** 由城市名查省份 */
+/** 全国地级市 → 省份完整映射（由 functions/api/_data/cities.json 同源生成，键含带/不带“市”两种写法） */
+const ALL_CITY_TO_PROVINCE = cityProvinceJson as Record<string, string>
+
+/** 由城市名查省份：先查常见城市静态表，再查全国地级市完整映射 */
 export function provinceOfCity(city: string): ProvinceName | null {
   const cleaned = city.trim().replace(/市$/, '')
-  return CITY_TO_PROVINCE[cleaned] ?? null
+  if (cleaned === '') return null
+  const hit = CITY_TO_PROVINCE[cleaned] ?? ALL_CITY_TO_PROVINCE[cleaned]
+  return (hit as ProvinceName | undefined) ?? null
 }
 
 /** 由大学名推断城市（先精确，再去括号后缀，再模糊包含） */
@@ -195,4 +206,39 @@ export function resolveProvince(entry: { city?: string; university?: string }): 
     if (city) return provinceOfCity(city)
   }
   return null
+}
+
+/** 已诊断过的条目键，避免同一条目在每次渲染时重复刷屏 */
+const diagnosedUnlocated = new Set<string>()
+
+/**
+ * 定位失败诊断：在控制台输出为什么这个条目无法在地图上定位（每条目只输出一次）。
+ * 输出尝试过的所有路径与中间结果，便于用户反馈时直接复制。
+ */
+export function diagnoseUnlocated(entry: { name?: string; city?: string; university?: string }): void {
+  const key = `${entry.name ?? ''}|${entry.city ?? ''}|${entry.university ?? ''}`
+  if (diagnosedUnlocated.has(key)) return
+  diagnosedUnlocated.add(key)
+  const city = entry.city?.trim() ?? ''
+  const university = entry.university?.trim() ?? ''
+  const attempts: string[] = []
+  if (city) {
+    attempts.push(
+      `① 按城市「${city}」查全国地级市表：${provinceOfCity(city) ?? '未命中'}`,
+      `② 按省份名解析「${city}」：${normalizeProvinceName(city) ?? '未命中'}`,
+    )
+  } else {
+    attempts.push('① 城市为空，跳过城市查询')
+  }
+  if (university) {
+    const inferred = inferCityFromUniversity(university)
+    attempts.push(
+      `③ 按大学「${university}」推断城市：${inferred ?? '未命中（该大学不在内置高校表中，建议手动补填城市）'}`,
+    )
+  } else {
+    attempts.push('③ 大学为空，无法推断')
+  }
+  console.warn(
+    `[定位] 「${entry.name ?? '（未命名）'}」无法在地图上定位：\n  ${attempts.join('\n  ')}\n  建议：在城市栏通过「省份 → 城市」下拉选择，或手动输入地级市名（如“赤峰”）。`,
+  )
 }

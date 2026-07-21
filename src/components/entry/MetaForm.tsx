@@ -2,11 +2,19 @@ import { useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlignCenter, AlignLeft, AlignRight, ImagePlus, PenLine, X } from 'lucide-react'
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ImagePlus,
+  PenLine,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
+import { FontSelect } from '@/components/entry/FontSelect'
 import { cn } from '@/lib/utils'
-import type { MapData } from '@/types'
+import type { BigTextStyle, MapData } from '@/types'
 
 /** 图片压缩为 128px 内的 PNG dataURL（localStorage 友好） */
 function fileToBadgeDataUrl(file: File): Promise<string> {
@@ -31,13 +39,26 @@ function fileToBadgeDataUrl(file: File): Promise<string> {
   })
 }
 
-/** 标题/届数/副标题/标题排布/班徽：实时写入 store，地图页联动 */
+const BIG_TEXT_OPTIONS: Array<{ value: BigTextStyle; label: string; hint: string }> = [
+  { value: 'vertical', label: '右侧竖排', hint: '经典样式，竖排在画布右缘' },
+  { value: 'inline', label: '跟随标题', hint: '接在标题文字之后' },
+  { value: 'background', label: '背景大字', hint: '半透明超大字衬在地图后面' },
+  { value: 'hidden', label: '不显示', hint: '画布上隐藏这三个字' },
+]
+
+/**
+ * 标题控制区：大标题（年份直接写进标题）+ 标题字体 / 数字字体 / 字号 / 排布 /
+ * 副标题 / 「蹭饭图」大字预设 / 班徽，全部集中在此，实时写入 store、地图页联动。
+ */
 export default function MetaForm() {
-  const { data, setData, badge, setBadge } = useMapData()
+  const { data, setData, badge, setBadge, fontSlots, setFontSlot } = useMapData()
   const badgeRef = useRef<HTMLInputElement>(null)
 
   const setAlign = (titleAlign: MapData['titleAlign']) =>
     setData((prev) => ({ ...prev, titleAlign }))
+
+  const setBigText = (bigTextStyle: BigTextStyle) =>
+    setData((prev) => ({ ...prev, bigTextStyle }))
 
   async function handleBadge(file: File) {
     if (file.size > 5 * 1024 * 1024) {
@@ -63,16 +84,64 @@ export default function MetaForm() {
       <CardContent className="space-y-3 px-4 md:space-y-4 md:px-6">
         <div className="space-y-1.5">
           <Label htmlFor="map-title" className="text-xs text-stone-600 md:text-sm">
-            标题
+            大标题
           </Label>
           <Input
             id="map-title"
             value={data.title}
             onChange={(e) => setData((prev) => ({ ...prev, title: e.target.value }))}
-            placeholder="如：2026届 高三（2）班"
+            placeholder="如：2026届 高三（2）班蹭饭图"
             className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
           />
+          <p className="text-[11px] text-stone-400">
+            年份/届数直接写进标题；标题中的数字可用下方专用字体渲染
+          </p>
         </div>
+
+        {/* 标题字体 + 数字字体（标题设置集中在此） */}
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-stone-600 md:text-sm">标题字体</Label>
+            <div className="flex items-center">
+              <FontSelect
+                value={fontSlots.title}
+                onChange={(id) => setFontSlot('title', id)}
+                ariaLabel="标题字体"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-stone-600 md:text-sm">数字字体</Label>
+            <div className="flex items-center">
+              <FontSelect
+                value={fontSlots.year}
+                onChange={(id) => setFontSlot('year', id)}
+                ariaLabel="标题中的数字字体"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 标题字号 */}
+        <div className="space-y-1.5">
+          <Label htmlFor="map-title-size" className="text-xs text-stone-600 md:text-sm">
+            标题字号
+            <span className="ml-2 font-normal text-stone-400">{data.titleSize}px</span>
+          </Label>
+          <input
+            id="map-title-size"
+            type="range"
+            min={20}
+            max={56}
+            step={1}
+            value={data.titleSize}
+            onChange={(e) =>
+              setData((prev) => ({ ...prev, titleSize: Number(e.target.value) }))
+            }
+            className="h-2 w-full cursor-pointer accent-stone-700"
+          />
+        </div>
+
         <div className="space-y-1.5">
           <Label htmlFor="map-subtitle" className="text-xs text-stone-600 md:text-sm">
             英文副标题（可选）
@@ -85,22 +154,7 @@ export default function MetaForm() {
             className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
           />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="map-year" className="text-xs text-stone-600 md:text-sm">
-            届数 / 年份
-          </Label>
-          <Input
-            id="map-year"
-            value={data.year}
-            onChange={(e) => setData((prev) => ({ ...prev, year: e.target.value }))}
-            placeholder="如：2026"
-            inputMode="numeric"
-            className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
-          />
-          <p className="text-[11px] text-stone-400">
-            标题中已含年份时，画布不会重复显示大号年份
-          </p>
-        </div>
+
         <div className="space-y-1.5">
           <Label className="text-xs text-stone-600 md:text-sm">标题排布</Label>
           <div
@@ -137,6 +191,39 @@ export default function MetaForm() {
             })}
           </div>
         </div>
+
+        {/* 「蹭饭图」大字预设 */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-stone-600 md:text-sm">「蹭饭图」大字</Label>
+          <div
+            role="radiogroup"
+            aria-label="「蹭饭图」大字呈现方式"
+            className="grid grid-cols-2 gap-1.5"
+          >
+            {BIG_TEXT_OPTIONS.map(({ value, label, hint }) => {
+              const active = data.bigTextStyle === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  title={hint}
+                  onClick={() => setBigText(value)}
+                  className={cn(
+                    'rounded-md border px-2 py-1.5 text-xs transition-colors md:text-sm',
+                    active
+                      ? 'border-stone-700 bg-stone-900 font-medium text-white shadow-sm'
+                      : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300 hover:text-stone-700',
+                  )}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         <div className="space-y-1.5">
           <Label className="text-xs text-stone-600 md:text-sm">校徽 / 班徽（可选）</Label>
           <div className="flex items-center gap-2">

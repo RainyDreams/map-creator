@@ -63,17 +63,32 @@ const MapDataContext = createContext<MapDataContextValue | null>(null)
 
 function normalizeData(raw: unknown): MapData | null {
   if (!raw || typeof raw !== 'object') return null
-  const d = raw as Partial<MapData>
+  const d = raw as Partial<MapData> & { year?: string }
   if (!Array.isArray(d.students) || !Array.isArray(d.teachers)) return null
+  let title = typeof d.title === 'string' ? d.title : ''
+  // v1.2 → v1.3 迁移：独立的「届数/年份」字段已移除；
+  // 旧数据中 year 非空且标题不含该年份时，把年份并回大标题
+  const legacyYear = typeof d.year === 'string' ? d.year.trim() : ''
+  if (legacyYear !== '' && !title.includes(legacyYear)) {
+    title = `${legacyYear} ${title}`.trim()
+  }
+  const bigTextStyle = d.bigTextStyle
   return {
-    title: typeof d.title === 'string' ? d.title : '',
-    year: typeof d.year === 'string' ? d.year : '',
+    title,
+    titleSize:
+      typeof d.titleSize === 'number' && d.titleSize >= 16 && d.titleSize <= 64
+        ? d.titleSize
+        : 30,
     students: d.students,
     teachers: d.teachers,
     showTeachers: d.showTeachers !== false,
     titleAlign:
       d.titleAlign === 'center' ? 'center' : d.titleAlign === 'right' ? 'right' : 'left',
     subtitle: typeof d.subtitle === 'string' ? d.subtitle : '',
+    bigTextStyle:
+      bigTextStyle === 'inline' || bigTextStyle === 'background' || bigTextStyle === 'hidden'
+        ? bigTextStyle
+        : 'vertical',
   }
 }
 

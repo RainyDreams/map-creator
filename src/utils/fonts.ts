@@ -8,7 +8,7 @@
 export type FontSlot = 'year' | 'title' | 'province' | 'person' | 'place'
 
 export const FONT_SLOT_LABELS: Record<FontSlot, string> = {
-  year: '年份数字',
+  year: '标题中的数字',
   title: '标题/蹭饭图大字',
   province: '省份名',
   person: '姓名',

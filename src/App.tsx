@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Routes, Route } from 'react-router'
 import { MapDataProvider } from '@/store/MapDataContext'
 import { Toaster } from '@/components/ui/sonner'
@@ -8,12 +8,17 @@ import AgreementPage from '@/pages/AgreementPage'
 import PrivacyPage from '@/pages/PrivacyPage'
 import AboutPage from '@/pages/AboutPage'
 import SiteFooter from '@/components/layout/SiteFooter'
+import { ConsentDialog } from '@/components/ConsentDialog'
 import { ClipboardList, Info, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type TabKey = 'entry' | 'map' | 'about'
 
 const SIDEBAR_COLLAPSED_KEY = 'cenfan-sidebar-collapsed'
+const SIDEBAR_WIDTH_KEY = 'cenfan-sidebar-width'
+const SIDEBAR_DEFAULT_W = 420
+const SIDEBAR_MIN_W = 320
+const SIDEBAR_MAX_W = 640
 
 function loadSidebarCollapsed(): boolean {
   try {
@@ -23,15 +28,29 @@ function loadSidebarCollapsed(): boolean {
   }
 }
 
+function loadSidebarWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
+    if (Number.isFinite(v) && v >= SIDEBAR_MIN_W && v <= SIDEBAR_MAX_W) return v
+  } catch {
+    // 忽略
+  }
+  return SIDEBAR_DEFAULT_W
+}
+
 /**
  * Creator 外壳：
- * - 桌面端（md 及以上）：左录入、右地图，双栏实时联动；录入栏可折叠，折叠状态持久化；
+ * - 桌面端（md 及以上）：左录入、右地图，双栏实时联动；录入栏可折叠（持久化），
+ *   其右边界可左右拖拽调整宽度（320–640px，持久化）；
  *   页脚位于右侧主区域底部（地图区下方）
  * - 手机端：底部 Tab 栏在“录入 / 地图 / 关于”之间切换；页脚仅在“录入”Tab 底部展示
  */
 function Creator() {
   const [tab, setTab] = useState<TabKey>('entry')
   const [collapsed, setCollapsed] = useState<boolean>(loadSidebarCollapsed)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(loadSidebarWidth)
+  const [dragging, setDragging] = useState(false)
+  const dragState = useRef<{ startX: number; startW: number } | null>(null)
 
   useEffect(() => {
     try {
@@ -41,15 +60,46 @@ function Creator() {
     }
   }, [collapsed])
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth))
+    } catch {
+      // 忽略
+    }
+  }, [sidebarWidth])
+
+  // 侧栏宽度拖拽：在文档级监听移动/抬起，拖拽中禁用宽度过渡动画
+  useEffect(() => {
+    if (!dragging) return
+    const onMove = (e: MouseEvent) => {
+      const s = dragState.current
+      if (!s) return
+      const next = s.startW + (e.clientX - s.startX)
+      setSidebarWidth(Math.min(SIDEBAR_MAX_W, Math.max(SIDEBAR_MIN_W, next)))
+    }
+    const onUp = () => {
+      dragState.current = null
+      setDragging(false)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging])
+
   return (
     <div className="flex h-dvh flex-col bg-stone-100">
       {/* 桌面端双栏 */}
       <div className="hidden min-h-0 flex-1 md:flex">
         <aside
           className={cn(
-            'relative flex shrink-0 flex-col overflow-hidden bg-white transition-[width] duration-300 ease-in-out',
-            collapsed ? 'w-0' : 'w-[420px] border-r border-stone-200',
+            'relative flex shrink-0 flex-col overflow-hidden bg-white',
+            dragging ? '' : 'transition-[width] duration-300 ease-in-out',
+            collapsed ? 'w-0' : 'border-r border-stone-200',
           )}
+          style={collapsed ? undefined : { width: sidebarWidth }}
         >
           {/* 折叠按钮：悬浮于录入栏右上角（页头右上为空白区） */}
           <button
@@ -64,6 +114,24 @@ function Creator() {
           <div className="min-h-0 flex-1">
             <EntryPage />
           </div>
+          {/* 宽度拖拽柄：贴在录入栏右边界，悬浮时显现 */}
+          {!collapsed && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="拖拽调整录入栏宽度"
+              title="拖拽调整录入栏宽度"
+              onMouseDown={(e) => {
+                dragState.current = { startX: e.clientX, startW: sidebarWidth }
+                setDragging(true)
+                e.preventDefault()
+              }}
+              className={cn(
+                'absolute top-0 right-0 z-30 h-full w-1.5 cursor-col-resize transition-colors',
+                dragging ? 'bg-stone-400/60' : 'bg-transparent hover:bg-stone-300/60',
+              )}
+            />
+          )}
         </aside>
         <main className="relative flex min-w-0 flex-1 flex-col">
           {/* 折叠后的展开悬浮钮：贴在地图区左缘 */}
@@ -84,6 +152,8 @@ function Creator() {
           <SiteFooter />
         </main>
       </div>
+      {/* 拖拽中全局改变光标并禁用文本选择 */}
+      {dragging && <div className="fixed inset-0 z-40 cursor-col-resize select-none" />}
 
       {/* 手机端单页 + 底部 Tab；页脚仅在录入页展示，避免挤压地图画布 */}
       <div className="min-h-0 flex-1 overflow-hidden md:hidden">
@@ -160,6 +230,7 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/about" element={<AboutPage />} />
       </Routes>
+      <ConsentDialog />
       <Toaster position="top-center" richColors />
     </MapDataProvider>
   )

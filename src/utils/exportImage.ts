@@ -166,19 +166,16 @@ export async function renderNodeToPngDataUrl(
 
 /**
  * @param node 画布根元素
- * @param title 班级标题（用于文件名，可空）
- * @param year 届数/年份（用于文件名，可空）
+ * @param title 大标题（用于文件名，可空）
  * @param quality 清晰度档位，默认 ultra（≥4000px 宽）
  */
 export async function exportNodeToPng(
   node: HTMLElement,
   title: string,
-  year: string,
   quality: ExportQuality = 'ultra',
 ): Promise<ExportResult> {
   const { dataUrl, ...meta } = await renderNodeToPngDataUrl(node, quality)
-  const parts = [sanitize(title), sanitize(year)].filter((p) => p !== '')
-  const base = parts.length > 0 ? parts.join('-') : '蹭饭图'
+  const base = sanitize(title) || '蹭饭图'
   const filename = `${base}${quality === 'ultra' ? '-超清' : ''}.png`
   const a = document.createElement('a')
   a.download = filename

@@ -28,8 +28,17 @@
       property="og:description"
       content="录入同学老师的毕业去向，一键在中国地图上生成班级蹭饭图并导出图片。免费工具，数据仅存本机浏览器。"
     />
-    <meta property="og:image" content="https://map.linkbrain.top/icon.png" />
+    <meta property="og:image" content="https://map.linkbrain.top/og-cover.png" />
+    <meta property="og:image:width" content="600" />
+    <meta property="og:image:height" content="500" />
     <meta property="og:image:alt" content="蹭饭图生成器 - 中国地图标注同学毕业去向" />
+    <!-- 微信等内置浏览器抓取用 -->
+    <meta itemprop="name" content="蹭饭图生成器 - 毕业班蹭饭图在线制作" />
+    <meta
+      itemprop="description"
+      content="录入同学老师的毕业去向，一键在中国地图上生成班级蹭饭图并导出图片。免费工具，数据仅存本机浏览器。"
+    />
+    <meta itemprop="image" content="https://map.linkbrain.top/og-cover.png" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
@@ -38,7 +47,7 @@
       name="twitter:description"
       content="录入同学老师的毕业去向，一键在中国地图上生成班级蹭饭图并导出图片。免费工具，数据仅存本机浏览器。"
     />
-    <meta name="twitter:image" content="https://map.linkbrain.top/icon.png" />
+    <meta name="twitter:image" content="https://map.linkbrain.top/og-cover.png" />
 
     <!-- 结构化数据 -->
     <script type="application/ld+json">
@@ -68,6 +77,10 @@
     </script>
   </head>
   <body>
+    <!-- 微信内置浏览器分享缩略图：无 JS-SDK 时微信会抓取页面中第一张足够大的图片 -->
+    <div style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+      <img src="/og-cover.png" alt="" width="600" height="500" />
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

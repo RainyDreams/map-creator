@@ -185,16 +185,22 @@ export default function AgreementPage() {
       <section className="space-y-2">
         <SectionTitle>第七条　第三方素材与字体声明</SectionTitle>
         <Clause n="7.1">
-          本服务使用「马善政」毛笔楷书字体（MaShanZheng），该字体依据 SIL Open Font License 1.1
-          （SIL 开源字体许可证）发布，本服务依该许可证使用并内嵌其子集，字体版权归其原作者所有。
+          本服务内嵌使用的字体及其许可：（一）「马善政」毛笔楷书（MaShanZheng）与「思源黑体」
+          （Noto Sans SC 子集），均依据 SIL Open Font License 1.1（SIL 开源字体许可证）发布；
+          （二）阿里妈妈数黑体，由阿里妈妈出品并授权免费商用；（三）站酷小薇体、站酷高端黑，
+          由站酷（ZCOOL）出品并授权免费商用。上述字体均以子集形式内嵌，字体版权归其各自权利人所有；
+          您自行上传的字体，其授权与合规性由您自行负责。
         </Clause>
         <Clause n="7.2">
-          本服务使用的中国地图省级边界 GeoJSON 数据来源于阿里云 DataV.GeoAtlas 公开数据集，
+          本服务使用的中国地图省级边界 GeoJSON 数据来源于阿里云 DataV.GeoAtlas 公开数据集
+          （数据源于高德开放平台），城市定位点坐标来源于同一数据集的行政区划中心点，
           其权利归相应数据提供方所有。
         </Clause>
         <Clause n="7.3">
-          本软件基于 React、Tailwind CSS、shadcn/ui、SheetJS（xlsx）、html-to-image 等开源组件构建，
-          各组件依据其各自的开源许可证使用，相关权利归其各自权利人所有。
+          本软件基于下列开源组件构建：React、Vite、TypeScript、Tailwind CSS、shadcn/ui、
+          Radix UI、React Router、SheetJS（xlsx）、html-to-image、lucide-react、sonner、
+          @microsoft/clarity 等，各组件依据其各自的开源许可证（MIT / Apache-2.0 等）使用，
+          相关权利归其各自权利人所有。
         </Clause>
         <Clause n="7.4">
           本条所述第三方素材与组件的许可条款优先适用于该等素材与组件；本协议的其他约定不构成对
@@ -286,6 +292,10 @@ export default function AgreementPage() {
           本协议各条标题仅为方便阅读而设，不具有法律含义，不影响本协议的解释。
         </Clause>
         <Clause n="12.4">
+          开发者联系方式：<a href="mailto:linkbrain@lingben.top" className="text-amber-700 underline-offset-2 hover:underline">linkbrain@lingben.top</a>
+          （用于协议、隐私、素材授权等相关事宜的联系与通知）。
+        </Clause>
+        <Clause n="12.5">
           本协议自 2026 年 7 月 21 日起生效。
         </Clause>
       </section>

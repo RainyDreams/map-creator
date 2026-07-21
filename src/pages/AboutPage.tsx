@@ -4,9 +4,11 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const features = [
   '手动录入学生、老师名单及去向城市，实时联动中国地图',
-  '支持下载 Excel 模板批量填写、一键导入',
-  '地图可视化展示蹭饭分布，城市聚合标注',
-  '一键导出高清蹭饭图图片，方便班级群分享',
+  '支持下载 Excel 模板批量填写、一键导入（解析过程在控制台可见）',
+  '地图可视化展示蹭饭分布，全国地级市精确定位，城市聚合标注',
+  '大标题字体/字号/数字字体自由搭配，「蹭饭图」大字多种预设样式',
+  '画布主题一键切换（含卡通、水墨等风格），支持上传校徽/班徽与自定义字体',
+  '一键导出超清蹭饭图图片（≥4000px 宽），方便班级群分享',
   '数据自动保存在本机浏览器，刷新不丢失',
 ]
 
@@ -30,8 +32,17 @@ export default function AboutPage() {
           <dd className="text-stone-700">赤峰二中2026届zxy</dd>
           <dt className="text-stone-400">公众号</dt>
           <dd className="text-stone-700">《零本》</dd>
+          <dt className="text-stone-400">联系方式</dt>
+          <dd>
+            <a
+              href="mailto:linkbrain@lingben.top"
+              className="text-amber-700 underline-offset-2 hover:underline"
+            >
+              linkbrain@lingben.top
+            </a>
+          </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.2.0</dd>
+          <dd className="text-stone-700">v1.3.0</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

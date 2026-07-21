@@ -109,9 +109,9 @@ export const DESIGN_W = 1200
 /** 地图/标注列顶部留白 */
 export const TOP = 16
 export const BOTTOM = 24
-/** 主图区域左右边界（外侧留给标注列；45 人场景下加大列宽减少拥挤） */
-export const MAP_X0 = 280
-export const MAP_X1 = 920
+/** 主图区域左右边界（外侧留给标注列；加宽主图使标注更靠近定位点、引线更短不易交叉） */
+export const MAP_X0 = 214
+export const MAP_X1 = 986
 
 const LNG_MIN = 73.4
 const LNG_MAX = 135.2
@@ -136,6 +136,7 @@ export function projectToMap(lng: number, lat: number): [number, number] {
  * 右下角"南海诸岛"小插图：只呈现南部海域范围（海南 + 南海诸岛 + 十段线），
  * 而非整幅中国地图——这正是小插图存在的意义（凸显南海诸岛归属）。
  * 范围：东经 104.5°–123.5°、北纬 2°–24.8°。
+ * 尺寸刻意收小并锚定主图右下角，点缀而不喧宾夺主。
  */
 const INSET_LNG_MIN = 104.5
 const INSET_LNG_MAX = 123.5
@@ -143,7 +144,7 @@ const INSET_LAT_MAX = 24.8
 const INSET_LAT_MIN = 2.0
 
 export const INSET = (() => {
-  const w = 128
+  const w = 88
   const scale = w / ((INSET_LNG_MAX - INSET_LNG_MIN) * KX)
   const h = (INSET_LAT_MAX - INSET_LAT_MIN) * scale
   const x = MAP_X1 - w - 8
