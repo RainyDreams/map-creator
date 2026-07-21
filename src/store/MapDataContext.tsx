@@ -45,6 +45,7 @@ const MapDataContext = createContext<MapDataContextValue | null>(null)
 /** 内置示例数据，仅通过“填充示例”主动载入 */
 export const SAMPLE_DATA: MapData = {
   title: '2026届 高三（2）班',
+  titleAlign: 'left',
   year: '2026',
   showTeachers: true,
   students: [
