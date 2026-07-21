@@ -63,7 +63,8 @@ export default function AboutPage() {
           本应用为纯前端单页应用，基于 React 19 + TypeScript + Vite 构建，
           界面采用 Tailwind CSS 与 shadcn/ui 组件库，路由使用 React Router 7，
           Excel 导入导出基于 SheetJS（xlsx）在浏览器本地完成，图片导出基于 html-to-image。
-          所有数据仅存储于浏览器 localStorage，无任何服务端依赖。
+          名单数据仅存储于浏览器 localStorage；站点部署于 Cloudflare Pages，
+          辅以少量 Pages Functions 接口提供地图辅助数据与可选的微信分享签名。
         </p>
       </section>
 
