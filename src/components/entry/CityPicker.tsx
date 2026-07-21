@@ -57,7 +57,8 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
     let cancelled = false
     fetchProvinces().then((list) => {
       if (cancelled) return
-      if (list.length === 0 && isCityApiAvailable() === false) {
+      // 接口失败（isCityApiAvailable() === false）或返回空省份列表（后端异常）都降级
+      if (list.length === 0 || isCityApiAvailable() === false) {
         setStatus('offline')
       } else {
         setProvinces(list)

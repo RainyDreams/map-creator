@@ -52,10 +52,49 @@ function buildPath(geom?: RawFeature['geometry']): string {
   return ''
 }
 
+/** 鞋带公式求单个外环的面积质心（用于 GeoJSON 缺失 properties.centroid 的省份，如河北/甘肃） */
+function ringCentroid(ring: number[][]): { lng: number; lat: number; area: number } {
+  let a = 0
+  let cx = 0
+  let cy = 0
+  for (let i = 0; i < ring.length; i++) {
+    const [x0, y0] = ring[i]
+    const [x1, y1] = ring[(i + 1) % ring.length]
+    const cross = x0 * y1 - x1 * y0
+    a += cross
+    cx += (x0 + x1) * cross
+    cy += (y0 + y1) * cross
+  }
+  a /= 2
+  if (Math.abs(a) < 1e-9) return { lng: ring[0][0], lat: ring[0][1], area: 0 }
+  return { lng: cx / (6 * a), lat: cy / (6 * a), area: Math.abs(a) }
+}
+
+/** 由几何体推导质心：取面积最大的外环（主岛/主体），避免飞地拉偏 */
+function deriveCentroid(geom?: RawFeature['geometry']): [number, number] | null {
+  if (!geom) return null
+  const outerRings: number[][][] = []
+  if (geom.type === 'Polygon') {
+    const rings = geom.coordinates as number[][][]
+    if (rings[0]) outerRings.push(rings[0])
+  }
+  if (geom.type === 'MultiPolygon') {
+    for (const poly of geom.coordinates as number[][][][]) {
+      if (poly[0]) outerRings.push(poly[0])
+    }
+  }
+  let best: { lng: number; lat: number; area: number } | null = null
+  for (const ring of outerRings) {
+    const c = ringCentroid(ring)
+    if (!best || c.area > best.area) best = c
+  }
+  return best ? [round2(best.lng), round2(best.lat)] : null
+}
+
 export const GEO_FEATURES: GeoFeature[] = raw.features.map((f) => ({
   name: f.properties?.name ?? '',
   d: buildPath(f.geometry),
-  centroid: f.properties?.centroid ?? null,
+  centroid: f.properties?.centroid ?? deriveCentroid(f.geometry),
 }))
 
 const shapeByName = new Map(GEO_FEATURES.filter((f) => f.name !== '').map((f) => [f.name, f]))

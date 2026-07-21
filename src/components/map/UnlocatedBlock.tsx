@@ -7,7 +7,7 @@ import type { StudentEntry } from '@/types'
 export function UnlocatedBlock({ students }: { students: StudentEntry[] }) {
   if (students.length === 0) return null
   return (
-    <div className="absolute right-4 bottom-4 z-10 max-w-[42%] rounded-lg border border-amber-200/80 bg-amber-50/85 px-3.5 py-2.5 backdrop-blur-[2px]">
+    <div className="absolute right-4 bottom-12 z-10 max-w-[42%] rounded-lg border border-amber-200/80 bg-amber-50/85 px-3.5 py-2.5 backdrop-blur-[2px]">
       <p className="text-xs font-semibold text-amber-800">
         以下 {students.length} 位同学暂未在地图上定位：
       </p>

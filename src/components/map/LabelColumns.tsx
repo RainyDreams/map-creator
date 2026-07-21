@@ -1,6 +1,7 @@
 import type { LabelBlock } from './labels'
 
-const SERIF = '"Kaiti SC","STKaiti","KaiTi","楷体",serif'
+/** 省份名等装饰文字：马善政毛笔体优先，楷体兜底；学生姓名行保持默认黑体以保证生僻字可读 */
+const CALLIGRAPHY = '"MaShanZheng","Kaiti SC","STKaiti","KaiTi","楷体",serif'
 
 export interface LabelColumnsProps {
   left: LabelBlock[]
@@ -30,7 +31,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
             fontSize={b.headerSize}
             fontWeight={700}
             fill="#78350f"
-            style={{ fontFamily: SERIF }}
+            style={{ fontFamily: CALLIGRAPHY }}
           >
             {b.province}
           </text>

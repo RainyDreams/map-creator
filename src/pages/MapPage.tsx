@@ -3,22 +3,20 @@ import { Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince } from '@/utils/geo'
-import { exportNodeToPng } from '@/utils/exportImage'
+import { exportNodeToPng, type ExportQuality } from '@/utils/exportImage'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
 import type { StudentEntry } from '@/types'
 
-const KAITI = '"Kaiti SC","STKaiti","KaiTi","楷体",serif'
-
 /**
  * 地图页面：顶部工具栏（导出 PNG）+ 整幅"蹭饭图"画布。
- * 画布为导出目标：标题区 / 地图 SVG / 老师名单 / 未定位提示 全部包含在内。
+ * 画布为导出目标：标题区 / 地图 SVG / 老师名单 / 未定位提示 / 底部来源条 全部包含在内。
  */
 export default function MapPage() {
   const { data } = useMapData()
   const canvasRef = useRef<HTMLDivElement>(null)
-  const [exporting, setExporting] = useState(false)
+  const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
 
   /** 学生 → 省份分组（保持录入顺序，保证色块与列序稳定）；无法定位的单独收集 */
@@ -40,18 +38,18 @@ export default function MapPage() {
 
   const hasHeader = data.year.trim() !== '' || data.title.trim() !== ''
 
-  async function handleExport() {
+  async function handleExport(quality: ExportQuality) {
     const node = canvasRef.current
     if (!node || exporting) return
-    setExporting(true)
+    setExporting(quality)
     setExportError(null)
     try {
-      await exportNodeToPng(node, data.title, data.year)
+      await exportNodeToPng(node, data.title, data.year, quality)
     } catch (err) {
       console.error('导出 PNG 失败', err)
       setExportError('导出失败，请重试')
     } finally {
-      setExporting(false)
+      setExporting(null)
     }
   }
 
@@ -62,22 +60,36 @@ export default function MapPage() {
         <div className="min-w-0">
           <h1 className="text-sm font-semibold text-stone-700">蹭饭图预览</h1>
           <p className="truncate text-xs text-stone-400">
-            {exportError ?? '随录入实时更新 · 可导出高清 PNG'}
+            {exportError ?? '随录入实时更新 · 超清导出 ≥4000px 宽'}
           </p>
         </div>
-        <Button
-          size="sm"
-          onClick={handleExport}
-          disabled={exporting}
-          className="shrink-0 bg-amber-600 text-white hover:bg-amber-700"
-        >
-          {exporting ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <Download />
-          )}
-          {exporting ? '导出中…' : '导出 PNG'}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleExport('standard')}
+            disabled={exporting !== null}
+            className="text-stone-500 hover:text-stone-700"
+            title="普通清晰度（约 2 倍图，体积小）"
+          >
+            {exporting === 'standard' ? <Loader2 className="animate-spin" /> : null}
+            普通
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => handleExport('ultra')}
+            disabled={exporting !== null}
+            className="bg-amber-600 text-white hover:bg-amber-700"
+            title="超清矢量栅格化导出（≥4000px 宽）"
+          >
+            {exporting === 'ultra' ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Download />
+            )}
+            {exporting === 'ultra' ? '导出中…' : '导出超清 PNG'}
+          </Button>
+        </div>
       </header>
 
       {/* 画布滚动区：移动端画布保持最小宽度，可横纵滚动查看 */}
@@ -85,6 +97,7 @@ export default function MapPage() {
         <div className="min-w-[680px] p-3 md:p-5">
           <div
             ref={canvasRef}
+            data-testid="map-canvas"
             className="relative overflow-hidden rounded-xl border border-amber-200/60 shadow-sm"
             style={{
               background:
@@ -96,9 +109,8 @@ export default function MapPage() {
               <div className="flex flex-wrap items-end gap-x-5 gap-y-1 px-8 pt-6 pb-1">
                 {data.year.trim() !== '' && (
                   <span
-                    className="text-6xl leading-none font-bold tracking-wider text-amber-600"
+                    className="font-calligraphy text-6xl leading-none tracking-wider text-amber-600"
                     style={{
-                      fontFamily: KAITI,
                       textShadow: '1px 2px 0 rgba(255,255,255,0.65), 2px 5px 10px rgba(180,120,30,0.25)',
                       transform: 'skewX(-5deg)',
                     }}
@@ -107,10 +119,7 @@ export default function MapPage() {
                   </span>
                 )}
                 {data.title.trim() !== '' && (
-                  <span
-                    className="pb-1 text-2xl font-semibold text-stone-700"
-                    style={{ fontFamily: KAITI }}
-                  >
+                  <span className="font-calligraphy pb-1 text-3xl text-stone-700">
                     {data.title}
                   </span>
                 )}
@@ -120,10 +129,9 @@ export default function MapPage() {
             {/* "蹭饭图"三个大字：右侧竖排，书法感朱红 */}
             <div
               aria-hidden
-              className="pointer-events-none absolute top-16 right-2 z-10 leading-none font-bold select-none"
+              className="font-calligraphy pointer-events-none absolute top-16 right-2 z-10 leading-none select-none"
               style={{
                 writingMode: 'vertical-rl',
-                fontFamily: KAITI,
                 fontSize: '58px',
                 letterSpacing: '0.12em',
                 color: '#b0312a',
@@ -134,8 +142,16 @@ export default function MapPage() {
               蹭饭图
             </div>
 
-            {/* 地图主体（含标注列与引线） */}
-            <ChinaMap groups={groups} />
+            {/* 地图主体（含标注列与引线）；左右下角覆盖层换算为画布预留高度，避免压字 */}
+            <ChinaMap
+              groups={groups}
+              reserveLeftBottom={
+                data.teachers.length > 0
+                  ? Math.round((110 + data.teachers.length * 24) * 1.3)
+                  : 0
+              }
+              reserveRightBottom={unlocated.length > 0 ? 200 : 0}
+            />
 
             {/* 无数据时的温和提示 */}
             {data.students.length === 0 && (
@@ -146,6 +162,13 @@ export default function MapPage() {
 
             <TeachersBlock teachers={data.teachers} />
             <UnlocatedBlock students={unlocated} />
+
+            {/* 底部来源条：画布的一部分，随导出一起进 PNG；极小字、克制不喧宾夺主 */}
+            <div className="border-t border-amber-200/50 bg-[#f6ecd3] py-1.5 text-center">
+              <span className="text-[10px] tracking-[0.18em] text-stone-400">
+                本图片由 map.linkbrain.top 生成
+              </span>
+            </div>
           </div>
         </div>
       </div>

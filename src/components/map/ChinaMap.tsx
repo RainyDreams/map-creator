@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { StudentEntry } from '@/types'
+import { prefetchCityCenters } from '@/utils/cities'
 import {
   DESIGN_W,
   GEO_FEATURES,
@@ -9,10 +10,8 @@ import {
   MAP_X0,
   MAP_X1,
   TOP,
-  getProvinceShape,
-  projectToMap,
 } from './geo'
-import { computeLabelLayout } from './labels'
+import { computeLabelLayout, type CityCenterMap } from './labels'
 import { LabelColumns } from './LabelColumns'
 
 /** 无学生省份：浅米色 */
@@ -33,14 +32,50 @@ const DOT_FILL = '#c2410c'
 export interface ChinaMapProps {
   /** 省份全称 → 该省学生列表（已在外层分组好） */
   groups: Map<string, StudentEntry[]>
+  /** 左下角覆盖层（老师名单块）需预留的高度（viewBox 单位） */
+  reserveLeftBottom?: number
+  /** 右下角覆盖层（未定位提示块）需预留的高度（viewBox 单位） */
+  reserveRightBottom?: number
 }
 
 /**
- * 中国地图 SVG：省份色块 + 南海诸岛小插图 + 质心定位点 + 左右标注列与引线。
+ * 中国地图 SVG：省份色块 + 南海诸岛小插图 + 城市级定位点 + 左右标注列与引线。
  * 宽度自适应容器，高度按 viewBox 等比缩放；内部全部为 SVG 文本，导出 PNG 时清晰。
+ * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
-export function ChinaMap({ groups }: ChinaMapProps) {
-  const layout = useMemo(() => computeLabelLayout(groups), [groups])
+export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: ChinaMapProps) {
+  const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
+
+  /** 省份集合的稳定键，用于触发城市坐标预取 */
+  const provincesKey = useMemo(() => [...groups.keys()].join('|'), [groups])
+
+  useEffect(() => {
+    const provinces = provincesKey === '' ? [] : provincesKey.split('|')
+    if (provinces.length === 0) {
+      setCityCenters(null)
+      return
+    }
+    let cancelled = false
+    prefetchCityCenters(provinces)
+      .then((m) => {
+        if (!cancelled) setCityCenters(m.size > 0 ? m : null)
+      })
+      .catch(() => {
+        if (!cancelled) setCityCenters(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [provincesKey])
+
+  const layout = useMemo(
+    () =>
+      computeLabelLayout(groups, cityCenters ?? undefined, {
+        reserveLeftBottom,
+        reserveRightBottom,
+      }),
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom],
+  )
 
   const fillByName = useMemo(() => {
     const m = new Map<string, string>()
@@ -52,16 +87,18 @@ export function ChinaMap({ groups }: ChinaMapProps) {
     return m
   }, [groups])
 
+  /** 城市级定位圆点：每省一个主点（引线起点/点簇中心），多城市时逐城一个小副点 */
   const dots = useMemo(() => {
-    const list: Array<{ name: string; x: number; y: number }> = []
-    for (const name of groups.keys()) {
-      const c = getProvinceShape(name)?.centroid
-      if (!c) continue
-      const [x, y] = projectToMap(c[0], c[1])
-      list.push({ name, x, y })
+    const list: Array<{ key: string; x: number; y: number; primary: boolean }> = []
+    for (const b of [...layout.left, ...layout.right]) {
+      list.push({ key: `${b.province}-main`, x: b.centroidX, y: b.centroidY, primary: true })
+      b.cityPoints.forEach((p, idx) => {
+        if (Math.abs(p.x - b.centroidX) < 0.01 && Math.abs(p.y - b.centroidY) < 0.01) return
+        list.push({ key: `${b.province}-${idx}`, x: p.x, y: p.y, primary: false })
+      })
     }
     return list
-  }, [groups])
+  }, [layout])
 
   return (
     <svg
@@ -129,13 +166,26 @@ export function ChinaMap({ groups }: ChinaMapProps) {
       {/* 标注列 + 引线 */}
       <LabelColumns left={layout.left} right={layout.right} />
 
-      {/* 质心定位圆点（压在引线起点之上） */}
-      {dots.map((d) => (
-        <g key={`dot-${d.name}`}>
-          <circle cx={d.x} cy={d.y} r={5.5} fill={DOT_FILL} opacity={0.25} />
-          <circle cx={d.x} cy={d.y} r={3.5} fill={DOT_FILL} stroke="#ffffff" strokeWidth={1.4} />
-        </g>
-      ))}
+      {/* 城市级定位圆点（压在引线起点之上）；主点带光晕，多城市时副点略小 */}
+      {dots.map((d) =>
+        d.primary ? (
+          <g key={`dot-${d.key}`}>
+            <circle cx={d.x} cy={d.y} r={5.5} fill={DOT_FILL} opacity={0.25} />
+            <circle cx={d.x} cy={d.y} r={3.5} fill={DOT_FILL} stroke="#ffffff" strokeWidth={1.4} />
+          </g>
+        ) : (
+          <circle
+            key={`dot-${d.key}`}
+            cx={d.x}
+            cy={d.y}
+            r={2.6}
+            fill={DOT_FILL}
+            stroke="#ffffff"
+            strokeWidth={1.1}
+            opacity={0.9}
+          />
+        ),
+      )}
     </svg>
   )
 }
