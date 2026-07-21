@@ -2,9 +2,11 @@
  * 画布导出：把蹭饭图画布 DOM 序列化为 PNG 并触发浏览器下载。
  *
  * 离屏高清导出核心：
- * 用户屏幕分辨率/画布显示尺寸不影响导出清晰度——先把画布节点克隆到隐藏离屏容器
- * （position:fixed; left:-99999px），强制宽度 1600px（同文档内克隆，class/字体/CSS 变量
- * 全部生效），等字体与布局就绪后再序列化 SVG 并按 ≥4000px 宽栅格化，导出后移除克隆节点。
+ * 导出画面与页面所见严格一致——先把画布节点克隆到隐藏离屏容器
+ * （position:fixed; left:-99999px），克隆宽度取画布在屏幕上的实际布局宽度
+ * （同文档内克隆，class/字体/CSS 变量全部生效），等字体与布局就绪后再序列化 SVG
+ * 并按 ≥4000px 宽矢量栅格化，导出后移除克隆节点。因此无论用户屏幕分辨率多低，
+ * 导出 PNG 既与屏幕排版一致（不挤压、不换行差异），又保持超清。
  *
  * 两档清晰度：
  * - ultra（默认）：html-to-image 先序列化为 SVG（矢量，含内嵌字体），
@@ -27,8 +29,8 @@ export interface ExportResult {
 }
 
 const BG = '#faf0d7'
-/** 离屏克隆的固定布局宽度（px）：导出清晰度与用户屏幕无关 */
-const EXPORT_BASE_W = 1600
+/** 屏幕画布宽度小于该值时，离屏克隆按此宽度排版（避免极小屏导出布局过窄） */
+const EXPORT_MIN_W = 800
 /** 超清档目标宽度（px），不足 4000 一律拉到此宽度 */
 const ULTRA_MIN_W = 4000
 /** 超清档宽度上限，避免极端宽画布撑爆内存 */
@@ -66,7 +68,8 @@ function nextFrame(): Promise<void> {
 }
 
 /**
- * 把画布节点克隆到隐藏离屏容器并强制 1600px 宽，待字体/布局就绪后执行 fn，最后移除克隆。
+ * 把画布节点克隆到隐藏离屏容器，克隆宽度 = 画布屏幕实际宽度（所见即所得，
+ * 最低 800px 兜底），待字体/布局就绪后执行 fn，最后移除克隆。
  * 同文档内克隆，样式表、@font-face、CSS 变量照常生效。
  */
 async function withOffscreenClone<T>(
@@ -79,7 +82,8 @@ async function withOffscreenClone<T>(
   holder.style.cssText =
     'position:fixed;left:-99999px;top:0;pointer-events:none;'
   const clone = node.cloneNode(true) as HTMLElement
-  clone.style.width = `${EXPORT_BASE_W}px`
+  const baseW = Math.max(node.offsetWidth || 0, EXPORT_MIN_W)
+  clone.style.width = `${baseW}px`
   clone.style.maxWidth = 'none'
   clone.style.margin = '0'
   holder.appendChild(clone)
@@ -134,7 +138,8 @@ async function renderUltra(
 
 /**
  * 渲染画布为 PNG dataURL（不触发下载），供导出与测试复用。
- * 始终在 1600px 宽的离屏克隆上渲染，与用户屏幕分辨率无关。
+ * 在按画布屏幕实际宽度排版的离屏克隆上渲染，再矢量放大到超清尺寸，
+ * 与用户屏幕分辨率无关且与页面所见一致。
  */
 export async function renderNodeToPngDataUrl(
   node: HTMLElement,

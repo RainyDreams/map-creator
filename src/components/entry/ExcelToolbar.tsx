@@ -17,7 +17,9 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useMapData } from '@/store/MapDataContext'
 import { newId } from '@/types'
-import { downloadTemplate, parseWorkbook, type ParseResult } from '@/utils/excel'
+import { downloadTemplate, exportWorkbook, parseWorkbook, type ParseResult } from '@/utils/excel'
+import { exportCanvasJson } from '@/utils/exportData'
+import { FileJson } from 'lucide-react'
 
 interface PendingImport {
   result: ParseResult
@@ -25,10 +27,20 @@ interface PendingImport {
 }
 
 export default function ExcelToolbar() {
-  const { importStudents, setData } = useMapData()
+  const { data, theme, fontSlots, badge, activeCanvasName, importStudents, setData } = useMapData()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<PendingImport | null>(null)
   const [parsing, setParsing] = useState(false)
+
+  const handleExportExcel = () => {
+    exportWorkbook(data)
+    toast.success('已导出 Excel 名单', { description: '与模板同构，可再次上传导入' })
+  }
+
+  const handleExportJson = () => {
+    exportCanvasJson({ name: activeCanvasName, data, theme, fontSlots, badge })
+    toast.success('已导出 JSON 画布文件', { description: '包含名单、主题、字体与班徽配置' })
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -104,6 +116,28 @@ export default function ExcelToolbar() {
         >
           <Upload className="size-4" />
           {parsing ? '解析中…' : '上传 Excel'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleExportExcel}
+          title="把当前名单导出为 .xlsx（可再次导入）"
+          className="border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
+        >
+          <Download className="size-4" />
+          导出 Excel
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleExportJson}
+          title="把当前画布（名单+主题+字体+班徽）导出为 .json"
+          className="border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
+        >
+          <FileJson className="size-4" />
+          导出 JSON
         </Button>
         <input
           ref={fileInputRef}

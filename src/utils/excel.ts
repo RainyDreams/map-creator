@@ -79,6 +79,46 @@ export function downloadTemplate(): void {
 }
 
 // ---------------------------------------------------------------------------
+// 名单导出（Excel）
+// ---------------------------------------------------------------------------
+
+/**
+ * 把当前名单导出为与模板同构的 .xlsx（学生名单 / 老师名单 两个 Sheet），
+ * 可直接再次上传导入，实现“导出备份 → 稍后/换机导入”的闭环。
+ */
+export function exportWorkbook(data: {
+  title: string
+  students: Array<{ name: string; university: string; city: string }>
+  teachers: Array<{ name: string; subject: string }>
+}): void {
+  const wb = XLSX.utils.book_new()
+
+  const studentRows: string[][] = [
+    ['姓名', '大学', '城市（选填）'],
+    ...data.students
+      .filter((s) => s.name.trim() || s.university.trim() || s.city.trim())
+      .map((s) => [s.name, s.university, s.city]),
+  ]
+  const studentSheet = XLSX.utils.aoa_to_sheet(studentRows)
+  studentSheet['!cols'] = [{ wch: 18 }, { wch: 26 }, { wch: 16 }]
+  XLSX.utils.book_append_sheet(wb, studentSheet, '学生名单')
+
+  const teacherRows: string[][] = [
+    ['姓名', '学科（选填）'],
+    ...data.teachers
+      .filter((t) => t.name.trim() || t.subject.trim())
+      .map((t) => [t.name, t.subject]),
+  ]
+  const teacherSheet = XLSX.utils.aoa_to_sheet(teacherRows)
+  teacherSheet['!cols'] = [{ wch: 18 }, { wch: 16 }]
+  XLSX.utils.book_append_sheet(wb, teacherSheet, '老师名单')
+
+  const base = data.title.trim().replace(/[\\/:*?"<>|\s]+/g, '-') || '蹭饭图名单'
+  XLSX.writeFile(wb, `${base}.xlsx`)
+  dbg(`已导出 Excel：${base}.xlsx（学生 ${studentRows.length - 1} 行、老师 ${teacherRows.length - 1} 行）`)
+}
+
+// ---------------------------------------------------------------------------
 // 上传解析
 // ---------------------------------------------------------------------------
 

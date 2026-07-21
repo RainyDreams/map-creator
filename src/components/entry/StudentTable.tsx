@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { GraduationCap, MapPinOff, Plus, Trash2 } from 'lucide-react'
+import { GraduationCap, GripVertical, MapPinOff, Plus, Trash2 } from 'lucide-react'
 import { useMapData } from '@/store/MapDataContext'
 import { newId, type StudentEntry } from '@/types'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
@@ -55,6 +55,45 @@ export default function StudentTable() {
     setFocusId(id)
   }
 
+  /** 拖拽排序：只从手柄启动拖拽，落到目标行时把该行移动到目标位置 */
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+
+  const moveRow = (fromId: string, toId: string) => {
+    if (fromId === toId) return
+    setData((prev) => {
+      const arr = [...prev.students]
+      const from = arr.findIndex((s) => s.id === fromId)
+      const to = arr.findIndex((s) => s.id === toId)
+      if (from < 0 || to < 0) return prev
+      const [moved] = arr.splice(from, 1)
+      arr.splice(to, 0, moved)
+      return { ...prev, students: arr }
+    })
+  }
+
+  const rowDragProps = (id: string) => ({
+    onDragOver: (e: React.DragEvent<HTMLDivElement>) => {
+      if (!draggingId || draggingId === id) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      if (dropTargetId !== id) setDropTargetId(id)
+    },
+    onDragLeave: () => setDropTargetId((cur) => (cur === id ? null : cur)),
+    onDrop: (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      const fromId = draggingId
+      setDraggingId(null)
+      setDropTargetId(null)
+      if (fromId) moveRow(fromId, id)
+    },
+  })
+
+  const endDrag = () => {
+    setDraggingId(null)
+    setDropTargetId(null)
+  }
+
   /** 大学失焦时，城市为空则自动推断填充 */
   const handleUniversityBlur = (s: StudentEntry) => {
     if (s.city.trim()) return
@@ -100,14 +139,31 @@ export default function StudentTable() {
           return (
             <div
               key={s.id}
+              {...rowDragProps(s.id)}
               className={`rounded-lg border p-2.5 transition-colors md:p-3 ${
                 warn
                   ? 'border-amber-400/70 bg-amber-50/50'
                   : 'border-stone-200 bg-stone-50/50'
+              } ${dropTargetId === s.id ? 'ring-2 ring-amber-400/70' : ''} ${
+                draggingId === s.id ? 'opacity-50' : ''
               }`}
             >
-              {/* 第一行：序号 + 姓名 + 删除 */}
+              {/* 第一行：拖拽手柄 + 序号 + 姓名 + 删除 */}
               <div className="flex items-center gap-2">
+                <span
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggingId(s.id)
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('text/plain', s.id)
+                  }}
+                  onDragEnd={endDrag}
+                  title="拖动调整顺序"
+                  aria-label={`拖动调整第 ${index + 1} 行顺序`}
+                  className="-ml-1 shrink-0 cursor-grab touch-none text-stone-300 hover:text-stone-500 active:cursor-grabbing"
+                >
+                  <GripVertical className="h-4 w-4" />
+                </span>
                 <span className="w-6 shrink-0 text-center text-xs tabular-nums text-stone-400">
                   {index + 1}
                 </span>
@@ -136,7 +192,7 @@ export default function StudentTable() {
               </div>
 
               {/* 第二行：大学（整行） */}
-              <div className="mt-1.5 pl-8 md:mt-2">
+              <div className="mt-1.5 pl-[52px] md:mt-2">
                 <Input
                   value={s.university}
                   onChange={(e) => updateRow(s.id, { university: e.target.value })}
@@ -149,7 +205,7 @@ export default function StudentTable() {
               </div>
 
               {/* 第三行：省 / 市联动，各占半行（接口不可用时降级为手动输入） */}
-              <div className="mt-1.5 grid grid-cols-2 gap-2 pl-8 md:mt-2">
+              <div className="mt-1.5 grid grid-cols-2 gap-2 pl-[52px] md:mt-2">
                 <CityPicker
                   value={s.city}
                   onChange={(city) => updateRow(s.id, { city })}
@@ -160,7 +216,7 @@ export default function StudentTable() {
 
               {/* 行级提示：无法定位 */}
               {warn && (
-                <p className="mt-1.5 flex items-center gap-1 pl-8 text-xs text-amber-700 md:mt-2">
+                <p className="mt-1.5 flex items-center gap-1 pl-[52px] text-xs text-amber-700 md:mt-2">
                   <MapPinOff className="h-3.5 w-3.5 shrink-0" />
                   无法在地图上定位，请补充城市
                 </p>
@@ -178,7 +234,9 @@ export default function StudentTable() {
           <Plus className="h-4 w-4" />
           添加一行
         </Button>
-        <p className="text-center text-xs text-stone-400">在最后一行按回车可快速加行</p>
+        <p className="text-center text-xs text-stone-400">
+          在最后一行按回车可快速加行；拖动左侧手柄可调整顺序
+        </p>
       </CardContent>
     </Card>
   )

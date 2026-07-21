@@ -72,6 +72,8 @@ export interface StudentLineParts {
   person: string
   /** 城市+大学段（地点字体） */
   place: string
+  /** 该行字号相对列字号的比例（长校名自动收缩，缺省 1） */
+  scale?: number
 }
 
 export function studentLineParts(s: StudentEntry, province: string): StudentLineParts {
@@ -81,6 +83,53 @@ export function studentLineParts(s: StudentEntry, province: string): StudentLine
   const sameAsProvince = city !== '' && city.replace(/市$/, '') === provinceShortName(province)
   const showCity = city !== '' && !sameAsProvince && !uni.includes(city)
   return { person: name, place: showCity ? `${city} ${uni}` : uni }
+}
+
+/* ---------- 长行收缩/截断：校名特别长时不让文字溢出画布 ---------- */
+
+/** 单侧标注列文字可用宽度（viewBox 单位）：锚点到画布边缘再留 8px 余量 */
+const COL_TEXT_W = 186
+/** 单行字号最小收缩比例（小于该比例仍放不下时截断地名段） */
+const LINE_MIN_FIT = 0.72
+
+/** 估算文本宽度（em）：中文/全角字符≈1em，ASCII≈0.55em */
+function textEms(s: string): number {
+  let w = 0
+  for (const ch of s) w += ch.charCodeAt(0) > 0xff ? 1 : 0.55
+  return w
+}
+
+/** 按估算 em 数截断字符串，追加省略号 */
+function truncateToEms(s: string, maxEms: number): string {
+  let w = 0
+  let out = ''
+  for (const ch of s) {
+    const cw = ch.charCodeAt(0) > 0xff ? 1 : 0.55
+    if (w + cw > maxEms) break
+    w += cw
+    out += ch
+  }
+  return `${out}…`
+}
+
+/**
+ * 使一行适配列可用宽度：
+ * 1. 估算行宽（姓名+全角空格+地点段），超出时按比例收缩该行字号（最低 0.72）；
+ * 2. 收缩到下限仍超出时，截断地点段并加省略号，保证绝不溢出画布边界。
+ */
+export function fitLineToColumn(parts: StudentLineParts, lineSize: number): StudentLineParts {
+  const ems = textEms(parts.person) + 1 + textEms(parts.place)
+  const estW = ems * lineSize
+  if (estW <= COL_TEXT_W) return parts
+  const fit = COL_TEXT_W / estW
+  if (fit >= LINE_MIN_FIT) return { ...parts, scale: fit }
+  // 收缩到下限仍超宽：截断地点段
+  const shrunk = lineSize * LINE_MIN_FIT
+  const allowedEms = COL_TEXT_W / shrunk
+  const placeAllowed = allowedEms - textEms(parts.person) - 1 - 1 // 1 em 留给省略号
+  const place =
+    placeAllowed >= 3 ? truncateToEms(parts.place, placeAllowed) : truncateToEms(parts.place, Math.max(allowedEms - textEms(parts.person) - 1, 1))
+  return { person: parts.person, place, scale: LINE_MIN_FIT }
 }
 
 const BASE_HEADER = 16
@@ -212,13 +261,15 @@ export function computeLabelLayout(
     const headerH = BASE_HEADER_H * scale
     const lineH = BASE_LINE_H * scale
     const gap = BASE_GAP * scale
+    const lineSize = BASE_LINE * scale
 
     let y = TOP + 4
     const blocks = list.map((i): LabelBlock => {
       const h = headerH + i.students.length * lineH
       const block: LabelBlock = {
         province: i.province,
-        lines: i.students.map((s) => studentLineParts(s, i.province)),
+        // 长校名逐行收缩/截断，防止溢出画布
+        lines: i.students.map((s) => fitLineToColumn(studentLineParts(s, i.province), lineSize)),
         anchorX: side === 'left' ? MAP_X0 - 16 : MAP_X1 + 16,
         textAnchor: side === 'left' ? 'end' : 'start',
         headerBaseline: y + headerH - 8 * scale,

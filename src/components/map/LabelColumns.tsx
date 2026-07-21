@@ -50,7 +50,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
                 x={b.anchorX}
                 y={b.firstLineBaseline + i * b.lineH}
                 textAnchor={b.textAnchor}
-                fontSize={b.lineSize}
+                fontSize={b.lineSize * (ln.scale ?? 1)}
                 fill={theme.textColor}
               >
                 <tspan style={{ fontFamily: personFont }}>{ln.person}</tspan>

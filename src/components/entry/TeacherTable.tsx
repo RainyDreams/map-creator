@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { useMapData } from '@/store/MapDataContext'
 import { newId, type TeacherEntry } from '@/types'
 
@@ -53,6 +53,45 @@ export default function TeacherTable() {
     setFocusId(id)
   }
 
+  /** 拖拽排序：只从手柄启动拖拽，落到目标行时把该行移动到目标位置 */
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+
+  const moveRow = (fromId: string, toId: string) => {
+    if (fromId === toId) return
+    setData((prev) => {
+      const arr = [...prev.teachers]
+      const from = arr.findIndex((t) => t.id === fromId)
+      const to = arr.findIndex((t) => t.id === toId)
+      if (from < 0 || to < 0) return prev
+      const [moved] = arr.splice(from, 1)
+      arr.splice(to, 0, moved)
+      return { ...prev, teachers: arr }
+    })
+  }
+
+  const rowDragProps = (id: string) => ({
+    onDragOver: (e: React.DragEvent<HTMLDivElement>) => {
+      if (!draggingId || draggingId === id) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      if (dropTargetId !== id) setDropTargetId(id)
+    },
+    onDragLeave: () => setDropTargetId((cur) => (cur === id ? null : cur)),
+    onDrop: (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      const fromId = draggingId
+      setDraggingId(null)
+      setDropTargetId(null)
+      if (fromId) moveRow(fromId, id)
+    },
+  })
+
+  const endDrag = () => {
+    setDraggingId(null)
+    setDropTargetId(null)
+  }
+
   const handleEnterOnLastRow = (id: string) => (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return
     if (teachers[teachers.length - 1]?.id !== id) return
@@ -94,8 +133,25 @@ export default function TeacherTable() {
           {teachers.map((t, index) => (
             <div
               key={t.id}
-              className="flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/50 p-2.5 md:p-3"
+              {...rowDragProps(t.id)}
+              className={`flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/50 p-2.5 md:p-3 ${
+                dropTargetId === t.id ? 'ring-2 ring-amber-400/70' : ''
+              } ${draggingId === t.id ? 'opacity-50' : ''}`}
             >
+              <span
+                draggable
+                onDragStart={(e) => {
+                  setDraggingId(t.id)
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('text/plain', t.id)
+                }}
+                onDragEnd={endDrag}
+                title="拖动调整顺序"
+                aria-label={`拖动调整第 ${index + 1} 位老师顺序`}
+                className="-ml-1 shrink-0 cursor-grab touch-none text-stone-300 hover:text-stone-500 active:cursor-grabbing"
+              >
+                <GripVertical className="h-4 w-4" />
+              </span>
               <span className="w-5 shrink-0 text-center text-xs tabular-nums text-stone-400">
                 {index + 1}
               </span>
