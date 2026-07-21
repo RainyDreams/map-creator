@@ -74,6 +74,7 @@ function normalizeData(raw: unknown): MapData | null {
     students: d.students,
     teachers: d.teachers,
     showTeachers: d.showTeachers !== false,
+    titleAlign: d.titleAlign === 'center' ? 'center' : 'left',
   }
 }
 

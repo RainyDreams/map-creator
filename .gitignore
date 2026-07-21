@@ -30,3 +30,6 @@ __*.mjs
 visual-*.png
 smoke-*.png
 map-screenshot.png
+
+# 本地验证临时文件
+.scratch/

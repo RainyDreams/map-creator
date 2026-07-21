@@ -25,6 +25,8 @@ export interface MapData {
   teachers: TeacherEntry[]
   /** 老师名单是否在地图上显示（关闭开关时图上隐藏，数据保留） */
   showTeachers: boolean
+  /** 画布标题排布：居左（侧面）或居中 */
+  titleAlign: 'left' | 'center'
 }
 
 export const EMPTY_MAP_DATA: MapData = {
@@ -33,6 +35,7 @@ export const EMPTY_MAP_DATA: MapData = {
   students: [],
   teachers: [],
   showTeachers: true,
+  titleAlign: 'left',
 }
 
 export function newId(): string {
