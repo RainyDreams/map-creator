@@ -111,7 +111,10 @@ function normalizeData(raw: unknown): MapData | null {
   if (legacyYear !== '' && !title.includes(legacyYear)) {
     title = `${legacyYear} ${title}`.trim()
   }
-  const bigTextStyle = d.bigTextStyle
+  // v1.5 迁移：「蹭饭图」独立大字（bigTextStyle）已取消；旧数据该字段直接忽略
+  const ls = (d.labelSizes ?? {}) as Partial<MapData['labelSizes']>
+  const pct = (v: unknown): number =>
+    typeof v === 'number' && v >= 60 && v <= 160 ? Math.round(v) : 100
   return {
     title,
     titleSize:
@@ -124,10 +127,14 @@ function normalizeData(raw: unknown): MapData | null {
     titleAlign:
       d.titleAlign === 'center' ? 'center' : d.titleAlign === 'right' ? 'right' : 'left',
     subtitle: typeof d.subtitle === 'string' ? d.subtitle : '',
-    bigTextStyle:
-      bigTextStyle === 'inline' || bigTextStyle === 'background' || bigTextStyle === 'hidden'
-        ? bigTextStyle
-        : 'vertical',
+    labelSizes: {
+      province: pct(ls.province),
+      person: pct(ls.person),
+      place: pct(ls.place),
+    },
+    customOrderProvinces: Array.isArray(d.customOrderProvinces)
+      ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
+      : [],
   }
 }
 

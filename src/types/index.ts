@@ -15,20 +15,21 @@ export interface TeacherEntry {
   subject: string
 }
 
-/** 「蹭饭图」大字的呈现方式预设 */
-export type BigTextStyle =
-  /** 画布右侧竖排大字（经典样式） */
-  | 'vertical'
-  /** 跟随标题，接在标题文字之后 */
-  | 'inline'
-  /** 半透明超大字衬在地图背景层 */
-  | 'background'
-  /** 不显示 */
-  | 'hidden'
+/**
+ * 地图标注三个模块的字号（相对基准值的百分比，100 = 基准）。
+ * province 省份名 / person 姓名 / place 城市·大学。
+ */
+export interface LabelSizes {
+  province: number
+  person: number
+  place: number
+}
+
+export const DEFAULT_LABEL_SIZES: LabelSizes = { province: 100, person: 100, place: 100 }
 
 /** 蹭饭图全部数据 */
 export interface MapData {
-  /** 大标题，如“2026届 高三（2）班”——年份直接写进标题，其中的数字可用专用字体渲染 */
+  /** 大标题，如“2026届 高三（2）班的蹭饭图”——年份直接写进标题，其中的数字可用专用字体渲染 */
   title: string
   /** 标题字号（px，画布基准 20–56） */
   titleSize: number
@@ -40,8 +41,13 @@ export interface MapData {
   titleAlign: 'left' | 'center' | 'right'
   /** 英文副标题（可选，显示在标题下方） */
   subtitle: string
-  /** 「蹭饭图」大字呈现方式 */
-  bigTextStyle: BigTextStyle
+  /** 地图标注三个模块的字号（百分比） */
+  labelSizes: LabelSizes
+  /**
+   * 省内手动排序的省份列表：在录入弹窗中拖动调整过顺序的省份，
+   * 该省在地图上保持手动顺序（不再按软科排名自动排序）
+   */
+  customOrderProvinces: string[]
 }
 
 export const EMPTY_MAP_DATA: MapData = {
@@ -52,7 +58,8 @@ export const EMPTY_MAP_DATA: MapData = {
   showTeachers: true,
   titleAlign: 'left',
   subtitle: '',
-  bigTextStyle: 'vertical',
+  labelSizes: DEFAULT_LABEL_SIZES,
+  customOrderProvinces: [],
 }
 
 export function newId(): string {

@@ -3,7 +3,15 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { GraduationCap, GripVertical, MapPinOff, Plus, Trash2 } from 'lucide-react'
+import { GraduationCap, GripVertical, MapPinOff, Maximize2, Plus, Trash2 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { StudentGroupModal } from '@/components/entry/StudentGroupModal'
 import { useMapData } from '@/store/MapDataContext'
 import { newId, type StudentEntry } from '@/types'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
@@ -19,10 +27,11 @@ function needsLocationHint(s: StudentEntry): boolean {
   return resolveProvince({ city: s.city, university: s.university }) === null
 }
 
-/** 学生名单编辑器：卡片式堆叠，窄屏与 420px 侧栏均适用 */
+/** 学生名单编辑器：卡片式堆叠，窄屏与 420px 侧栏均适用；PC 端可弹出为按省份分组的模态框 */
 export default function StudentTable() {
   const { data, setData } = useMapData()
   const students = data.students
+  const [modalOpen, setModalOpen] = useState(false)
 
   const nameInputRefs = useRef(new Map<string, HTMLInputElement>())
   const [focusId, setFocusId] = useState<string | null>(null)
@@ -125,6 +134,18 @@ export default function StudentTable() {
               已填 {filledCount} 人
             </Badge>
           )}
+          {/* PC 端：弹出按省份分组的录入模态框（手机端空间太小，不提供） */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setModalOpen(true)}
+            title="弹出窗口录入（按省份分组）"
+            aria-label="弹出窗口录入学生名单"
+            className={`hidden size-7 text-stone-400 hover:bg-stone-100 hover:text-stone-700 md:inline-flex ${filledCount === 0 ? 'ml-auto' : ''}`}
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2.5 px-4 md:space-y-3 md:px-6">
@@ -238,6 +259,19 @@ export default function StudentTable() {
           在最后一行按回车可快速加行；拖动左侧手柄可调整顺序
         </p>
       </CardContent>
+
+      {/* PC 端弹出式录入：模态框按省份分组展示（与地图一致），组内可拖动排序 */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>学生名单录入 · 按省份分组</DialogTitle>
+            <DialogDescription>
+              分组与地图标注一致，默认按软科排名排序；拖动行首手柄调整组内顺序后，该省保持手动顺序
+            </DialogDescription>
+          </DialogHeader>
+          <StudentGroupModal />
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

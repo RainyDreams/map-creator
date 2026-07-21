@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
 import { FontSelect } from '@/components/entry/FontSelect'
 import { cn } from '@/lib/utils'
-import type { BigTextStyle, MapData } from '@/types'
+import type { MapData } from '@/types'
 
 /** 图片压缩为 128px 内的 PNG dataURL（localStorage 友好） */
 function fileToBadgeDataUrl(file: File): Promise<string> {
@@ -39,16 +39,9 @@ function fileToBadgeDataUrl(file: File): Promise<string> {
   })
 }
 
-const BIG_TEXT_OPTIONS: Array<{ value: BigTextStyle; label: string; hint: string }> = [
-  { value: 'vertical', label: '右侧竖排', hint: '经典样式，竖排在画布右缘' },
-  { value: 'inline', label: '跟随标题', hint: '接在标题文字之后' },
-  { value: 'background', label: '背景大字', hint: '半透明超大字衬在地图后面' },
-  { value: 'hidden', label: '不显示', hint: '画布上隐藏这三个字' },
-]
-
 /**
- * 标题控制区：大标题（年份直接写进标题）+ 标题字体 / 数字字体 / 字号 / 排布 /
- * 副标题 / 「蹭饭图」大字预设 / 班徽，全部集中在此，实时写入 store、地图页联动。
+ * 标题控制区：大标题（年份与「蹭饭图」都直接写进标题）+ 标题字体 / 数字字体 /
+ * 字号 / 排布 / 副标题 / 班徽，全部集中在此，实时写入 store、地图页联动。
  */
 export default function MetaForm() {
   const { data, setData, badge, setBadge, fontSlots, setFontSlot } = useMapData()
@@ -56,9 +49,6 @@ export default function MetaForm() {
 
   const setAlign = (titleAlign: MapData['titleAlign']) =>
     setData((prev) => ({ ...prev, titleAlign }))
-
-  const setBigText = (bigTextStyle: BigTextStyle) =>
-    setData((prev) => ({ ...prev, bigTextStyle }))
 
   async function handleBadge(file: File) {
     if (file.size > 5 * 1024 * 1024) {
@@ -91,10 +81,10 @@ export default function MetaForm() {
             value={data.title}
             onChange={(e) => setData((prev) => ({ ...prev, title: e.target.value }))}
             placeholder="如：2026届 高三（2）班蹭饭图"
-            className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
+            className="h-8 border-transparent bg-stone-50 text-xs hover:bg-stone-100 focus-visible:ring-stone-300 md:h-9 md:text-sm"
           />
           <p className="text-[11px] text-stone-400">
-            年份/届数直接写进标题；标题中的数字可用下方专用字体渲染
+            年份/届数与「蹭饭图」都直接写进标题；标题中的数字可用下方专用字体渲染
           </p>
         </div>
 
@@ -151,7 +141,7 @@ export default function MetaForm() {
             value={data.subtitle}
             onChange={(e) => setData((prev) => ({ ...prev, subtitle: e.target.value }))}
             placeholder="如：CLASS OF 2026"
-            className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
+            className="h-8 border-transparent bg-stone-50 text-xs hover:bg-stone-100 focus-visible:ring-stone-300 md:h-9 md:text-sm"
           />
         </div>
 
@@ -185,38 +175,6 @@ export default function MetaForm() {
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* 「蹭饭图」大字预设 */}
-        <div className="space-y-1.5">
-          <Label className="text-xs text-stone-600 md:text-sm">「蹭饭图」大字</Label>
-          <div
-            role="radiogroup"
-            aria-label="「蹭饭图」大字呈现方式"
-            className="grid grid-cols-2 gap-1.5"
-          >
-            {BIG_TEXT_OPTIONS.map(({ value, label, hint }) => {
-              const active = data.bigTextStyle === value
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  title={hint}
-                  onClick={() => setBigText(value)}
-                  className={cn(
-                    'rounded-md border px-2 py-1.5 text-xs transition-colors md:text-sm',
-                    active
-                      ? 'border-stone-700 bg-stone-900 font-medium text-white shadow-sm'
-                      : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300 hover:text-stone-700',
-                  )}
-                >
                   {label}
                 </button>
               )

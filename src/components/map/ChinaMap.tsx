@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { StudentEntry } from '@/types'
 import { useMapData } from '@/store/MapDataContext'
 import { prefetchCityCenters } from '@/utils/cities'
@@ -12,7 +12,7 @@ import {
   MAP_X1,
   TOP,
 } from './geo'
-import { computeLabelLayout, type CityCenterMap } from './labels'
+import { computeLabelLayout, type CityCenterMap, type UniEnrichment } from './labels'
 import { LabelColumns } from './LabelColumns'
 
 export interface ChinaMapProps {
@@ -22,6 +22,12 @@ export interface ChinaMapProps {
   reserveLeftBottom?: number
   /** 右下角覆盖层（未定位提示块）需预留的高度（viewBox 单位） */
   reserveRightBottom?: number
+  /** 原始校名 → 院校补充信息（软科排名/校徽），提供后省内按排名排序 */
+  uniInfo?: Map<string, UniEnrichment>
+  /** 三个标注模块的字号百分比（100 = 基准） */
+  labelSizes?: { province: number; person: number; place: number }
+  /** 省内手动排序的省份（保持手动顺序，不按排名重排） */
+  manualProvinces?: Set<string>
 }
 
 /**
@@ -29,9 +35,14 @@ export interface ChinaMapProps {
  * 宽度自适应容器，高度按 viewBox 等比缩放；内部全部为 SVG 文本，导出 PNG 时清晰。
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
-export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: ChinaMapProps) {
+export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces }: ChinaMapProps) {
   const { theme } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
+  // 桌面端与移动端布局会同时挂载两个 ChinaMap（CSS 隐藏其一）；
+  // clipPath id 必须按实例唯一，否则 url(#id) 解析到另一个实例的裁剪区，小插图溢出画框
+  const uid = useId().replace(/:/g, '')
+  const mainClipId = `cf-main-clip-${uid}`
+  const insetClipId = `cf-inset-clip-${uid}`
 
   /** 省份集合的稳定键，用于触发城市坐标预取 */
   const provincesKey = useMemo(() => [...groups.keys()].join('|'), [groups])
@@ -60,8 +71,11 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
       computeLabelLayout(groups, cityCenters ?? undefined, {
         reserveLeftBottom,
         reserveRightBottom,
+        uniInfo,
+        sizes: labelSizes,
+        manualProvinces,
       }),
-    [groups, cityCenters, reserveLeftBottom, reserveRightBottom],
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces],
   )
 
   const fillByName = useMemo(() => {
@@ -99,16 +113,16 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
       }}
     >
       <defs>
-        <clipPath id="cf-main-clip">
+        <clipPath id={mainClipId}>
           <rect x={MAP_X0 - 6} y={TOP - 6} width={MAP_X1 - MAP_X0 + 12} height={MAP_H + 12} />
         </clipPath>
-        <clipPath id="cf-inset-clip">
+        <clipPath id={insetClipId}>
           <rect x={INSET.x} y={INSET.y} width={INSET.w} height={INSET.h} />
         </clipPath>
       </defs>
 
       {/* 主图省份（裁剪掉 17.5°N 以南，南沙等只进小插图）；无名要素为十段线细多边形，用引线色填充+描边保证亚像素厚度下仍可见 */}
-      <g clipPath="url(#cf-main-clip)">
+      <g clipPath={`url(#${mainClipId})`}>
         <g transform={MAP_TRANSFORM}>
           {GEO_FEATURES.map((f, i) =>
             f.name === '' ? (
@@ -147,7 +161,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom }: Chin
         strokeWidth={1}
         opacity={0.75}
       />
-      <g clipPath="url(#cf-inset-clip)">
+      <g clipPath={`url(#${insetClipId})`}>
         <g transform={INSET.transform}>
           {GEO_FEATURES.map((f, i) =>
             f.name === '' ? (

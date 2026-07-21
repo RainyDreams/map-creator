@@ -8,21 +8,21 @@ import {
   customFontFamilyName,
   presetFontById,
   type CustomFont,
-  type FontSlot,
 } from '@/utils/fonts'
 import { FontSelect } from '@/components/entry/FontSelect'
+import { SizeSelect } from '@/components/entry/SizeSelect'
 import { newId } from '@/types'
 
 // 标题相关的两个槽位（标题大字 / 标题中的数字）已上移到「班级信息」标题控制区，
 // 本面板只保留地图标注相关的三个槽位
-const SLOTS: FontSlot[] = ['province', 'person', 'place']
+const SLOTS = ['province', 'person', 'place'] as const
 
 /**
  * 字体设置面板：地图标注类槽位（省份名/姓名/城市大学）独立选字体（预设 + 用户上传），
  * 上传按钮刻意做小——主要路径是预设字体。
  */
 export function FontPanel() {
-  const { fontSlots, setFontSlot, customFonts, addCustomFont, removeCustomFont } = useMapData()
+  const { data, setData, fontSlots, setFontSlot, customFonts, addCustomFont, removeCustomFont } = useMapData()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
@@ -94,7 +94,17 @@ export function FontPanel() {
             <FontSelect
               value={fontSlots[slot]}
               onChange={(id) => setFontSlot(slot, id)}
-              ariaLabel={FONT_SLOT_LABELS[slot]}
+              ariaLabel={`${FONT_SLOT_LABELS[slot]}字体`}
+            />
+            <SizeSelect
+              value={data.labelSizes[slot]}
+              onChange={(pct) =>
+                setData((prev) => ({
+                  ...prev,
+                  labelSizes: { ...prev.labelSizes, [slot]: pct },
+                }))
+              }
+              ariaLabel={`${FONT_SLOT_LABELS[slot]}字号`}
             />
           </div>
         ))}

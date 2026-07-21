@@ -16,7 +16,7 @@ import { getProvinceShape, MAP_H, MAP_X0, MAP_X1, projectToMap, TOP, BOTTOM } fr
 
 export interface LabelBlock {
   province: string
-  /** 已排好版的 "姓名　城市 大学" 行（直辖市/港澳省略城市） */
+  /** 已排好版的 "姓名　大学 · 城市" 行 */
   lines: StudentLineParts[]
   /** 文本锚点 x（左列右对齐 / 右列左对齐） */
   anchorX: number
@@ -27,7 +27,10 @@ export interface LabelBlock {
   firstLineBaseline: number
   lineH: number
   headerSize: number
-  lineSize: number
+  /** 姓名段字号（行内姓名/地点可不同字号，渲染时再乘行收缩比） */
+  personSize: number
+  /** 大学 · 城市段字号 */
+  placeSize: number
   /** 块垂直中心（引线接入点 y） */
   centerY: number
   /** 引线接入点 x（标注块朝向地图一侧的边缘，在文字锚点之外） */
@@ -45,11 +48,25 @@ export interface LabelLayout {
   svgHeight: number
 }
 
+/** 院校补充信息（来自 /api/universities 预取） */
+export interface UniEnrichment {
+  /** 软科排名（null = 未上榜/未收录，排在有排名者之后） */
+  rank: number | null
+  /** 是否有校徽 */
+  badge: boolean
+}
+
 export interface LabelLayoutOptions {
   /** 左下角为覆盖层（如老师名单块）预留的高度（viewBox 单位），不足时加高画布 */
   reserveLeftBottom?: number
   /** 右下角为覆盖层（如未定位提示块）预留的高度（viewBox 单位） */
   reserveRightBottom?: number
+  /** 原始校名 → 院校补充信息；提供后省内按软科排名排序、行内渲染校徽 */
+  uniInfo?: Map<string, UniEnrichment>
+  /** 三个标注模块的字号百分比（100 = 基准） */
+  sizes?: { province: number; person: number; place: number }
+  /** 省内手动排序的省份：这些省保持录入/手动顺序，不按软科排名重排 */
+  manualProvinces?: Set<string>
 }
 
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
@@ -61,28 +78,27 @@ export function provinceShortName(province: string): string {
 }
 
 /**
- * 学生行排版：`姓名　城市 大学`（姓名与城市间全角空格，城市与大学间半角空格）。
- * 省略城市的情况：
- * - 城市为空；
- * - 城市已包含在大学名中（如"北京大学"）；
- * - 城市与省份同名（直辖市/港澳，如北京/北京市、香港/香港特别行政区），此时直接 `姓名　大学`。
+ * 学生行排版：`姓名　大学 · 城市`（姓名与大学间全角空格，大学与城市间「·」分隔）。
+ * 城市总是显示（不再因直辖市/校名含城市而省略）；城市未知时只显示大学。
  */
 export interface StudentLineParts {
   /** 姓名段（人名字体） */
   person: string
-  /** 城市+大学段（地点字体） */
+  /** 大学 · 城市段（地点字体） */
   place: string
   /** 该行字号相对列字号的比例（长校名自动收缩，缺省 1） */
   scale?: number
+  /** 是否有校徽可在大学名前渲染 */
+  badge?: boolean
+  /** 原始校名（校徽代理 URL 用） */
+  uni?: string
 }
 
-export function studentLineParts(s: StudentEntry, province: string): StudentLineParts {
+export function studentLineParts(s: StudentEntry): StudentLineParts {
   const name = s.name.trim() || '（未命名）'
   const uni = s.university.trim() || '（未填大学）'
   const city = s.city.trim()
-  const sameAsProvince = city !== '' && city.replace(/市$/, '') === provinceShortName(province)
-  const showCity = city !== '' && !sameAsProvince && !uni.includes(city)
-  return { person: name, place: showCity ? `${city} ${uni}` : uni }
+  return { person: name, place: city !== '' ? `${uni} · ${city}` : uni, uni: s.university.trim() }
 }
 
 /* ---------- 长行收缩/截断：校名特别长时不让文字溢出画布 ---------- */
@@ -91,9 +107,12 @@ export function studentLineParts(s: StudentEntry, province: string): StudentLine
 const COL_TEXT_W = 186
 /** 单行字号最小收缩比例（小于该比例仍放不下时截断地名段） */
 const LINE_MIN_FIT = 0.72
+/** 校徽占位：图标边长 = 地点字号 × 1.05，图标与文字间距 2px */
+const BADGE_RATIO = 1.05
+const BADGE_GAP = 2
 
 /** 估算文本宽度（em）：中文/全角字符≈1em，ASCII≈0.55em */
-function textEms(s: string): number {
+export function textEms(s: string): number {
   let w = 0
   for (const ch of s) w += ch.charCodeAt(0) > 0xff ? 1 : 0.55
   return w
@@ -112,24 +131,37 @@ function truncateToEms(s: string, maxEms: number): string {
   return `${out}…`
 }
 
+/** 一行各部分的有效字号（姓名/地点可独立设置百分比，再乘行收缩比） */
+export interface LineFontSizes {
+  person: number
+  place: number
+}
+
+/** 估算一行实际占用宽度（含姓名、全角空格、校徽占位、地点段） */
+export function lineWidth(parts: StudentLineParts, sizes: LineFontSizes): number {
+  const personW = textEms(parts.person) * sizes.person
+  const spaceW = sizes.person // 姓名与大学间的全角空格
+  const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
+  return personW + spaceW + badgeW + textEms(parts.place) * sizes.place
+}
+
 /**
  * 使一行适配列可用宽度：
- * 1. 估算行宽（姓名+全角空格+地点段），超出时按比例收缩该行字号（最低 0.72）；
+ * 1. 估算行宽（姓名+全角空格+校徽+地点段），超出时按比例收缩该行字号（最低 0.72）；
  * 2. 收缩到下限仍超出时，截断地点段并加省略号，保证绝不溢出画布边界。
  */
-export function fitLineToColumn(parts: StudentLineParts, lineSize: number): StudentLineParts {
-  const ems = textEms(parts.person) + 1 + textEms(parts.place)
-  const estW = ems * lineSize
+export function fitLineToColumn(parts: StudentLineParts, sizes: LineFontSizes): StudentLineParts {
+  const estW = lineWidth(parts, sizes)
   if (estW <= COL_TEXT_W) return parts
   const fit = COL_TEXT_W / estW
   if (fit >= LINE_MIN_FIT) return { ...parts, scale: fit }
   // 收缩到下限仍超宽：截断地点段
-  const shrunk = lineSize * LINE_MIN_FIT
-  const allowedEms = COL_TEXT_W / shrunk
-  const placeAllowed = allowedEms - textEms(parts.person) - 1 - 1 // 1 em 留给省略号
-  const place =
-    placeAllowed >= 3 ? truncateToEms(parts.place, placeAllowed) : truncateToEms(parts.place, Math.max(allowedEms - textEms(parts.person) - 1, 1))
-  return { person: parts.person, place, scale: LINE_MIN_FIT }
+  const shrunk: LineFontSizes = { person: sizes.person * LINE_MIN_FIT, place: sizes.place * LINE_MIN_FIT }
+  const badgeW = parts.badge ? shrunk.place * BADGE_RATIO + BADGE_GAP : 0
+  const fixedW = textEms(parts.person) * shrunk.person + shrunk.person + badgeW
+  const placeAllowed = (COL_TEXT_W - fixedW) / shrunk.place - 1 // 1 em 留给省略号
+  const place = truncateToEms(parts.place, Math.max(placeAllowed, 1.5))
+  return { person: parts.person, place, scale: LINE_MIN_FIT, badge: parts.badge }
 }
 
 const BASE_HEADER = 16
@@ -188,12 +220,31 @@ export function computeLabelLayout(
   cityCenters?: CityCenterMap,
   options?: LabelLayoutOptions,
 ): LabelLayout {
+  const uniInfo = options?.uniInfo
+  const sizes = options?.sizes ?? { province: 100, person: 100, place: 100 }
+  const provPct = sizes.province / 100
+  const personPct = sizes.person / 100
+  const placePct = sizes.place / 100
+  /** 行高由姓名/地点两个字号的较大者决定 */
+  const linePct = Math.max(personPct, placePct)
+
+  /** 省内排序键：软科排名升序，未上榜/未收录（null/undefined）排在其后并保持录入顺序 */
+  const rankOf = (s: StudentEntry): number => {
+    const r = uniInfo?.get(s.university.trim())?.rank
+    return typeof r === 'number' ? r : 9999
+  }
+
   const items: SideItem[] = []
   for (const [province, students] of groups) {
     if (students.length === 0) continue
     const shape = getProvinceShape(province)
     if (!shape?.centroid) continue
-    const rawPts = resolveProvincePoints(students, shape.centroid, cityCenters)
+    // 省内按软科排名排序（未提供院校数据或该省被手动排序过时保持现有顺序；sort 稳定）
+    const ordered =
+      uniInfo && !options?.manualProvinces?.has(province)
+        ? [...students].sort((a, b) => rankOf(a) - rankOf(b))
+        : students
+    const rawPts = resolveProvincePoints(ordered, shape.centroid, cityCenters)
     const canvasPts = rawPts.map(([lng, lat]) => {
       const [x, y] = projectToMap(lng, lat)
       return { x, y }
@@ -203,7 +254,7 @@ export function computeLabelLayout(
     const cy = canvasPts.reduce((s, p) => s + p.y, 0) / canvasPts.length
     items.push({
       province,
-      students,
+      students: ordered,
       cx,
       cy,
       cityPoints: canvasPts,
@@ -231,12 +282,13 @@ export function computeLabelLayout(
   const left = byLng.slice(0, bestK).sort(byLatDesc)
   const right = byLng.slice(bestK).sort(byLatDesc)
 
-  /** 某侧在指定档位下的总高度 */
+  /** 某侧在指定档位下的总高度（省份名/学生行分别按各自字号百分比缩放） */
   function heightAt(list: SideItem[], scale: number): number {
     if (list.length === 0) return 0
     return (
       list.reduce(
-        (sum, i) => sum + BASE_HEADER_H * scale + i.students.length * BASE_LINE_H * scale,
+        (sum, i) =>
+          sum + BASE_HEADER_H * scale * provPct + i.students.length * BASE_LINE_H * scale * linePct,
         0,
       ) +
       (list.length - 1) * BASE_GAP * scale
@@ -258,25 +310,32 @@ export function computeLabelLayout(
   function buildSide(list: SideItem[], side: 'left' | 'right'): { blocks: LabelBlock[]; total: number } {
     if (list.length === 0) return { blocks: [], total: 0 }
     const scale = pickScale(list)
-    const headerH = BASE_HEADER_H * scale
-    const lineH = BASE_LINE_H * scale
+    const headerH = BASE_HEADER_H * scale * provPct
+    const lineH = BASE_LINE_H * scale * linePct
     const gap = BASE_GAP * scale
-    const lineSize = BASE_LINE * scale
+    const headerSize = BASE_HEADER * scale * provPct
+    const personSize = BASE_LINE * scale * personPct
+    const placeSize = BASE_LINE * scale * placePct
 
     let y = TOP + 4
     const blocks = list.map((i): LabelBlock => {
       const h = headerH + i.students.length * lineH
       const block: LabelBlock = {
         province: i.province,
-        // 长校名逐行收缩/截断，防止溢出画布
-        lines: i.students.map((s) => fitLineToColumn(studentLineParts(s, i.province), lineSize)),
+        // 长校名逐行收缩/截断（含校徽占位），防止溢出画布
+        lines: i.students.map((s) => {
+          const parts = studentLineParts(s)
+          const badge = uniInfo?.get(s.university.trim())?.badge === true
+          return fitLineToColumn({ ...parts, badge }, { person: personSize, place: placeSize })
+        }),
         anchorX: side === 'left' ? MAP_X0 - 16 : MAP_X1 + 16,
         textAnchor: side === 'left' ? 'end' : 'start',
         headerBaseline: y + headerH - 8 * scale,
         firstLineBaseline: y + headerH + lineH * 0.72,
         lineH,
-        headerSize: BASE_HEADER * scale,
-        lineSize: BASE_LINE * scale,
+        headerSize,
+        personSize,
+        placeSize,
         centerY: y + h / 2,
         // 接入点在文字锚点靠地图一侧之外，引线只到块边缘、不穿过文字区
         edgeX: side === 'left' ? MAP_X0 - 6 : MAP_X1 + 6,

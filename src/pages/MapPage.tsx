@@ -1,13 +1,15 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
-import { resolveProvince, diagnoseUnlocated } from '@/utils/geo'
+import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
 import { slotFontFamily } from '@/utils/fonts'
+import { getUniInfoSync, prefetchUniversities, type UniInfo } from '@/utils/universities'
 import { exportNodeToPng, type ExportQuality } from '@/utils/exportImage'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
+import type { UniEnrichment } from '@/components/map/labels'
 import '@/components/map/fonts.css'
 import type { StudentEntry } from '@/types'
 
@@ -34,11 +36,54 @@ export default function MapPage() {
   const digitFont = slotFontFamily('year', fontSlots, customFonts)
   const titleFont = slotFontFamily('title', fontSlots, customFonts)
 
+  /** 院校数据（软科排名/校徽/城市补全）：名单变化时批量预取，失败自动回退本地推断 */
+  const studentsKey = useMemo(
+    () => data.students.map((s) => `${s.id}:${s.university}`).join('|'),
+    [data.students],
+  )
+  const [uniTick, setUniTick] = useState(0)
+  useEffect(() => {
+    const names = studentsKey === '' ? [] : studentsKey.split('|').map((k) => k.split(':').slice(1).join(':'))
+    if (names.length === 0) return
+    let cancelled = false
+    prefetchUniversities(names).then(() => {
+      if (!cancelled) setUniTick((t) => t + 1)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [studentsKey])
+
+  /** 原始校名 → 院校补充信息（排序/校徽）；uniTick 仅用于预取完成后触发重算 */
+  const uniInfo = useMemo(() => {
+    const m = new Map<string, UniEnrichment>()
+    for (const s of data.students) {
+      const key = s.university.trim()
+      if (key === '') continue
+      const info: UniInfo | undefined = getUniInfoSync(key)
+      m.set(key, { rank: info?.r ?? null, badge: info?.b != null })
+    }
+    return m
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.students, uniTick])
+
+  /** 展示用学生列表：城市为空时用院校数据/本地推断补全（不回写录入数据） */
+  const displayStudents = useMemo(
+    () =>
+      data.students.map((s) => {
+        if (s.city.trim() !== '') return s
+        const enriched = getUniInfoSync(s.university.trim())?.c ?? inferCityFromUniversity(s.university) ?? ''
+        return enriched === '' ? s : { ...s, city: enriched }
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.students, uniTick],
+  )
+
   /** 学生 → 省份分组（保持录入顺序，保证色块与列序稳定）；无法定位的单独收集 */
   const { groups, unlocated } = useMemo(() => {
     const g = new Map<string, StudentEntry[]>()
     const u: StudentEntry[] = []
-    for (const s of data.students) {
+    for (const s of displayStudents) {
       const province = resolveProvince(s)
       if (province === null) {
         diagnoseUnlocated(s) // 控制台输出定位失败原因（每条目仅一次）
@@ -50,9 +95,14 @@ export default function MapPage() {
       }
     }
     return { groups: g, unlocated: u }
-  }, [data.students])
+  }, [displayStudents])
 
   const hasHeader = data.title.trim() !== '' || data.subtitle.trim() !== ''
+  /** 省内手动排序的省份集合（录入弹窗中拖动过顺序的省份） */
+  const manualProvinces = useMemo(
+    () => new Set(data.customOrderProvinces),
+    [data.customOrderProvinces],
+  )
   const alignClass =
     data.titleAlign === 'center'
       ? 'justify-center text-center'
@@ -125,27 +175,13 @@ export default function MapPage() {
           <div
             ref={canvasRef}
             data-testid="map-canvas"
-            className="relative overflow-hidden rounded-xl border border-amber-200/60 shadow-sm"
-            style={{ background: theme.canvasBg }}
+            className="relative overflow-hidden rounded-xl border shadow-sm"
+            style={{
+              background: theme.canvasBg,
+              borderColor: `color-mix(in srgb, ${theme.leaderLine} 45%, transparent)`,
+            }}
           >
-            {/* 「蹭饭图」背景大字预设：半透明超大字衬在地图后面（DOM 在地图之前，自然压在底层） */}
-            {data.bigTextStyle === 'background' && (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center leading-none select-none"
-                style={{
-                  fontFamily: titleFont,
-                  fontSize: 'clamp(120px, 24vw, 260px)',
-                  letterSpacing: '0.08em',
-                  color: theme.accent,
-                  opacity: 0.08,
-                }}
-              >
-                蹭饭图
-              </div>
-            )}
-
-            {/* 标题区：班徽 + 大标题（数字段专用字体）+ 跟随式「蹭饭图」+ 英文副标题；titleAlign 控制居左/中/右 */}
+            {/* 标题区：班徽 + 大标题（数字段专用字体）+ 英文副标题；titleAlign 控制居左/中/右 */}
             {hasHeader && (
               <div className={`px-8 pt-6 pb-1 ${alignClass}`}>
                 <div className={`flex flex-wrap items-end gap-x-4 gap-y-1 ${alignClass}`}>
@@ -183,20 +219,6 @@ export default function MapPage() {
                       )}
                     </span>
                   )}
-                  {data.bigTextStyle === 'inline' && (
-                    <span
-                      className="pb-1 leading-none"
-                      style={{
-                        fontFamily: titleFont,
-                        fontSize: `${Math.round(data.titleSize * 1.15)}px`,
-                        color: theme.accent,
-                        textShadow:
-                          '1px 2px 0 rgba(255,255,255,0.55), 2px 5px 12px rgba(160,60,30,0.22)',
-                      }}
-                    >
-                      蹭饭图
-                    </span>
-                  )}
                 </div>
                 {data.subtitle.trim() !== '' && (
                   <p
@@ -209,25 +231,6 @@ export default function MapPage() {
               </div>
             )}
 
-            {/* 「蹭饭图」右侧竖排大字预设（经典样式） */}
-            {data.bigTextStyle === 'vertical' && (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute top-16 right-2 z-10 leading-none select-none"
-                style={{
-                  fontFamily: titleFont,
-                  writingMode: 'vertical-rl',
-                  fontSize: '58px',
-                  letterSpacing: '0.12em',
-                  color: theme.accent,
-                  opacity: 0.92,
-                  textShadow: '1px 2px 0 rgba(255,255,255,0.55), 2px 5px 12px rgba(160,60,30,0.28)',
-                }}
-              >
-                蹭饭图
-              </div>
-            )}
-
             {/* 地图主体（含标注列与引线）；左右下角覆盖层换算为画布预留高度，避免压字 */}
             <ChinaMap
               groups={groups}
@@ -237,6 +240,9 @@ export default function MapPage() {
                   : 0
               }
               reserveRightBottom={unlocated.length > 0 ? 200 : 0}
+              uniInfo={uniInfo}
+              labelSizes={data.labelSizes}
+              manualProvinces={manualProvinces}
             />
 
             {/* 无数据时的温和提示 */}
@@ -249,17 +255,13 @@ export default function MapPage() {
             <TeachersBlock teachers={data.teachers} />
             <UnlocatedBlock students={unlocated} />
 
-            {/* 底部来源条：画布的一部分，随导出一起进 PNG；极小字、克制不喧宾夺主。
-                按需求方案 A：导出图不放免责声明长句，只留超小字数据来源 */}
+            {/* 底部来源条：画布的一部分，随导出一起进 PNG；极小字、克制不喧宾夺主 */}
             <div
-              className="border-t border-amber-200/50 py-1.5 text-center"
-              style={{ backgroundColor: theme.footerBg }}
+              className="border-t py-1.5 text-center"
+              style={{ backgroundColor: theme.footerBg, borderColor: `color-mix(in srgb, ${theme.leaderLine} 40%, transparent)` }}
             >
               <div className="text-[10px] tracking-[0.18em] text-stone-400">
                 <p>本图片由 map.linkbrain.top 生成</p>
-                <p className="mt-0.5 text-[8px] tracking-normal text-stone-400/70">
-                  地图数据来源：阿里云 DataV.GeoAtlas（高德开放平台）
-                </p>
               </div>
             </div>
           </div>

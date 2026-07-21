@@ -9,7 +9,7 @@ interface CityInfo {
   center: [number, number]
 }
 
-const data = citiesData as Record<string, CityInfo[]>
+const data = citiesData as unknown as Record<string, CityInfo[]>
 
 export const onRequestGet = ({ request }: { request: Request }): Response => {
   const province = new URL(request.url).searchParams.get('province')
@@ -33,7 +33,8 @@ export const onRequestGet = ({ request }: { request: Request }): Response => {
     { cities },
     {
       headers: {
-        'Cache-Control': 'public, max-age=86400',
+        // 静态数据集：浏览器 1 天、CDN 7 天、30 天内可用陈旧副本
+        'Cache-Control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000',
       },
     },
   )
