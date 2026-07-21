@@ -61,10 +61,10 @@ export default function TeacherTable() {
   }
 
   return (
-    <Card className="rounded-xl border-stone-200 bg-white shadow-sm">
-      <CardHeader className="pb-3">
+    <Card className="gap-4 rounded-xl border-stone-200 bg-white py-4 shadow-sm md:gap-6 md:py-6">
+      <CardHeader className="px-4 pb-0 md:px-6">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-base text-stone-700">
+          <CardTitle className="flex items-center gap-2 text-sm text-stone-700 md:text-base">
             <BookOpen className="h-4 w-4 text-stone-400" />
             老师名单
             <span className="text-xs font-normal text-stone-400">（可选填）</span>
@@ -84,9 +84,9 @@ export default function TeacherTable() {
       </CardHeader>
 
       {show && (
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-2.5 px-4 md:space-y-3 md:px-6">
           {teachers.length === 0 && (
-            <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-center text-sm text-stone-500">
+            <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-center text-xs text-stone-500 md:py-4 md:text-sm">
               留下想感谢的老师吧，留空则地图上不显示
             </p>
           )}
@@ -94,7 +94,7 @@ export default function TeacherTable() {
           {teachers.map((t, index) => (
             <div
               key={t.id}
-              className="flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/50 p-3"
+              className="flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/50 p-2.5 md:p-3"
             >
               <span className="w-5 shrink-0 text-center text-xs tabular-nums text-stone-400">
                 {index + 1}
@@ -109,7 +109,7 @@ export default function TeacherTable() {
                 onKeyDown={handleEnterOnLastRow(t.id)}
                 placeholder="姓名"
                 aria-label={`第 ${index + 1} 位老师姓名`}
-                className="h-9 border-stone-200 bg-white focus-visible:ring-stone-300"
+                className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
               />
               <Input
                 value={t.subject}
@@ -117,7 +117,7 @@ export default function TeacherTable() {
                 onKeyDown={handleEnterOnLastRow(t.id)}
                 placeholder="学科"
                 aria-label={`第 ${index + 1} 位老师学科`}
-                className="h-9 w-24 shrink-0 border-stone-200 bg-white focus-visible:ring-stone-300"
+                className="h-8 w-20 shrink-0 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:w-24 md:text-sm"
               />
               <Button
                 type="button"
@@ -125,7 +125,7 @@ export default function TeacherTable() {
                 size="icon-sm"
                 onClick={() => removeRow(t.id)}
                 aria-label={`删除第 ${index + 1} 位老师`}
-                className="shrink-0 text-stone-400 hover:bg-red-50 hover:text-red-500"
+                className="size-7 shrink-0 text-stone-400 hover:bg-red-50 hover:text-red-500 md:size-8"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -136,7 +136,7 @@ export default function TeacherTable() {
             type="button"
             variant="outline"
             onClick={addRow}
-            className="w-full border-dashed border-stone-300 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+            className="h-8 w-full border-dashed border-stone-300 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-800 md:h-9 md:text-sm"
           >
             <Plus className="h-4 w-4" />
             添加一位老师

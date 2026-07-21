@@ -39,10 +39,13 @@ export default function ExcelToolbar() {
     try {
       const result = await parseWorkbook(file)
       if (result.students.length === 0 && result.teachers.length === 0) {
+        // 原样回传模板（只含说明/示例行）是最常见的误操作，给出针对性提示而非“格式不符”
         const hint =
-          result.errors.length > 0
-            ? `：${result.errors[0]}`
-            : '，请检查是否按模板格式填写'
+          result.skipped > 0
+            ? '，文件中只有模板说明/示例行（已自动跳过），请在模板中填写正式名单后再上传'
+            : result.errors.length > 0
+              ? `：${result.errors[0]}`
+              : '，请检查是否按模板格式填写'
         toast.error(`未识别到有效名单数据${hint}`)
         return
       }
@@ -86,7 +89,7 @@ export default function ExcelToolbar() {
           variant="outline"
           size="sm"
           onClick={downloadTemplate}
-          className="border-stone-200 bg-white text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+          className="border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
         >
           <Download className="size-4" />
           下载模板
@@ -97,7 +100,7 @@ export default function ExcelToolbar() {
           size="sm"
           disabled={parsing}
           onClick={() => fileInputRef.current?.click()}
-          className="border-stone-200 bg-white text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+          className="border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
         >
           <Upload className="size-4" />
           {parsing ? '解析中…' : '上传 Excel'}
@@ -156,7 +159,7 @@ export default function ExcelToolbar() {
               {r.errors.length > 0 && (
                 <div>
                   <p className="mb-1 text-xs font-medium text-stone-600">
-                    以下 {r.errors.length} 行有问题，不会被导入：
+                    以下 {r.errors.length} 处问题，对应内容不会被导入：
                   </p>
                   <ScrollArea className="h-28 rounded-md border border-stone-200 bg-stone-50">
                     <ul className="space-y-1 px-3 py-2 text-xs text-stone-600">

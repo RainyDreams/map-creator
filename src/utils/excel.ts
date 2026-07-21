@@ -157,6 +157,12 @@ function parseStudentSheet(
   const rows = sheetToRows(ws)
   const table = locateHeader(rows, true)
   if (!table) {
+    // 区分「完全没有姓名列」与「有姓名列但缺大学列」，给出更准确的指引
+    if (locateHeader(rows, false)) {
+      throw new Error(
+        `「${label}」中缺少「大学」表头列，请下载模板后按格式填写`,
+      )
+    }
     throw new Error(
       `「${label}」中找不到「姓名 / 大学」表头列，请下载模板后按格式填写`,
     )
@@ -189,8 +195,11 @@ function parseTeacherSheet(
   const rows = sheetToRows(ws)
   const table = locateHeader(rows, false)
   if (!table) {
-    // 老师名单为可选项：表头缺失只记错误，不中断学生导入
-    result.errors.push(`${label}：找不到「姓名」表头列，老师名单未导入`)
+    // 老师名单为可选项：整表为空（用户删光了老师 sheet）→ 静默跳过；
+    // 有数据却找不到表头才提示，不中断学生导入
+    if (rows.some((row) => !isBlankRow(row ?? []))) {
+      result.errors.push(`${label}：有内容但找不到「姓名」表头列，老师名单未导入`)
+    }
     return
   }
   for (let r = table.headerRow + 1; r < rows.length; r++) {
@@ -245,7 +254,11 @@ export async function parseWorkbook(file: File): Promise<ParseResult> {
   }
 
   const studentSheetName =
-    wb.SheetNames.find((n) => n.includes('学生')) ?? wb.SheetNames[0]
+    wb.SheetNames.find((n) => n.includes('学生')) ??
+    // 未命名「学生」时，回退为第一个能找到「姓名 + 大学」表头的工作表，
+    // 避免把「Sheet1 / Sheet2」这类默认命名误判为表头缺失
+    wb.SheetNames.find((n) => locateHeader(sheetToRows(wb.Sheets[n]), true)) ??
+    wb.SheetNames[0]
   parseStudentSheet(wb.Sheets[studentSheetName], studentSheetName, result)
 
   // 老师名单为可选 Sheet（CSV 单表场景通常没有）

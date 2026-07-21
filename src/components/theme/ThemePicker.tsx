@@ -85,9 +85,9 @@ export default function ThemePicker() {
   const leaderHex = extractHex(theme.leaderLine, '#a8a29e')
 
   return (
-    <Card className="rounded-xl border-stone-200 bg-white shadow-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base text-stone-700">
+    <Card className="gap-4 rounded-xl border-stone-200 bg-white py-4 shadow-sm md:gap-6 md:py-6">
+      <CardHeader className="px-4 pb-0 md:px-6">
+        <CardTitle className="flex items-center gap-2 text-sm text-stone-700 md:text-base">
           <Palette className="h-4 w-4 text-stone-400" />
           画布风格
           {theme.id === 'custom' && (
@@ -97,7 +97,7 @@ export default function ThemePicker() {
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 px-4 md:space-y-4 md:px-6">
         {/* 预设色板 */}
         <div className="grid grid-cols-2 gap-2">
           {PRESET_THEMES.map((preset) => {
@@ -109,7 +109,7 @@ export default function ThemePicker() {
                 onClick={() => setTheme(preset)}
                 aria-pressed={active}
                 className={cn(
-                  'group rounded-lg border bg-white p-1.5 text-left transition-all',
+                  'group rounded-lg border bg-white p-1 text-left transition-all md:p-1.5',
                   active
                     ? 'border-stone-900 ring-1 ring-stone-900'
                     : 'border-stone-200 hover:border-stone-400',
@@ -117,7 +117,7 @@ export default function ThemePicker() {
               >
                 {/* 迷你预览：画布底 + 省份色块 + 强调色点 */}
                 <span
-                  className="flex h-12 items-end gap-1 overflow-hidden rounded-md border border-stone-200/70 p-1.5"
+                  className="flex h-10 items-end gap-1 overflow-hidden rounded-md border border-stone-200/70 p-1.5 md:h-12"
                   style={{ background: preset.canvasBg }}
                 >
                   {preset.provinceActive.slice(0, 3).map((c, i) => (
@@ -146,7 +146,7 @@ export default function ThemePicker() {
         </div>
 
         {/* 自定义槽位 */}
-        <div className="space-y-2.5 rounded-lg border border-stone-200 bg-stone-50 p-3">
+        <div className="space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-2.5 md:space-y-2.5 md:p-3">
           <p className="text-xs font-medium text-stone-600">自定义颜色</p>
           <ColorRow
             label="画布底色"

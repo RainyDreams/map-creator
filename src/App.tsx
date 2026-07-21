@@ -7,10 +7,10 @@ import AgreementPage from '@/pages/AgreementPage'
 import PrivacyPage from '@/pages/PrivacyPage'
 import AboutPage from '@/pages/AboutPage'
 import SiteFooter from '@/components/layout/SiteFooter'
-import { ClipboardList, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { ClipboardList, Info, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type TabKey = 'entry' | 'map'
+type TabKey = 'entry' | 'map' | 'about'
 
 const SIDEBAR_COLLAPSED_KEY = 'cenfan-sidebar-collapsed'
 
@@ -24,8 +24,9 @@ function loadSidebarCollapsed(): boolean {
 
 /**
  * Creator 外壳：
- * - 桌面端（md 及以上）：左录入、右地图，双栏实时联动；录入栏可折叠，折叠状态持久化
- * - 手机端：底部 Tab 栏在“录入 / 地图”之间切换
+ * - 桌面端（md 及以上）：左录入、右地图，双栏实时联动；录入栏可折叠，折叠状态持久化；
+ *   页脚位于右侧主区域底部（地图区下方）
+ * - 手机端：底部 Tab 栏在“录入 / 地图 / 关于”之间切换；页脚仅在“录入”Tab 底部展示
  */
 function Creator() {
   const [tab, setTab] = useState<TabKey>('entry')
@@ -62,9 +63,8 @@ function Creator() {
           <div className="min-h-0 flex-1">
             <EntryPage />
           </div>
-          <SiteFooter />
         </aside>
-        <main className="relative min-w-0 flex-1">
+        <main className="relative flex min-w-0 flex-1 flex-col">
           {/* 折叠后的展开悬浮钮：贴在地图区左缘 */}
           {collapsed && (
             <button
@@ -77,13 +77,24 @@ function Creator() {
               <PanelLeftOpen className="h-4 w-4" />
             </button>
           )}
-          <MapPage />
+          <div className="min-h-0 flex-1">
+            <MapPage />
+          </div>
+          <SiteFooter />
         </main>
       </div>
 
       {/* 手机端单页 + 底部 Tab；页脚仅在录入页展示，避免挤压地图画布 */}
       <div className="min-h-0 flex-1 overflow-hidden md:hidden">
-        {tab === 'entry' ? <EntryPage /> : <MapPage />}
+        {tab === 'entry' ? (
+          <EntryPage />
+        ) : tab === 'map' ? (
+          <MapPage />
+        ) : (
+          <div className="h-full overflow-y-auto">
+            <AboutPage />
+          </div>
+        )}
       </div>
       {tab === 'entry' && (
         <div className="md:hidden">
@@ -102,6 +113,12 @@ function Creator() {
           onClick={() => setTab('map')}
           icon={<MapIcon className="h-5 w-5" />}
           label="地图"
+        />
+        <TabButton
+          active={tab === 'about'}
+          onClick={() => setTab('about')}
+          icon={<Info className="h-5 w-5" />}
+          label="关于"
         />
       </nav>
     </div>

@@ -113,7 +113,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
           onKeyDown={onEnterKeyDown}
           placeholder="自动推断，可修改"
           aria-label={ariaLabel}
-          className="h-9 border-stone-200 bg-white focus-visible:ring-stone-300"
+          className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
         />
         <p className="flex items-center gap-1 text-[11px] text-stone-400">
           <WifiOff className="h-3 w-3 shrink-0" />
@@ -126,7 +126,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
   // —— 省份加载中 ——
   if (status === 'loading') {
     return (
-      <div className="col-span-2 flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-3 text-xs text-stone-400">
+      <div className="col-span-2 flex h-8 items-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-3 text-xs text-stone-400 md:h-9">
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
         城市数据加载中…
       </div>
@@ -144,7 +144,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
       <Select value={province} onValueChange={handleProvinceChange}>
         <SelectTrigger
           aria-label={`${ariaLabel ?? ''}所在省份`}
-          className="col-span-1 h-9 w-full min-w-0 border-stone-200 bg-white focus:ring-stone-300 [&>span]:truncate"
+          className="col-span-1 h-8 w-full min-w-0 border-stone-200 bg-white text-xs focus:ring-stone-300 md:h-9 md:text-sm [&>span]:truncate"
         >
           <SelectValue placeholder="省份" />
         </SelectTrigger>
@@ -168,7 +168,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
             aria-label={ariaLabel ?? '城市'}
             disabled={!province}
             className={cn(
-              'col-span-1 h-9 w-full min-w-0 justify-between border-stone-200 bg-white px-3 font-normal hover:bg-white',
+              'col-span-1 h-8 w-full min-w-0 justify-between border-stone-200 bg-white px-2.5 text-xs font-normal hover:bg-white md:h-9 md:px-3 md:text-sm',
               !value && 'text-muted-foreground',
             )}
           >

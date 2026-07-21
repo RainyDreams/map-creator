@@ -73,9 +73,9 @@ export default function StudentTable() {
   const filledCount = students.filter((s) => !isRowEmpty(s)).length
 
   return (
-    <Card className="rounded-xl border-stone-200 bg-white shadow-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base text-stone-700">
+    <Card className="gap-4 rounded-xl border-stone-200 bg-white py-4 shadow-sm md:gap-6 md:py-6">
+      <CardHeader className="px-4 pb-0 md:px-6">
+        <CardTitle className="flex items-center gap-2 text-sm text-stone-700 md:text-base">
           <GraduationCap className="h-4 w-4 text-stone-400" />
           学生名单
           {filledCount > 0 && (
@@ -88,9 +88,9 @@ export default function StudentTable() {
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2.5 px-4 md:space-y-3 md:px-6">
         {students.length === 0 && (
-          <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-6 text-center text-sm text-stone-500">
+          <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-center text-xs text-stone-500 md:py-6 md:text-sm">
             还没有学生，点击下方「添加一行」开始录入
           </p>
         )}
@@ -100,7 +100,7 @@ export default function StudentTable() {
           return (
             <div
               key={s.id}
-              className={`rounded-lg border p-3 transition-colors ${
+              className={`rounded-lg border p-2.5 transition-colors md:p-3 ${
                 warn
                   ? 'border-amber-400/70 bg-amber-50/50'
                   : 'border-stone-200 bg-stone-50/50'
@@ -121,7 +121,7 @@ export default function StudentTable() {
                   onKeyDown={handleEnterOnLastRow(s.id)}
                   placeholder="姓名"
                   aria-label={`第 ${index + 1} 行姓名`}
-                  className="h-9 border-stone-200 bg-white focus-visible:ring-stone-300"
+                  className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
                 />
                 <Button
                   type="button"
@@ -129,14 +129,14 @@ export default function StudentTable() {
                   size="icon-sm"
                   onClick={() => removeRow(s.id)}
                   aria-label={`删除第 ${index + 1} 行`}
-                  className="shrink-0 text-stone-400 hover:bg-red-50 hover:text-red-500"
+                  className="size-7 shrink-0 text-stone-400 hover:bg-red-50 hover:text-red-500 md:size-8"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
 
               {/* 第二行：大学（整行） */}
-              <div className="mt-2 pl-8">
+              <div className="mt-1.5 pl-8 md:mt-2">
                 <Input
                   value={s.university}
                   onChange={(e) => updateRow(s.id, { university: e.target.value })}
@@ -144,12 +144,12 @@ export default function StudentTable() {
                   onKeyDown={handleEnterOnLastRow(s.id)}
                   placeholder="大学"
                   aria-label={`第 ${index + 1} 行大学`}
-                  className="h-9 w-full border-stone-200 bg-white focus-visible:ring-stone-300"
+                  className="h-8 w-full border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
                 />
               </div>
 
               {/* 第三行：省 / 市联动，各占半行（接口不可用时降级为手动输入） */}
-              <div className="mt-2 grid grid-cols-2 gap-2 pl-8">
+              <div className="mt-1.5 grid grid-cols-2 gap-2 pl-8 md:mt-2">
                 <CityPicker
                   value={s.city}
                   onChange={(city) => updateRow(s.id, { city })}
@@ -160,7 +160,7 @@ export default function StudentTable() {
 
               {/* 行级提示：无法定位 */}
               {warn && (
-                <p className="mt-2 flex items-center gap-1 pl-8 text-xs text-amber-700">
+                <p className="mt-1.5 flex items-center gap-1 pl-8 text-xs text-amber-700 md:mt-2">
                   <MapPinOff className="h-3.5 w-3.5 shrink-0" />
                   无法在地图上定位，请补充城市
                 </p>
@@ -173,7 +173,7 @@ export default function StudentTable() {
           type="button"
           variant="outline"
           onClick={addRow}
-          className="w-full border-dashed border-stone-300 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+          className="h-8 w-full border-dashed border-stone-300 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-800 md:h-9 md:text-sm"
         >
           <Plus className="h-4 w-4" />
           添加一行

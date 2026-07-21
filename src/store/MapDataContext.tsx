@@ -24,8 +24,6 @@ export interface MapDataContextValue {
   setData: (updater: MapData | ((prev: MapData) => MapData)) => void
   /** 清空全部内容（名单、标题、老师），回到空白状态 */
   resetData: () => void
-  /** 填充一份示例数据，便于预览效果 */
-  fillSample: () => void
   /**
    * 批量导入学生（Excel 上传用）。
    * mode = 'replace' 覆盖现有名单；'append' 追加。
@@ -41,28 +39,6 @@ export interface MapDataContextValue {
 }
 
 const MapDataContext = createContext<MapDataContextValue | null>(null)
-
-/** 内置示例数据，仅通过“填充示例”主动载入 */
-export const SAMPLE_DATA: MapData = {
-  title: '2026届 高三（2）班',
-  year: '2026',
-  showTeachers: true,
-  students: [
-    { id: newId(), name: '张示例', university: '清华大学', city: '北京' },
-    { id: newId(), name: '李示例', university: '北京大学', city: '北京' },
-    { id: newId(), name: '王示例', university: '复旦大学', city: '上海' },
-    { id: newId(), name: '赵示例', university: '浙江大学', city: '杭州' },
-    { id: newId(), name: '刘示例', university: '武汉大学', city: '武汉' },
-    { id: newId(), name: '陈示例', university: '中山大学', city: '广州' },
-    { id: newId(), name: '杨示例', university: '电子科技大学', city: '成都' },
-    { id: newId(), name: '周示例', university: '西安交通大学', city: '西安' },
-    { id: newId(), name: '吴示例', university: '哈尔滨工业大学', city: '哈尔滨' },
-  ],
-  teachers: [
-    { id: newId(), name: '王示例', subject: '物理' },
-    { id: newId(), name: '郭示例', subject: '语文' },
-  ],
-}
 
 function normalizeData(raw: unknown): MapData | null {
   if (!raw || typeof raw !== 'object') return null
@@ -134,11 +110,6 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const fillSample = useCallback(
-    () => setPersisted((prev) => ({ ...prev, data: SAMPLE_DATA })),
-    [],
-  )
-
   const importStudents = useCallback(
     (students: Array<Omit<StudentEntry, 'id'>>, mode: 'replace' | 'append') => {
       const withIds = students.map((s) => ({ ...s, id: newId() }))
@@ -160,8 +131,8 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo(
-    () => ({ data, setData, resetData, fillSample, importStudents, theme, setTheme }),
-    [data, setData, resetData, fillSample, importStudents, theme, setTheme],
+    () => ({ data, setData, resetData, importStudents, theme, setTheme }),
+    [data, setData, resetData, importStudents, theme, setTheme],
   )
 
   return <MapDataContext.Provider value={value}>{children}</MapDataContext.Provider>
