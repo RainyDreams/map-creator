@@ -7,7 +7,11 @@ import { exportNodeToPng, type ExportQuality } from '@/utils/exportImage'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
+import '@/components/map/fonts.css'
 import type { StudentEntry } from '@/types'
+
+/** 年份大字专用展示字体：阿里妈妈数黑体子集；加载失败时退回 Georgia 系衬线粗体 */
+const YEAR_FONT = '"AlimamaShuHeiTi","Georgia","Times New Roman",serif'
 
 /**
  * 地图页面：顶部工具栏（导出 PNG）+ 整幅"蹭饭图"画布。
@@ -37,6 +41,10 @@ export default function MapPage() {
   }, [data.students])
 
   const hasHeader = data.year.trim() !== '' || data.title.trim() !== ''
+  /** 标题中已包含年份字符串（如"2026届 高三（2）班"含"2026"）时，不再渲染大号年份艺术字 */
+  const yearInTitle = data.year.trim() !== '' && data.title.includes(data.year.trim())
+  const showYear = data.year.trim() !== '' && !yearInTitle
+  const titleCentered = data.titleAlign === 'center'
 
   async function handleExport(quality: ExportQuality) {
     const node = canvasRef.current
@@ -101,13 +109,19 @@ export default function MapPage() {
             className="relative overflow-hidden rounded-xl border border-amber-200/60 shadow-sm"
             style={{ background: theme.canvasBg }}
           >
-            {/* 标题区：年份艺术字 + 班级标题（均为空时不渲染占位） */}
+            {/* 标题区：年份艺术字 + 班级标题（均为空时不渲染占位）；titleAlign 控制居左/居中 */}
             {hasHeader && (
-              <div className="flex flex-wrap items-end gap-x-5 gap-y-1 px-8 pt-6 pb-1">
-                {data.year.trim() !== '' && (
+              <div
+                className={`flex flex-wrap items-end gap-x-5 gap-y-1 px-8 pt-6 pb-1 ${
+                  titleCentered ? 'justify-center text-center' : ''
+                }`}
+              >
+                {showYear && (
                   <span
-                    className="font-calligraphy text-6xl leading-none tracking-wider"
+                    className="text-6xl leading-none tracking-wider"
                     style={{
+                      fontFamily: YEAR_FONT,
+                      fontWeight: 700,
                       color: theme.yearColor,
                       textShadow: '1px 2px 0 rgba(255,255,255,0.65), 2px 5px 10px rgba(180,120,30,0.25)',
                       transform: 'skewX(-5deg)',

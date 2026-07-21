@@ -11,48 +11,51 @@ export interface LabelColumnsProps {
 
 /**
  * 左右两列标注块 + 引线。
- * 引线为质心 → 标注块边缘的直线（主题 leaderLine 色、1px、柔和虚线），
- * 块多时允许斜跨海面的简化走线。
+ * 引线为质心 → 标注块边缘的三次贝塞尔曲线（主题 leaderLine 色、1px、柔和虚线），
+ * 两个控制点取在两端点水平中点处，弧线自然过渡、不穿标注块。
  */
 export function LabelColumns({ left, right }: LabelColumnsProps) {
   const { theme } = useMapData()
   return (
     <g>
-      {[...left, ...right].map((b) => (
-        <g key={b.province}>
-          <polyline
-            points={`${b.centroidX},${b.centroidY} ${b.edgeX},${b.centerY}`}
-            fill="none"
-            stroke={theme.leaderLine}
-            strokeWidth={1}
-            strokeDasharray="5 4"
-            opacity={0.85}
-          />
-          <text
-            x={b.anchorX}
-            y={b.headerBaseline}
-            textAnchor={b.textAnchor}
-            fontSize={b.headerSize}
-            fontWeight={700}
-            fill={theme.textColor}
-            style={{ fontFamily: CALLIGRAPHY }}
-          >
-            {b.province}
-          </text>
-          {b.lines.map((ln, i) => (
+      {[...left, ...right].map((b) => {
+        const midX = (b.centroidX + b.edgeX) / 2
+        return (
+          <g key={b.province}>
+            <path
+              d={`M${b.centroidX},${b.centroidY} C${midX},${b.centroidY} ${midX},${b.centerY} ${b.edgeX},${b.centerY}`}
+              fill="none"
+              stroke={theme.leaderLine}
+              strokeWidth={1}
+              strokeDasharray="5 4"
+              opacity={0.85}
+            />
             <text
-              key={`${b.province}-${i}`}
               x={b.anchorX}
-              y={b.firstLineBaseline + i * b.lineH}
+              y={b.headerBaseline}
               textAnchor={b.textAnchor}
-              fontSize={b.lineSize}
+              fontSize={b.headerSize}
+              fontWeight={700}
               fill={theme.textColor}
+              style={{ fontFamily: CALLIGRAPHY }}
             >
-              {ln}
+              {b.province}
             </text>
-          ))}
-        </g>
-      ))}
+            {b.lines.map((ln, i) => (
+              <text
+                key={`${b.province}-${i}`}
+                x={b.anchorX}
+                y={b.firstLineBaseline + i * b.lineH}
+                textAnchor={b.textAnchor}
+                fontSize={b.lineSize}
+                fill={theme.textColor}
+              >
+                {ln}
+              </text>
+            ))}
+          </g>
+        )
+      })}
     </g>
   )
 }

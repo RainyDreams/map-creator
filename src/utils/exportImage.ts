@@ -1,6 +1,11 @@
 /**
  * 画布导出：把蹭饭图画布 DOM 序列化为 PNG 并触发浏览器下载。
  *
+ * 离屏高清导出核心：
+ * 用户屏幕分辨率/画布显示尺寸不影响导出清晰度——先把画布节点克隆到隐藏离屏容器
+ * （position:fixed; left:-99999px），强制宽度 1600px（同文档内克隆，class/字体/CSS 变量
+ * 全部生效），等字体与布局就绪后再序列化 SVG 并按 ≥4000px 宽栅格化，导出后移除克隆节点。
+ *
  * 两档清晰度：
  * - ultra（默认）：html-to-image 先序列化为 SVG（矢量，含内嵌字体），
  *   再按 ≥4000px 宽栅格化到 canvas——文字按矢量重绘，放大不糊；
@@ -22,6 +27,8 @@ export interface ExportResult {
 }
 
 const BG = '#faf0d7'
+/** 离屏克隆的固定布局宽度（px）：导出清晰度与用户屏幕无关 */
+const EXPORT_BASE_W = 1600
 /** 超清档目标宽度（px），不足 4000 一律拉到此宽度 */
 const ULTRA_MIN_W = 4000
 /** 超清档宽度上限，避免极端宽画布撑爆内存 */
@@ -33,18 +40,52 @@ function sanitize(s: string): string {
   return s.trim().replace(/[\\/:*?"<>|\s]+/g, '-')
 }
 
-/** 导出前确保书法字体已加载，否则 SVG/位图里会渲染成兜底楷体 */
+/** 导出前确保书法/展示字体已加载，否则 SVG/位图里会渲染成兜底字体 */
 async function ensureFontsLoaded(): Promise<void> {
   try {
     await Promise.race([
       (async () => {
         await document.fonts.load('20px "MaShanZheng"', '蹭饭图')
+        await document.fonts.load('700 20px "AlimamaShuHeiTi"', '2026')
         await document.fonts.ready
       })(),
       new Promise((resolve) => setTimeout(resolve, 4000)),
     ])
   } catch {
     // 字体加载失败不阻断导出，按兜底字体出图
+  }
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  )
+}
+
+/**
+ * 把画布节点克隆到隐藏离屏容器并强制 1600px 宽，待字体/布局就绪后执行 fn，最后移除克隆。
+ * 同文档内克隆，样式表、@font-face、CSS 变量照常生效。
+ */
+async function withOffscreenClone<T>(
+  node: HTMLElement,
+  fn: (clone: HTMLElement) => Promise<T>,
+): Promise<T> {
+  const holder = document.createElement('div')
+  holder.style.cssText =
+    'position:fixed;left:-99999px;top:0;z-index:-1;pointer-events:none;visibility:hidden;'
+  const clone = node.cloneNode(true) as HTMLElement
+  clone.style.width = `${EXPORT_BASE_W}px`
+  clone.style.maxWidth = 'none'
+  clone.style.margin = '0'
+  holder.appendChild(clone)
+  document.body.appendChild(holder)
+  try {
+    await ensureFontsLoaded()
+    // 双 rAF：确保克隆节点完成排版与字体应用
+    await nextFrame()
+    return await fn(clone)
+  } finally {
+    holder.remove()
   }
 }
 
@@ -88,32 +129,34 @@ async function renderUltra(
 
 /**
  * 渲染画布为 PNG dataURL（不触发下载），供导出与测试复用。
+ * 始终在 1600px 宽的离屏克隆上渲染，与用户屏幕分辨率无关。
  */
 export async function renderNodeToPngDataUrl(
   node: HTMLElement,
   quality: ExportQuality = 'ultra',
 ): Promise<{ dataUrl: string } & ExportResult> {
-  await ensureFontsLoaded()
-  if (quality === 'ultra') {
-    try {
-      const r = await renderUltra(node)
-      return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
-    } catch (err) {
-      console.warn('SVG 矢量栅格化失败，回退 pixelRatio 4 位图导出', err)
-      const dataUrl = await toPng(node, { pixelRatio: 4, cacheBust: true, backgroundColor: BG })
-      const w = node.offsetWidth * 4
-      const h = node.offsetHeight * 4
-      return { dataUrl, width: w, height: h, quality, fellBack: true }
+  return withOffscreenClone(node, async (clone) => {
+    if (quality === 'ultra') {
+      try {
+        const r = await renderUltra(clone)
+        return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
+      } catch (err) {
+        console.warn('SVG 矢量栅格化失败，回退 pixelRatio 4 位图导出', err)
+        const dataUrl = await toPng(clone, { pixelRatio: 4, cacheBust: true, backgroundColor: BG })
+        const w = clone.offsetWidth * 4
+        const h = clone.offsetHeight * 4
+        return { dataUrl, width: w, height: h, quality, fellBack: true }
+      }
     }
-  }
-  const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true, backgroundColor: BG })
-  return {
-    dataUrl,
-    width: node.offsetWidth * 2,
-    height: node.offsetHeight * 2,
-    quality,
-    fellBack: false,
-  }
+    const dataUrl = await toPng(clone, { pixelRatio: 2, cacheBust: true, backgroundColor: BG })
+    return {
+      dataUrl,
+      width: clone.offsetWidth * 2,
+      height: clone.offsetHeight * 2,
+      quality,
+      fellBack: false,
+    }
+  })
 }
 
 /**

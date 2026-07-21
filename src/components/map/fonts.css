@@ -1,0 +1,12 @@
+/*
+ * 阿里妈妈数黑体（AlimamaShuHeiTi-Bold，免费可商用）子集：
+ * 仅含 ASCII 数字/字母/常用符号（约 9KB），专供年份大字使用，
+ * 避免 MaShanZheng 数字字形不佳。中文标题仍用 MaShanZheng。
+ */
+@font-face {
+  font-family: 'AlimamaShuHeiTi';
+  src: url('../../assets/fonts/AlimamaShuHeiTi-Bold-subset.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
