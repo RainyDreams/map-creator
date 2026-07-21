@@ -109,9 +109,9 @@ export const DESIGN_W = 1200
 /** 地图/标注列顶部留白 */
 export const TOP = 16
 export const BOTTOM = 24
-/** 主图区域左右边界（外侧留给标注列） */
-export const MAP_X0 = 300
-export const MAP_X1 = 900
+/** 主图区域左右边界（外侧留给标注列；45 人场景下加大列宽减少拥挤） */
+export const MAP_X0 = 280
+export const MAP_X1 = 920
 
 const LNG_MIN = 73.4
 const LNG_MAX = 135.2

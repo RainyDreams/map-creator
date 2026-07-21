@@ -16,7 +16,7 @@ import { getProvinceShape, MAP_H, MAP_X0, MAP_X1, projectToMap, TOP, BOTTOM } fr
 
 export interface LabelBlock {
   province: string
-  /** 已排好版的 "姓名　大学（城市）" 行 */
+  /** 已排好版的 "姓名　城市 大学" 行（直辖市/港澳省略城市） */
   lines: string[]
   /** 文本锚点 x（左列右对齐 / 右列左对齐） */
   anchorX: number
@@ -55,27 +55,41 @@ export interface LabelLayoutOptions {
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
 export type CityCenterMap = Map<string, [number, number]>
 
-/** 学生行排版：城市已包含在大学名中（如"北京大学"）时不重复标注 */
-export function studentLine(s: StudentEntry): string {
+/** 省份全称 → 短名（北京市→北京、广西壮族自治区→广西、香港特别行政区→香港） */
+export function provinceShortName(province: string): string {
+  return province.replace(/(特别行政区|壮族自治区|回族自治区|维吾尔自治区|自治区|省|市)$/, '')
+}
+
+/**
+ * 学生行排版：`姓名　城市 大学`（姓名与城市间全角空格，城市与大学间半角空格）。
+ * 省略城市的情况：
+ * - 城市为空；
+ * - 城市已包含在大学名中（如"北京大学"）；
+ * - 城市与省份同名（直辖市/港澳，如北京/北京市、香港/香港特别行政区），此时直接 `姓名　大学`。
+ */
+export function studentLine(s: StudentEntry, province: string): string {
   const name = s.name.trim() || '（未命名）'
   const uni = s.university.trim() || '（未填大学）'
   const city = s.city.trim()
-  const showCity = city !== '' && !uni.includes(city)
-  return `${name}　${uni}${showCity ? `（${city}）` : ''}`
+  const sameAsProvince = city !== '' && city.replace(/市$/, '') === provinceShortName(province)
+  const showCity = city !== '' && !sameAsProvince && !uni.includes(city)
+  return showCity ? `${name}　${city} ${uni}` : `${name}　${uni}`
 }
 
 const BASE_HEADER = 16
 const BASE_LINE = 13
-const BASE_LINE_H = 20
-const BASE_HEADER_H = 26
-const BASE_GAP = 16
+/** 行距加大：BASE_LINE * MIN_SCALE 不得小于 9px 硬下限 */
+const BASE_LINE_H = 22
+const BASE_HEADER_H = 28
+/** 块间距加大，避免省份块之间视觉粘连 */
+const BASE_GAP = 20
 /** 标注列的最小可用高度：地图较矮时也给列留出足够空间再缩字号 */
-const COL_MIN = 520
-/** 字号档位：逐级尝试，命中即停；最低档为硬下限，不再缩小 */
+const COL_MIN = 560
+/** 字号档位：逐级尝试，命中即停；最低档为硬下限（13*0.72=9.36 ≥ 9px），不再缩小 */
 const SCALE_LEVELS = [1, 0.94, 0.88, 0.82, 0.76, 0.72] as const
 const MIN_SCALE = SCALE_LEVELS[SCALE_LEVELS.length - 1]
-/** 每省块在负载均衡中的权重：学生行数 + 标题行的折算成本 */
-const HEADER_WEIGHT = 1.5
+/** 每省块在负载均衡中的权重：学生行数 + 标题行的折算成本（偏高以平衡块数） */
+const HEADER_WEIGHT = 2
 
 interface SideItem {
   province: string
@@ -197,7 +211,7 @@ export function computeLabelLayout(
       const h = headerH + i.students.length * lineH
       const block: LabelBlock = {
         province: i.province,
-        lines: i.students.map(studentLine),
+        lines: i.students.map((s) => studentLine(s, i.province)),
         anchorX: side === 'left' ? MAP_X0 - 16 : MAP_X1 + 16,
         textAnchor: side === 'left' ? 'end' : 'start',
         headerBaseline: y + headerH - 8 * scale,

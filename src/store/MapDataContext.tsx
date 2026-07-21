@@ -47,6 +47,7 @@ export const SAMPLE_DATA: MapData = {
   title: '2026届 高三（2）班',
   year: '2026',
   showTeachers: true,
+  titleAlign: 'left',
   students: [
     { id: newId(), name: '张示例', university: '清华大学', city: '北京' },
     { id: newId(), name: '李示例', university: '北京大学', city: '北京' },
