@@ -29,7 +29,7 @@ export default function AboutPage() {
           <dt className="text-stone-400">开发者</dt>
           <dd className="text-stone-700">赤峰二中2026届zxy</dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.0.0</dd>
+          <dd className="text-stone-700">v1.1.0</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a
