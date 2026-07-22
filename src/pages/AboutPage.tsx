@@ -2,6 +2,25 @@ import { Link } from 'react-router'
 import { Globe, MapPin, Sparkles } from 'lucide-react'
 import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLayout'
 
+const changelog = [
+  {
+    version: 'v1.9.2',
+    date: '2026-07-22',
+    items: [
+      '「关于」页面新增《零本》品牌标识与更新日志',
+      '公众号介绍文章改为本地编译产物，图片改用相对路径，不再随站点部署',
+    ],
+  },
+  {
+    version: 'v1.9.1',
+    date: '2026-07-22',
+    items: [
+      '修复大标题中全角括号左右字体不一致的问题',
+      '公众号介绍文章配图全部以高清重截并更换文件名，避免旧图缓存',
+    ],
+  },
+]
+
 const features = [
   '手动录入学生、老师名单及去向城市，实时联动中国地图',
   '支持下载 Excel 模板批量填写、一键导入（解析过程在控制台可见）',
@@ -29,6 +48,17 @@ export default function AboutPage() {
 
       <section className="space-y-2">
         <SectionTitle>基本信息</SectionTitle>
+        <div className="flex items-center gap-3 rounded-xl border border-stone-200/80 bg-white/70 p-3">
+          <img
+            src="/images/lingben-logo.png"
+            alt="零本"
+            className="h-12 w-12 shrink-0 rounded-lg"
+          />
+          <div className="text-sm">
+            <p className="font-medium text-stone-700">《零本》出品</p>
+            <p className="text-stone-400">一个高中生的小工具箱，慢慢打磨，持续更新。</p>
+          </div>
+        </div>
         <dl className="grid grid-cols-[5.5rem_1fr] gap-y-1.5 text-sm">
           <dt className="text-stone-400">软件名称</dt>
           <dd className="text-stone-700">蹭饭图生成器</dd>
@@ -46,7 +76,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.9.1</dd>
+          <dd className="text-stone-700">v1.9.2</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a
@@ -112,6 +142,25 @@ export default function AboutPage() {
           名单数据仅存储于浏览器 localStorage；站点部署于 Cloudflare Pages，
           辅以少量 Pages Functions 接口提供地图辅助数据与可选的微信分享签名。
         </p>
+      </section>
+
+      <section className="space-y-3">
+        <SectionTitle>更新日志</SectionTitle>
+        <ol className="space-y-4">
+          {changelog.map((release) => (
+            <li key={release.version}>
+              <p className="flex items-baseline gap-2 text-sm">
+                <span className="font-semibold text-stone-700">{release.version}</span>
+                <span className="text-xs text-stone-400">{release.date}</span>
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-stone-600">
+                {release.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <section className="space-y-2">
