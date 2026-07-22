@@ -4,7 +4,7 @@ import { useMapData } from '@/store/MapDataContext'
 import { cn } from '@/lib/utils'
 
 interface SizeSelectProps {
-  /** 当前字号（px，以 1400px 宽虚拟画布为基准） */
+  /** 当前字号（px，以 1500px 宽虚拟画布为基准） */
   value: number
   onChange: (px: number) => void
   /** 可选字号档位（px） */
@@ -59,7 +59,7 @@ export function SizeSelect({ value, onChange, options, ariaLabel }: SizeSelectPr
         type="button"
         aria-label={ariaLabel}
         aria-expanded={open}
-        title="字号（px，以 1400px 宽画布为基准）"
+        title="字号（px，以 1500px 宽画布为基准）"
         onClick={toggle}
         className={cn(
           'flex h-8 w-full items-center justify-between gap-0.5 rounded-md border bg-white px-1.5 text-[11px] text-stone-600 tabular-nums transition-shadow md:h-9 md:text-xs',

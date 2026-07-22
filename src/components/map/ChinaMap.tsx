@@ -24,7 +24,7 @@ export interface ChinaMapProps {
   reserveRightBottom?: number
   /** 原始校名 → 院校补充信息（软科排名/校徽），提供后省内按排名排序 */
   uniInfo?: Map<string, UniEnrichment>
-  /** 三个标注模块的字号百分比（100 = 基准） */
+  /** 三个标注模块的字号（px，以 1500px 宽画布为基准） */
   labelSizes?: { province: number; person: number; place: number }
   /** 省内手动排序的省份（保持手动顺序，不按排名重排） */
   manualProvinces?: Set<string>

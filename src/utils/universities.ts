@@ -81,3 +81,52 @@ export async function prefetchUniversities(names: string[]): Promise<Map<string,
 export function schoolBadgeUrl(university: string): string {
   return `/api/school-badge?name=${encodeURIComponent(university.trim())}`
 }
+
+/* ---------- 校徽 dataURL 预取缓存：渲染与导出都直接用内联数据，避免导出时逐张重新 fetch ---------- */
+
+/** key 为原始校名（trim 后）；value 为 dataURL，null 表示取不到（404/失败） */
+const badgeCache = new Map<string, string | null>()
+const badgeInflight = new Map<string, Promise<void>>()
+
+/** 同步读校徽 dataURL 缓存；未预取过返回 undefined */
+export function getBadgeDataUrlSync(university: string): string | null | undefined {
+  return badgeCache.get(university.trim())
+}
+
+/**
+ * 批量预取校徽并转成 dataURL 缓存（自动跳过已缓存/飞行中）。
+ * 之后渲染 <image> 与导出 PNG 都直接使用内联 dataURL：
+ * html-to-image 看到 data: 协议会跳过网络内联步骤，首次导出也能明显提速。
+ */
+export async function prefetchBadgeDataUrls(universities: string[]): Promise<void> {
+  const todo = [...new Set(
+    universities.map((s) => s.trim()).filter((s) => s !== '' && !badgeCache.has(s) && !badgeInflight.has(s)),
+  )]
+  await Promise.all(
+    todo.map((name) => {
+      const task = (async () => {
+        try {
+          const res = await fetch(schoolBadgeUrl(name))
+          if (!res.ok) {
+            badgeCache.set(name, null) // 404 等：记住"没有"，不再反复请求
+            return
+          }
+          const blob = await res.blob()
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const fr = new FileReader()
+            fr.onload = () => resolve(String(fr.result))
+            fr.onerror = () => reject(new Error('校徽读取失败'))
+            fr.readAsDataURL(blob)
+          })
+          badgeCache.set(name, dataUrl)
+        } catch {
+          // 网络失败不写缓存，下次还会重试
+        } finally {
+          badgeInflight.delete(name)
+        }
+      })()
+      badgeInflight.set(name, task)
+      return task
+    }),
+  )
+}

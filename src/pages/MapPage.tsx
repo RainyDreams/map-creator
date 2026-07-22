@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
 import { slotFontFamily } from '@/utils/fonts'
-import { getUniInfoSync, prefetchUniversities, type UniInfo } from '@/utils/universities'
+import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
 import { exportNodeToPng, type ExportQuality } from '@/utils/exportImage'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
@@ -125,8 +125,14 @@ export default function MapPage() {
         if (!prev) return prev
         const now = Date.now()
         const anchor = anchorRef.current
-        const cap = Math.max(anchor.pct - 2, prev.pct)
-        const pct = Math.min(prev.pct + 0.7, cap)
+        // 爬行：未到锚点快爬（0.7/120ms）；到锚点后不停死，继续慢爬（0.06/120ms ≈ 0.5%/s），
+        // 让用户始终看到数字在动；慢爬上限为锚点 +6 且不超过 99%
+        let pct = prev.pct
+        if (pct < anchor.pct - 2) {
+          pct = Math.min(pct + 0.7, anchor.pct - 2)
+        } else {
+          pct = Math.min(pct + 0.06, Math.min(anchor.pct + 6, 99))
+        }
         // 文案：锚点阶段先展示 2.2s，之后每 2.4s 轮换一条安抚提示
         const sinceAnchor = now - anchor.at
         const stage =
@@ -158,9 +164,18 @@ export default function MapPage() {
     const names = studentsKey === '' ? [] : studentsKey.split('|').map((k) => k.split(':').slice(1).join(':'))
     if (names.length === 0) return
     let cancelled = false
-    prefetchUniversities(names).then(() => {
-      if (!cancelled) setUniTick((t) => t + 1)
-    })
+    // 先取院校数据（排名/校徽 slug），再预取校徽图片并转 dataURL 缓存——
+    // 渲染与导出都直接用内联数据，首次导出也不用等逐张图片内联
+    prefetchUniversities(names)
+      .then(() => {
+        if (cancelled) return
+        setUniTick((t) => t + 1)
+        const withBadge = names.filter((n) => getUniInfoSync(n)?.b != null)
+        return prefetchBadgeDataUrls(withBadge)
+      })
+      .then(() => {
+        if (!cancelled) setUniTick((t) => t + 1)
+      })
     return () => {
       cancelled = true
     }
@@ -173,7 +188,12 @@ export default function MapPage() {
       const key = s.university.trim()
       if (key === '') continue
       const info: UniInfo | undefined = getUniInfoSync(key)
-      m.set(key, { rank: info?.r ?? null, badge: info?.b != null })
+      const hasBadge = info?.b != null
+      m.set(key, {
+        rank: info?.r ?? null,
+        badge: hasBadge,
+        badgeUrl: hasBadge ? (getBadgeDataUrlSync(key) ?? null) : null,
+      })
     }
     return m
     // eslint-disable-next-line react-hooks/exhaustive-deps

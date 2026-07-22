@@ -102,7 +102,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       rows.push(
         <image
           key={`${key}-b`}
-          href={schoolBadgeUrl(ln.uni)}
+          href={ln.badgeUrl ?? schoolBadgeUrl(ln.uni)}
           x={badgeX}
           y={badgeBaseline - badgeSize * 0.86}
           width={badgeSize}

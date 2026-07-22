@@ -4,7 +4,7 @@
  *   兼顾地理方向与两列负载均衡，避免一列爆长一列空旷
  * - 长校名处理：不缩小字号、不省略号截断，而是按列宽换行（信息完整呈现），
  *   换行产生的额外行数计入列高与负载均衡
- * - 字号：用户按 px 设定（以 1400px 宽虚拟画布为基准）；纵向空间不足时按档位
+ * - 字号：用户按 px 设定（以 1500px 宽虚拟画布为基准）；纵向空间不足时按档位
  *   整体缩放（1 → 0.72），最低档仍放不下时加高画布纵向扩展
  * - 两侧列共享同一可用高度（取两列最低档所需高度的较大值），人少的一列字号自然更大
  * - 城市级定位：可选传入 城市名→经纬度 查找表，每省的定位点落到学生实际城市；
@@ -56,6 +56,8 @@ export interface UniEnrichment {
   rank: number | null
   /** 是否有校徽 */
   badge: boolean
+  /** 校徽内联 dataURL（预取完成后提供；导出 PNG 时无需再网络请求） */
+  badgeUrl?: string | null
 }
 
 export interface LabelLayoutOptions {
@@ -65,7 +67,7 @@ export interface LabelLayoutOptions {
   reserveRightBottom?: number
   /** 原始校名 → 院校补充信息；提供后省内按软科排名排序、行内渲染校徽 */
   uniInfo?: Map<string, UniEnrichment>
-  /** 三个标注模块的字号（px，以 1400px 宽画布为基准） */
+  /** 三个标注模块的字号（px，以 1500px 宽画布为基准） */
   sizes?: { province: number; person: number; place: number }
   /** 省内手动排序的省份：这些省保持录入/手动顺序，不按软科排名重排 */
   manualProvinces?: Set<string>
@@ -95,6 +97,8 @@ export interface StudentLineParts {
   badge?: boolean
   /** 原始校名（校徽代理 URL 用） */
   uni?: string
+  /** 校徽内联 dataURL（预取完成时有值，渲染/导出免网络） */
+  badgeUrl?: string | null
 }
 
 export function studentLineParts(s: StudentEntry): Omit<StudentLineParts, 'placeLines'> {
@@ -106,8 +110,8 @@ export function studentLineParts(s: StudentEntry): Omit<StudentLineParts, 'place
 
 /* ---------- 换行排版：校名特别长时换行而非缩小/省略 ---------- */
 
-/** 单侧标注列文字可用宽度（viewBox 单位）：锚点 264 到画布边缘留 12px 余量 */
-const COL_TEXT_W = 252
+/** 单侧标注列文字可用宽度（viewBox 单位）：锚点 304 到画布边缘留 8px 余量 */
+const COL_TEXT_W = 296
 /** 校徽占位：图标边长 = 地点字号 × 1.05；校徽与校名无间隙，与姓名间留 3px 呼吸 */
 export const BADGE_RATIO = 1.05
 /** 姓名与校徽之间的间隙（校徽与校名之间保持无间隙） */
@@ -257,8 +261,12 @@ export function computeLabelLayout(
   /** 学生行的换行结果（按用户 px 字号在 scale=1 下计算，保守不溢出） */
   const wrappedOf = (s: StudentEntry): StudentLineParts => {
     const parts = studentLineParts(s)
-    const badge = uniInfo?.get(s.university.trim())?.badge === true
-    return wrapStudentLine({ ...parts, badge }, { person: sizes.person, place: sizes.place })
+    const enrich = uniInfo?.get(s.university.trim())
+    const badge = enrich?.badge === true
+    return wrapStudentLine(
+      { ...parts, badge, badgeUrl: enrich?.badgeUrl ?? null },
+      { person: sizes.person, place: sizes.place },
+    )
   }
 
   const items: SideItem[] = []

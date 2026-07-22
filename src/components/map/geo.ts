@@ -105,13 +105,13 @@ export function getProvinceShape(name: string): GeoFeature | undefined {
 
 /* ---------------- 画布布局常量（虚拟坐标，配合 SVG viewBox 自适应缩放） ---------------- */
 
-export const DESIGN_W = 1400
+export const DESIGN_W = 1500
 /** 地图/标注列顶部留白 */
 export const TOP = 16
 export const BOTTOM = 24
-/** 主图区域左右边界（外侧各留 280px 给标注列：足够宽，长校名优先换行而不是压缩） */
-export const MAP_X0 = 280
-export const MAP_X1 = 1120
+/** 主图区域左右边界（外侧各留 320px 给标注列：常见长校名在常用字号下无需换行） */
+export const MAP_X0 = 320
+export const MAP_X1 = 1180
 
 const LNG_MIN = 73.4
 const LNG_MAX = 135.2

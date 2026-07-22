@@ -17,7 +17,7 @@ import { SizeSelect } from '@/components/entry/SizeSelect'
 import { cn } from '@/lib/utils'
 import type { MapData } from '@/types'
 
-/** 标题字号档位（px，以 1400px 宽画布为基准） */
+/** 标题字号档位（px，以 1500px 宽画布为基准） */
 const TITLE_SIZE_OPTIONS = [20, 24, 28, 30, 32, 36, 40, 44, 48, 52, 56] as const
 
 /** 图片压缩为 128px 内的 PNG dataURL（localStorage 友好） */

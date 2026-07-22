@@ -16,7 +16,7 @@ export interface TeacherEntry {
 }
 
 /**
- * 地图标注三个模块的字号（px，以 1400px 宽虚拟画布为基准）。
+ * 地图标注三个模块的字号（px，以 1500px 宽虚拟画布为基准）。
  * province 省份名 / person 姓名 / place 城市·大学。
  */
 export interface LabelSizes {
