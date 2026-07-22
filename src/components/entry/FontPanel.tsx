@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { Type, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   CUSTOM_FONT_MAX_BYTES,
   FONT_SLOT_LABELS,
@@ -115,6 +117,19 @@ export function FontPanel() {
             />
           </div>
         ))}
+      </div>
+
+      {/* 校徽显示开关：关闭后地图与导出图中都不渲染校徽，大学文字照常 */}
+      <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
+        <Label htmlFor="badge-toggle" className="text-xs text-stone-500">
+          在大学名前显示校徽图片
+        </Label>
+        <Switch
+          id="badge-toggle"
+          checked={data.showBadges}
+          onCheckedChange={(v) => setData((prev) => ({ ...prev, showBadges: v }))}
+          aria-label="在大学名前显示校徽图片"
+        />
       </div>
 
       {customFonts.length > 0 && (

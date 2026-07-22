@@ -129,6 +129,8 @@ function normalizeData(raw: unknown): MapData | null {
     students: d.students,
     teachers: d.teachers,
     showTeachers: d.showTeachers !== false,
+    // v1.8 迁移：旧数据无 showBadges 字段时默认显示校徽
+    showBadges: d.showBadges !== false,
     titleAlign:
       d.titleAlign === 'center' ? 'center' : d.titleAlign === 'right' ? 'right' : 'left',
     subtitle: typeof d.subtitle === 'string' ? d.subtitle : '',

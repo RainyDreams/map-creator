@@ -188,7 +188,7 @@ export default function MapPage() {
       const key = s.university.trim()
       if (key === '') continue
       const info: UniInfo | undefined = getUniInfoSync(key)
-      const hasBadge = info?.b != null
+      const hasBadge = data.showBadges && info?.b != null
       m.set(key, {
         rank: info?.r ?? null,
         badge: hasBadge,
@@ -197,7 +197,7 @@ export default function MapPage() {
     }
     return m
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.students, uniTick])
+  }, [data.students, data.showBadges, uniTick])
 
   /** 展示用学生列表：城市为空时用院校数据/本地推断补全（不回写录入数据） */
   const displayStudents = useMemo(
@@ -403,10 +403,14 @@ export default function MapPage() {
             <UnlocatedBlock students={unlocated} />
 
             {/* 底部来源条：画布的一部分，随导出一起进 PNG。
-                左侧生成时间，中央生成信息（字距正常、极小字、克制不喧宾夺主） */}
+                左侧生成时间，中央生成信息（字距正常、极小字、克制不喧宾夺主）；字体固定思源黑体 */}
             <div
               className="relative flex items-center border-t px-4 py-1.5 text-[10px] text-stone-400"
-              style={{ backgroundColor: theme.footerBg, borderColor: `color-mix(in srgb, ${theme.leaderLine} 40%, transparent)` }}
+              style={{
+                backgroundColor: theme.footerBg,
+                borderColor: `color-mix(in srgb, ${theme.leaderLine} 40%, transparent)`,
+                fontFamily: '"NotoSansSC","PingFang SC","Microsoft YaHei",sans-serif',
+              }}
             >
               <span className="tabular-nums">生成于 {formatNow()}</span>
               <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap">

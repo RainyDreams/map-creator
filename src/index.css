@@ -11,6 +11,16 @@
   font-display: swap;
 }
 
+/* 思源黑体（GB2312 一级常用字子集）：全局界面默认字体；
+   子集未覆盖的罕见字符自动回退系统黑体 */
+@font-face {
+  font-family: 'NotoSansSC';
+  src: url('./assets/fonts/NotoSansSC-subset.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   /* 装饰书法字体：毛笔体优先，楷体兜底（兜底保证子集未覆盖字符可见） */
   .font-calligraphy {
@@ -87,6 +97,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* 全局界面默认字体：思源黑体优先，系统黑体兜底 */
+    font-family: 'NotoSansSC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   }
 }
 

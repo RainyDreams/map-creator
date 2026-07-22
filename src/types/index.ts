@@ -48,6 +48,8 @@ export interface MapData {
   teachers: TeacherEntry[]
   /** 老师名单是否在地图上显示（关闭开关时图上隐藏，数据保留） */
   showTeachers: boolean
+  /** 校徽图片是否在地图上显示（关闭时图上不渲染校徽，大学文字照常） */
+  showBadges: boolean
   /** 画布标题排布：居左 / 居中 / 居右 */
   titleAlign: 'left' | 'center' | 'right'
   /** 英文副标题（可选，显示在标题下方） */
@@ -72,6 +74,7 @@ export const EMPTY_MAP_DATA: MapData = {
   students: [],
   teachers: [],
   showTeachers: true,
+  showBadges: true,
   titleAlign: 'left',
   subtitle: '',
   labelSizes: DEFAULT_LABEL_SIZES,

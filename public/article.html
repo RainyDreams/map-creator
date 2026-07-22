@@ -10,15 +10,18 @@
 <!-- 复制按钮（不在选区范围内，不会被复制） -->
 <div style="max-width:677px;margin:0 auto 16px;text-align:center;">
   <button id="copyBtn" style="padding:10px 28px;font-size:15px;border:none;border-radius:8px;background:#1f2937;color:#fff;cursor:pointer;">一键复制全文（再到公众号编辑器里粘贴）</button>
-  <p style="font-size:12px;color:#8a857c;margin:8px 0 0;">若按钮失效：手动从下方标题处拖选到文末，Ctrl+C 复制后粘贴到公众号编辑器。</p>
+  <p style="font-size:12px;color:#8a857c;margin:8px 0 0;">若按钮失效：手动从下方引言处拖选到文末，Ctrl+C 复制后粘贴到公众号编辑器。</p>
+</div>
+
+<!-- ==================== 标题与作者（不在复制范围内） ==================== -->
+<div style="max-width:677px;margin:0 auto 16px;padding:14px 18px;background:#fffdf8;border:1px dashed #d8cfc0;border-radius:8px;">
+  <p style="font-size:13px;color:#8a857c;margin:0 0 4px;">以下标题和作者请自行填入公众号编辑器，不会被复制：</p>
+  <p style="font-size:17px;font-weight:700;color:#2b2620;margin:0;">标题：把全班的去向，画在一幅地图上</p>
+  <p style="font-size:13px;color:#a39e94;margin:4px 0 0;">作者：零本</p>
 </div>
 
 <!-- ==================== 推文正文开始（此容器内的内容会被复制） ==================== -->
 <section id="article" style="max-width:677px;margin:0 auto;background:#ffffff;padding:32px 20px;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;color:#3f3a33;font-size:16px;line-height:1.85;letter-spacing:0.02em;">
-
-  <!-- 标题 -->
-  <h1 style="font-size:22px;line-height:1.4;font-weight:700;color:#2b2620;margin:0 0 6px;">把全班的去向，画在一幅地图上</h1>
-  <p style="font-size:13px;color:#a39e94;margin:0 0 28px;">零本 · 2026 年 7 月</p>
 
   <!-- 引言 -->
   <blockquote style="margin:0 0 24px;padding:12px 16px;border-left:3px solid #d8cfc0;background:#faf8f4;color:#6b6357;font-size:15px;">
@@ -27,43 +30,80 @@
 
   <img src="https://map.linkbrain.top/article/cover.jpg" alt="墨点与连线：散落各地，彼此相连" style="width:100%;display:block;margin:0 0 28px;border-radius:6px;" />
 
-  <p style="margin:0 0 16px;">今天，我正式推出「蹭饭图生成器」——一个把全班同学的去向画在中国地图上的小工具。输入姓名、大学与城市，一幅属于你们班的蹭饭图即刻生成：谁去了哪座城市、哪所高校，一目了然。</p>
+  <p style="margin:0 0 16px;">今天，我正式推出「蹭饭图生成器」——一个把全班同学的去向画在中国地图上的小工具。输入姓名、大学和城市，一幅属于你们班的蹭饭图即刻生成：谁去了哪座城市、哪所高校，一目了然。</p>
 
-  <p style="margin:0 0 16px;">做它的原因很简单。录取结果陆续公布，五十个朝夕相处的人，即将散落到大半个中国。散场之前，总该留下一张像样的图——以后走到哪座城市，翻开它，就知道该敲谁的门、蹭谁的饭。</p>
+  <p style="margin:0 0 16px;">做它的原因很简单。录取结果陆续公布，几十个朝夕相处的人，即将散落到大半个中国。散场之前，总该留下一张像样的图——以后走到哪座城市，翻开它，就知道该敲谁的门、蹭谁的饭。</p>
 
-  <p style="margin:0 0 24px;">即日起，可通过 <strong style="color:#2b6cb0;">map.linkbrain.top</strong> 免费使用：无需注册，打开即用，所有数据只保存在你自己的浏览器里。</p>
+  <p style="margin:0 0 24px;">即日起，打开 <strong style="color:#2b6cb0;">map.linkbrain.top</strong> 即可免费使用：无需注册，没有广告，所有数据只保存在你自己的浏览器里。</p>
 
-  <img src="https://map.linkbrain.top/article/map-result.png" alt="一张生成好的蹭饭图示例" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
-  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">一幅 26 人的蹭饭图：15 个省份、26 座城市，一图收藏</p>
+  <img src="https://map.linkbrain.top/article/map-result-v2.png" alt="一幅生成好的蹭饭图：海阔天空主题" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">一幅 23 人的蹭饭图：15 个省级行政区、15 座城市，一图收藏</p>
 
-  <!-- 分节 -->
-  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 一幅图，装下全班</p>
-  <p style="margin:0 0 24px;">排版引擎按 50 人规模设计。同学按省份分组，标注列依地理方位自动排布：北方在上、南方在下，西部居左、东部居右；引线以贝塞尔曲线连接定位点，尽量不交叉。校名再长也不截断、不缩字号，而是自动换行——每个人的信息都完整呈现。</p>
+  <!-- 上手 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 三分钟，从零到一幅图</p>
+  <p style="margin:0 0 16px;">整个流程只有三步：<strong>录入名单 → 调整样式 → 导出图片</strong>。</p>
+  <p style="margin:0 0 16px;">名单有两种录入方式。人少，就逐条手动填；人多，下载 Excel 模板批量填好再上传，系统会自动识别每一行。填完大学名，城市会自动补全，也可以再用「省份 → 城市」两级下拉精调——全国每一个地级市都在库里，坐标由服务端按需查询，不用一次性加载。</p>
+  <p style="margin:0 0 24px;">推荐在电脑上录入和生成，效率最高；手机端同样有完整的录入界面，适合随时补充。</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 落到城市，而不只是省份</p>
-  <p style="margin:0 0 24px;">定位精确到市级。全国地级及以上城市的坐标按需从服务端查询，不必一次性加载全部数据。同省的多名同学，会分别落在各自的城市——北京是「北京大学 · 北京」，石河子是「石河子大学 · 石河子」。</p>
+  <img src="https://map.linkbrain.top/article/panel-modal-v2.png" alt="录入面板：按省份分组，顺序可调" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">录入面板：名单按省份分组，与地图标注严格一致</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 校名，可以写成毛笔字</p>
-  <p style="margin:0 0 24px;">这是我最喜欢的功能。任何一所大学，都可以上传一张你自备的透明底横版毛笔字图片——找班里写字最好的同学题一幅，或是从学校官微取一张官方题字。上传后，地图上的大学文字将被这幅毛笔字替代：校徽在前，墨迹随后，大小可用滑块自由调节。一幅蹭饭图，从此有了人情味。</p>
+  <!-- 主题 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 七套主题，一键换气质</p>
+  <p style="margin:0 0 16px;">同一份名单，可以是暖阳的喜庆，也可以是水墨的克制。内置七套预设主题：暖阳金、海阔天空、青山墨绿、朱砂喜庆、极简灰白、活力卡通、水墨丹青，点击即切换，画布实时重绘。</p>
+  <p style="margin:0 0 24px;">预设都不满意，还可以逐项自定义：画布底色、省份填充、标题色、标注色、引线色，全部开放。调出来的配色会自动存为「自定义」主题，下次打开还在。</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 每个人，都值得好好排版</p>
-  <p style="margin:0 0 24px;">省份、姓名、城市与大学，三个模块的字体字号均可独立设置，内置阿里妈妈数黑体、马善政毛笔体、思源黑体等多款免费商用字体，也支持上传自己的字体。校徽自动匹配，覆盖八百余所高校；省内同学默认按软科排名排序，也可以按省份分组后拖拽调整。主题配色有多套预设，还支持逐色自定义、上传校徽或班徽。</p>
+  <img src="https://map.linkbrain.top/article/themes-v2.jpg" alt="同一份名单在暖阳金、海阔天空、水墨丹青三套主题下的样子" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">同一份名单 × 三套主题：暖阳金 / 海阔天空 / 水墨丹青</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 高清导出，为打印而生</p>
-  <p style="margin:0 0 24px;">一键导出超清 PNG，宽度不低于 4000 像素。即使电脑屏幕分辨率不高，导出的图依然高清，适合打印、装裱，也经得起班级群里放大细看。名单可同时导出 Excel 与 JSON 备份；多画布管理让每一幅图独立保存、随时回来修改。</p>
+  <!-- 字体 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 字体，细到每一个模块</p>
+  <p style="margin:0 0 16px;">大多数工具只让你选一种字体。这里不是。标题拆成<strong>数字、英文、中文</strong>三个槽位，地图标注拆成<strong>省份名、姓名、城市与大学</strong>三个槽位——六个槽位各自独立设置字体和字号。年份可以用阿里妈妈数黑体的锋利，人名用思源黑体的干净，省份名用马善政毛笔体的洒脱，互不干扰。</p>
+  <p style="margin:0 0 16px;">预设字体全部免费可商用；有特殊偏好，也可以上传自己的字体文件（仅保存在本机浏览器）。</p>
+  <p style="margin:0 0 24px;">这个面板里还有一个开关：<strong>校徽图片</strong>。喜欢纯粹的文字排版，关掉它，地图上的校徽就会整体隐去。</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 录入，三种姿势</p>
-  <p style="margin:0 0 24px;">手动逐条录入；下载 Excel 模板批量上传；手机端随时补充名单。移动端适合录入，但我强烈建议到电脑端生成图片——大屏排版，所见即所得。</p>
+  <img src="https://map.linkbrain.top/article/font-panel-v2.png" alt="字体设置面板：分模块字体字号与校徽开关" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">字体设置：三个标注槽位独立调节，底部是校徽开关</p>
 
-  <img src="https://map.linkbrain.top/article/editor-desktop.png" alt="电脑端编辑器：左侧录入，右侧地图实时预览" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
-  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 24px;">电脑端编辑器：左侧录入，右侧地图实时联动预览</p>
+  <!-- 校徽与毛笔字 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 校徽自动匹配，校名可以写成毛笔字</p>
+  <p style="margin:0 0 16px;">填完大学名，校徽会自动出现在名字前面。校徽图库覆盖八百余所高校，经本站服务器代理加载并缓存，第二次打开几乎瞬时。</p>
+  <p style="margin:0 0 24px;">更特别的是毛笔字。任何一所大学，都可以上传一张你自备的透明底横版毛笔字图片——找班里写字最好的同学题一幅，或者从学校官微取一张官方题字。上传后，地图上的大学文字将被这幅墨迹替代：校徽在前，笔意随后，大小用滑块自由调节。上面那幅成品图里，「西安电子科技大学」就是毛笔字渲染的。一幅蹭饭图，从此有了人情味。</p>
 
-  <img src="https://map.linkbrain.top/article/mobile-entry.png" alt="手机端录入界面" style="width:61.8%;display:block;margin:0 auto 8px;border-radius:6px;" />
+  <!-- 排版引擎 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 为五十个人设计的排版引擎</p>
+  <p style="margin:0 0 16px;">蹭饭图最难的不是画地图，是把几十个人的名字摆好看。这里的标注列按地理方位自动排布：北方的省份排在上方，南方的沉到下方，西部居左、东部居右，引线自然就少了交叉。引线也不是生硬的直线，而是从定位点到标注块的贝塞尔曲线，弧度自然。</p>
+  <p style="margin:0 0 16px;">校名再长也不省略、不缩字号，而是自动换行——「张博文瑄 清华大学 · 北京」必须完整，这是底线。同一个省的多名同学，默认按软科中国大学排名排序；想按自己的心意排，拖动或点按调整之后，这个省会记住你的手动顺序。</p>
+  <p style="margin:0 0 24px;">老师名单可选填，会在画布角落生成「相伴三年的老师们」卡片；标题可以居左、居中、居右，也可以加一行英文副标题。</p>
+
+  <!-- 导出 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 超清导出，为打印而生</p>
+  <p style="margin:0 0 16px;">导出与屏幕分辨率无关。哪怕你的显示器只有 1080p，导出的 PNG 宽度也不低于 4000 像素——打印、装裱、在班级群里放大看细节，都够用。</p>
+  <p style="margin:0 0 24px;">导出过程有实时进度条和预计剩余时间，长任务也不会让人心里没底。名单本身还能导出成 Excel 或 JSON 备份；配合多画布功能，一个班可以做好几幅不同风格的图，各自独立保存，随时回来修改。</p>
+
+  <img src="https://map.linkbrain.top/article/export-dialog-v2.png" alt="导出中的进度提示" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">导出超清 PNG：实时进度与剩余时间预估</p>
+
+  <img src="https://map.linkbrain.top/article/editor-desktop-v2.png" alt="电脑端编辑器：左侧录入控制台，右侧地图实时预览" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">电脑端编辑器：左侧控制台，右侧地图实时联动</p>
+
+  <!-- 移动端 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 手机端：随时补录，生成请回电脑</p>
+  <p style="margin:0 0 16px;">手机端有「录入 / 地图 / 关于」三个 Tab，界面为小屏重新排布：姓名、校名各自独占一行，排序改成上下按钮，名单面板从屏幕中央弹出。聚餐时突然想起谁漏了，掏出手机就能补上。</p>
+  <p style="margin:0 0 24px;">但有一句实话放在这里：<strong>手机端适合录入，生成图片请尽量回电脑。</strong>大屏排版，所见即所得，导出的图也更可靠。</p>
+
+  <img src="https://map.linkbrain.top/article/mobile-v2.png" alt="手机端录入界面" style="width:61.8%;display:block;margin:0 auto 8px;border-radius:6px;" />
   <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">手机端：录入 / 地图 / 关于三个 Tab，随时补充名单</p>
 
-  <p style="margin:0 0 16px;">蹭饭图生成器由我——赤峰二中 2026 届 zxy——独立开发。这只是开始：更多字体、更多主题、更全的校徽库，都在路上。</p>
+  <!-- 数据安全 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 你的名单，只在你手里</p>
+  <p style="margin:0 0 24px;">这个工具没有账号体系，也不要求你上传任何名单到服务器。所有数据都保存在你自己浏览器的本地存储里，刷新不丢失，换台电脑可以用 JSON 导出导入带走。服务器只做两件事：查询城市坐标、代理校徽图片。</p>
 
-  <p style="margin:0 0 24px;">三年同窗，一图收藏。祝各位前程似锦——记得常回家蹭饭。</p>
+  <!-- 尾声 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 写在后面</p>
+  <p style="margin:0 0 16px;">蹭饭图生成器由我——赤峰二中 2026 届 zxy——独立开发，从第一张草图到上线，改了十几版。它会继续迭代：更多字体、更多主题、更全的校徽库，都在路上。</p>
+
+  <p style="margin:0 0 24px;">三年同窗，一图收藏。祝各位前程似锦——记得常回来蹭饭。</p>
 
   <!-- 结尾入口 -->
   <section style="margin:0 0 8px;padding:16px;background:#faf8f4;border-radius:8px;text-align:center;">
