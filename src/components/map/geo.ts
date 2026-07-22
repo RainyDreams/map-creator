@@ -1,10 +1,12 @@
 /**
  * 地图几何与投影模块：
- * - 模块级解析 china.json，把 Polygon/MultiPolygon 预编译为 SVG path 字符串
+ * - china.json 不打进 JS bundle：作为静态资源放在 public/data/ 下，运行时按需 fetch
+ *   （Cloudflare CDN 缓存，见 public/_headers），fetch 后把 Polygon/MultiPolygon
+ *   预编译为 SVG path 字符串
  *   （坐标已做等距圆柱投影：x = lng·cos(中纬)，y = -lat，单位仍是"度"，缩放由 SVG transform 完成）
  * - 主图裁剪到 lat >= 17.5（南沙等归入右下角"南海诸岛"小插图）
+ * - 调用方需先 await loadGeoFeatures()（或监听 isGeoReady），之后同步 API 可用
  */
-import chinaJson from '@/assets/china.json'
 
 export interface GeoFeature {
   /** 省份全称；china.json 中南海诸岛要素 name 为空串 */
@@ -19,8 +21,6 @@ interface RawFeature {
   properties?: { name?: string; centroid?: [number, number] }
   geometry?: { type: string; coordinates: unknown }
 }
-
-const raw = chinaJson as unknown as { features: RawFeature[] }
 
 /** 中纬 35.5° 的余弦修正，抵消等距圆柱投影的横向拉伸 */
 export const KX = Math.cos((35.5 * Math.PI) / 180)
@@ -91,13 +91,46 @@ function deriveCentroid(geom?: RawFeature['geometry']): [number, number] | null 
   return best ? [round2(best.lng), round2(best.lat)] : null
 }
 
-export const GEO_FEATURES: GeoFeature[] = raw.features.map((f) => ({
-  name: f.properties?.name ?? '',
-  d: buildPath(f.geometry),
-  centroid: f.properties?.centroid ?? deriveCentroid(f.geometry),
-}))
+let geoFeatures: GeoFeature[] = []
+let shapeByName = new Map<string, GeoFeature>()
+let loadPromise: Promise<GeoFeature[]> | null = null
 
-const shapeByName = new Map(GEO_FEATURES.filter((f) => f.name !== '').map((f) => [f.name, f]))
+/** 地图数据是否已加载完成（之后可同步使用 getGeoFeatures / getProvinceShape） */
+export function isGeoReady(): boolean {
+  return geoFeatures.length > 0
+}
+
+/** 已加载的省份要素（未加载时为 []） */
+export function getGeoFeatures(): GeoFeature[] {
+  return geoFeatures
+}
+
+/**
+ * 从 /data/china.json 加载并预编译地图数据（Promise 级去重，全局只请求一次）。
+ * 失败时清空 Promise 允许下次重试。
+ */
+export function loadGeoFeatures(): Promise<GeoFeature[]> {
+  if (geoFeatures.length > 0) return Promise.resolve(geoFeatures)
+  loadPromise ??= fetch('/data/china.json')
+    .then((res) => {
+      if (!res.ok) throw new Error(`china.json HTTP ${res.status}`)
+      return res.json() as Promise<{ features: RawFeature[] }>
+    })
+    .then((raw) => {
+      geoFeatures = raw.features.map((f) => ({
+        name: f.properties?.name ?? '',
+        d: buildPath(f.geometry),
+        centroid: f.properties?.centroid ?? deriveCentroid(f.geometry),
+      }))
+      shapeByName = new Map(geoFeatures.filter((f) => f.name !== '').map((f) => [f.name, f]))
+      return geoFeatures
+    })
+    .catch((err) => {
+      loadPromise = null
+      throw err
+    })
+  return loadPromise
+}
 
 export function getProvinceShape(name: string): GeoFeature | undefined {
   return shapeByName.get(name)

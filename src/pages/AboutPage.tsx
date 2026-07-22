@@ -4,6 +4,13 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.10.3',
+    date: '2026-07-22',
+    items: [
+      '地图轮廓数据（china.json，约 570KB）不再打进 JS 包：改为独立的 /data/ 静态资源按需加载（CDN 缓存 7 天、页面预载），主包体积从 1.72MB 降至 1.14MB，打开更快',
+    ],
+  },
+  {
     version: 'v1.10.2',
     date: '2026-07-22',
     items: [
@@ -129,7 +136,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.10.2</dd>
+          <dd className="text-stone-700">v1.10.3</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

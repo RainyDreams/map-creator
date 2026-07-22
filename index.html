@@ -17,6 +17,8 @@
     <meta name="theme-color" content="#fffbeb" />
     <link rel="canonical" href="https://map.linkbrain.top/" />
     <link rel="icon" type="image/png" href="/icon.png" />
+    <!-- 地图轮廓数据预载：独立静态资源（不打进 JS bundle），CDN 缓存 -->
+    <link rel="preload" href="/data/china.json" as="fetch" crossorigin />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />

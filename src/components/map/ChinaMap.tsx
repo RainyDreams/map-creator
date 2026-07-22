@@ -5,13 +5,16 @@ import { prefetchCityCenters } from '@/utils/cities'
 import { slotFontFamily } from '@/utils/fonts'
 import {
   DESIGN_W,
-  GEO_FEATURES,
+  getGeoFeatures,
   INSET,
+  isGeoReady,
+  loadGeoFeatures,
   MAP_H,
   MAP_TRANSFORM,
   MAP_X0,
   MAP_X1,
   TOP,
+  BOTTOM,
 } from './geo'
 import { computeLabelLayout, textEms, type CityCenterMap, type UniEnrichment } from './labels'
 import { LabelColumns } from './LabelColumns'
@@ -43,6 +46,20 @@ export interface ChinaMapProps {
 export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, calligraphy, badgeOverrides }: ChinaMapProps) {
   const { theme, fontSlots, customFonts } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
+  /** 地图轮廓数据（/data/china.json）异步加载：未就绪时渲染同尺寸占位 SVG，避免布局跳动 */
+  const [geoReady, setGeoReady] = useState(isGeoReady())
+  useEffect(() => {
+    if (geoReady) return
+    let cancelled = false
+    loadGeoFeatures()
+      .then(() => {
+        if (!cancelled) setGeoReady(true)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [geoReady])
   // 桌面端与移动端布局会同时挂载两个 ChinaMap（CSS 隐藏其一）；
   // clipPath id 必须按实例唯一，否则 url(#id) 解析到另一个实例的裁剪区，小插图溢出画框
   const uid = useId().replace(/:/g, '')
@@ -151,6 +168,23 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     return list
   }, [layout])
 
+  // 地图数据未就绪：渲染与正式图同高度的占位 SVG（与 labels.ts 的 svgHeight 公式一致）
+  if (!geoReady) {
+    const h = Math.max(
+      TOP + MAP_H + BOTTOM + Math.max(reserveLeftBottom ?? 0, reserveRightBottom ?? 0),
+      120,
+    )
+    return (
+      <svg
+        viewBox={`0 0 ${DESIGN_W} ${Math.round(h)}`}
+        className="block h-auto w-full"
+        role="img"
+        aria-label="地图加载中"
+      />
+    )
+  }
+  const features = getGeoFeatures()
+
   return (
     <svg
       viewBox={`0 0 ${DESIGN_W} ${Math.round(layout.svgHeight)}`}
@@ -173,7 +207,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       {/* 主图省份（裁剪掉 17.5°N 以南，南沙等只进小插图）；无名要素为十段线细多边形，用引线色填充+描边保证亚像素厚度下仍可见 */}
       <g clipPath={`url(#${mainClipId})`}>
         <g transform={MAP_TRANSFORM}>
-          {GEO_FEATURES.map((f, i) =>
+          {features.map((f, i) =>
             f.name === '' ? (
               <path
                 key={`dash-${i}`}
@@ -212,7 +246,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       />
       <g clipPath={`url(#${insetClipId})`}>
         <g transform={INSET.transform}>
-          {GEO_FEATURES.map((f, i) =>
+          {features.map((f, i) =>
             f.name === '' ? (
               <path
                 key={`inset-dash-${i}`}
