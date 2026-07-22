@@ -402,6 +402,9 @@ export default function MapPage() {
             style={{
               background: theme.canvasBg,
               borderColor: `color-mix(in srgb, ${theme.leaderLine} 45%, transparent)`,
+              // 容器查询单位（cqw）：让老师/海外/未定位等 HTML 覆盖层与 SVG 标注同比例缩放，
+              // 画布按 1500px 设计 → 1cqw = 15px（见 TeachersBlock 等）
+              containerType: 'inline-size',
             }}
           >
             {/* 标题区：班徽 + 大标题（数字/英文/中文三种字体分段）+ 英文副标题；titleAlign 控制居左/中/右 */}

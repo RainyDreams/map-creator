@@ -17,7 +17,11 @@ export interface CityInfo {
 }
 
 const provinceCache = new Map<string, CityInfo[]>()
+/** 进行中的请求 Promise —— 结果缓存是"先查后写"，并发首次调用会发出 N 个相同请求，
+    因此再叠一层 Promise 缓存：同一资源同一时间只允许一个网络请求在途 */
+const provincePromiseCache = new Map<string, Promise<CityInfo[]>>()
 let provinceListCache: string[] | null = null
+let provinceListPromise: Promise<string[]> | null = null
 let apiAvailable: boolean | null = null
 
 async function getJson<T>(url: string): Promise<T | null> {
@@ -40,21 +44,37 @@ export function isCityApiAvailable(): boolean | null {
 /** 全部省份（全称）。接口不可用时返回空数组。 */
 export async function fetchProvinces(): Promise<string[]> {
   if (provinceListCache) return provinceListCache
-  const data = await getJson<{ provinces: string[] }>('/api/provinces')
-  provinceListCache = data?.provinces ?? []
-  return provinceListCache
+  provinceListPromise ??= getJson<{ provinces: string[] }>('/api/provinces')
+    .then((data) => {
+      provinceListCache = data?.provinces ?? []
+      return provinceListCache
+    })
+    .finally(() => {
+      provinceListPromise = null
+    })
+  return provinceListPromise
 }
 
 /** 某省的全部市级城市（带省内缓存）。接口不可用时返回空数组。 */
 export async function fetchCities(province: string): Promise<CityInfo[]> {
   const cached = provinceCache.get(province)
   if (cached) return cached
-  const data = await getJson<{ cities: CityInfo[] }>(
-    `/api/cities?province=${encodeURIComponent(province)}`,
-  )
-  const cities = data?.cities ?? []
-  provinceCache.set(province, cities)
-  return cities
+  let promise = provincePromiseCache.get(province)
+  if (!promise) {
+    promise = getJson<{ cities: CityInfo[] }>(
+      `/api/cities?province=${encodeURIComponent(province)}`,
+    )
+      .then((data) => {
+        const cities = data?.cities ?? []
+        provinceCache.set(province, cities)
+        return cities
+      })
+      .finally(() => {
+        provincePromiseCache.delete(province)
+      })
+    provincePromiseCache.set(province, promise)
+  }
+  return promise
 }
 
 /** 批量预取多个省份的城市（地图定位点用），返回 城市名 → 经纬度 的查找表 */

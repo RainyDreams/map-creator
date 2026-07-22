@@ -4,6 +4,14 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.10.1',
+    date: '2026-07-22',
+    items: [
+      '修复打开名单弹窗时 /api/provinces 被并发重复请求数十次的问题：城市接口增加 Promise 级请求去重，同一资源同一时间只发一个网络请求',
+      '修复老师名单、海外同学、未定位提示块在窄画布（尤其移动端）上字体相对过大的问题：覆盖层字号改为随画布宽度等比缩放，与学生标注大小始终匹配',
+    ],
+  },
+  {
     version: 'v1.10.0',
     date: '2026-07-22',
     items: [
@@ -114,7 +122,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.10.0</dd>
+          <dd className="text-stone-700">v1.10.1</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

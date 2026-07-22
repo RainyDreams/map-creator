@@ -11,7 +11,7 @@ export default function SiteFooter() {
   return (
     <footer className="shrink-0 border-t border-stone-200 bg-stone-50 px-3 py-2.5 text-center text-[11px] leading-5 text-stone-400">
       <p>
-        © {year} 赤峰二中2026届zxy · 蹭饭图生成器 v1.10.0
+        © {year} 赤峰二中2026届zxy · 蹭饭图生成器 v1.10.1
       </p>
       <p className="hidden flex-wrap items-center justify-center gap-x-2 gap-y-0.5 md:flex">
         <a
