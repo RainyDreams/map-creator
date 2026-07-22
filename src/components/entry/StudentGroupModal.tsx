@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownUp, Brush, GripVertical, ImagePlus, MapPinOff, RotateCcw, Trash2 } from 'lucide-react'
+import { ArrowDownUp, Brush, GripVertical, ImagePlus, MapPinOff, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Slider } from '@/components/ui/slider'
+import CityPicker from '@/components/entry/CityPicker'
 import { useMapData } from '@/store/MapDataContext'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
 import { getUniInfoSync, prefetchUniversities } from '@/utils/universities'
-import type { CalligraphyAsset, StudentEntry } from '@/types'
+import { newId, type CalligraphyAsset, type StudentEntry } from '@/types'
 
 /** 未定位条目的虚拟分组键 */
 const UNLOCATED = '__unlocated__'
@@ -192,11 +201,54 @@ export function StudentGroupModal() {
     }
   }
 
+  /* ---------- 新增同学（嵌套模态框；自动归入所在省份分组） ---------- */
+  const [addOpen, setAddOpen] = useState(false)
+  const [addForm, setAddForm] = useState({ name: '', university: '', city: '' })
+  const addNameRef = useRef<HTMLInputElement>(null)
+
+  const openAdd = () => {
+    setAddForm({ name: '', university: '', city: '' })
+    setAddOpen(true)
+    // 对话框动画结束后聚焦姓名输入框
+    setTimeout(() => addNameRef.current?.focus(), 120)
+  }
+
+  const confirmAdd = () => {
+    const name = addForm.name.trim()
+    const university = addForm.university.trim()
+    const city = addForm.city.trim() || inferCityFromUniversity(university) || ''
+    if (name === '' && university === '' && city === '') return
+    setData((prev) => ({
+      ...prev,
+      students: [...prev.students, { id: newId(), name, university, city }],
+    }))
+    setAddOpen(false)
+  }
+
   if (students.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-6 text-center text-sm text-stone-500">
-        还没有学生，先在左侧名单里添加吧
-      </p>
+      <div className="space-y-4">
+        <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-6 text-center text-sm text-stone-500">
+          还没有学生，点击下方「新增同学」开始录入
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={openAdd}
+          className="h-9 w-full border-dashed border-stone-300 text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
+        >
+          <Plus className="h-4 w-4" />
+          新增同学
+        </Button>
+        <AddStudentDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          form={addForm}
+          setForm={setAddForm}
+          nameRef={addNameRef}
+          onConfirm={confirmAdd}
+        />
+      </div>
     )
   }
 
@@ -419,6 +471,124 @@ export function StudentGroupModal() {
           </section>
         )
       })}
+
+      {/* 底部固定操作：新增同学（弹出独立模态框，自动归入所在省份） */}
+      <div className="sticky bottom-0 -mx-1 border-t border-stone-100 bg-white/95 px-1 pt-2 pb-0.5 backdrop-blur">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={openAdd}
+          className="h-9 w-full border-dashed border-stone-300 text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
+        >
+          <Plus className="h-4 w-4" />
+          新增同学
+        </Button>
+      </div>
+
+      {/* 新增同学模态框：姓名/大学/省市联动；确认后自动加入所在省份分组 */}
+      <AddStudentDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        form={addForm}
+        setForm={setAddForm}
+        nameRef={addNameRef}
+        onConfirm={confirmAdd}
+      />
     </div>
+  )
+}
+
+/** 新增同学弹窗（空名单与名单内两种入口共用） */
+function AddStudentDialog({
+  open,
+  onOpenChange,
+  form,
+  setForm,
+  nameRef,
+  onConfirm,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  form: { name: string; university: string; city: string }
+  setForm: React.Dispatch<React.SetStateAction<{ name: string; university: string; city: string }>>
+  nameRef: React.RefObject<HTMLInputElement | null>
+  onConfirm: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>新增同学</DialogTitle>
+          <DialogDescription>
+            确认后将自动加入其所在省份的分组；大学失焦时会自动推断城市，可再手动调整
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label htmlFor="add-name" className="text-xs text-stone-500">
+              姓名
+            </label>
+            <Input
+              id="add-name"
+              ref={nameRef}
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="姓名"
+              className="h-9 border-stone-200 bg-white text-sm focus-visible:ring-stone-300"
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="add-university" className="text-xs text-stone-500">
+              大学
+            </label>
+            <Input
+              id="add-university"
+              value={form.university}
+              onChange={(e) => setForm((f) => ({ ...f, university: e.target.value }))}
+              onBlur={() => {
+                if (form.city.trim() === '') {
+                  const inferred = inferCityFromUniversity(form.university)
+                  if (inferred) setForm((f) => ({ ...f, city: inferred }))
+                }
+              }}
+              placeholder="大学全称，如 西安电子科技大学"
+              className="h-9 border-stone-200 bg-white text-sm focus-visible:ring-stone-300"
+            />
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-stone-500">省份 / 城市</span>
+            <div className="grid grid-cols-2 gap-2">
+              <CityPicker
+                value={form.city}
+                onChange={(city) => setForm((f) => ({ ...f, city }))}
+                ariaLabel="新增同学的城市"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              className="text-stone-500"
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              onClick={onConfirm}
+              disabled={
+                form.name.trim() === '' &&
+                form.university.trim() === '' &&
+                form.city.trim() === ''
+              }
+              className="bg-stone-800 text-white hover:bg-stone-700"
+            >
+              添加
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

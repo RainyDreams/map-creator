@@ -24,6 +24,7 @@ export function Slider({ value, min, max, step = 1, onChange, format, ...rest }:
   const [dragging, setDragging] = useState(false)
 
   const clamp = (v: number) => Math.min(max, Math.max(min, v))
+  const clamp01 = (t: number) => Math.min(1, Math.max(0, t))
   const snap = (v: number) => clamp(Math.round(v / step) * step)
   const ratio = max > min ? (value - min) / (max - min) : 0
 
@@ -32,8 +33,8 @@ export function Slider({ value, min, max, step = 1, onChange, format, ...rest }:
       const el = trackRef.current
       if (!el) return value
       const r = el.getBoundingClientRect()
-      const t = r.width > 0 ? (clientX - r.left) / r.width : 0
-      return snap(min + clamp(t) * (max - min))
+      const t = r.width > 0 ? clamp01((clientX - r.left) / r.width) : 0
+      return snap(min + t * (max - min))
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [min, max, step, value],
@@ -54,7 +55,7 @@ export function Slider({ value, min, max, step = 1, onChange, format, ...rest }:
   }, [dragging, onChange, valueFromClientX])
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full min-w-0 flex-1 items-center gap-2">
       <div
         ref={trackRef}
         role="slider"
@@ -62,7 +63,7 @@ export function Slider({ value, min, max, step = 1, onChange, format, ...rest }:
         aria-valuemax={max}
         aria-valuenow={value}
         aria-label={rest['aria-label']}
-        className="relative h-4 min-w-0 flex-1 cursor-pointer touch-none select-none"
+        className="relative h-5 min-w-0 flex-1 cursor-pointer touch-none select-none"
         onPointerDown={(e) => {
           e.preventDefault()
           setDragging(true)
@@ -70,10 +71,10 @@ export function Slider({ value, min, max, step = 1, onChange, format, ...rest }:
         }}
       >
         {/* 轨道 */}
-        <div className="absolute top-1/2 right-0 left-0 h-1 -translate-y-1/2 rounded-full bg-stone-200" />
+        <div className="absolute top-1/2 right-0 left-0 h-1.5 -translate-y-1/2 rounded-full bg-stone-300" />
         {/* 已填充段 */}
         <div
-          className="absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full bg-stone-500"
+          className="absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full bg-stone-600"
           style={{ width: `${ratio * 100}%` }}
         />
         {/* 把手 */}
@@ -88,8 +89,8 @@ export function Slider({ value, min, max, step = 1, onChange, format, ...rest }:
               onChange(snap(value + step))
             }
           }}
-          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-stone-400 bg-white outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-stone-300 ${
-            dragging ? 'shadow-md ring-2 ring-stone-300' : 'shadow-sm'
+          className={`absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-stone-600 bg-white outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-stone-400 ${
+            dragging ? 'shadow-md ring-2 ring-stone-400' : 'shadow'
           }`}
           style={{ left: `${ratio * 100}%` }}
         />
