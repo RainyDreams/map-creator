@@ -4,6 +4,13 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.9.6',
+    date: '2026-07-22',
+    items: [
+      '修复学生较少时左下角老师名单块压住地图与学生标注的问题：预留区现在始终通过加高画布兑现，老师块独占地图下方空白区',
+    ],
+  },
+  {
     version: 'v1.9.5',
     date: '2026-07-22',
     items: [
@@ -98,7 +105,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.9.5</dd>
+          <dd className="text-stone-700">v1.9.6</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

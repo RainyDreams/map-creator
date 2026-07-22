@@ -468,11 +468,13 @@ export function computeLabelLayout(
   const l = buildSide(left, 'left')
   const r = buildSide(right, 'right')
   // 超出列高时加高画布（纵向扩展），保证最低档字号下依然不重叠；
-  // 左右下角的覆盖层预留区同样通过加高画布兑现，保证文字不被压住
+  // 左右下角的覆盖层（老师名单/未定位提示）预留区同样通过加高画布兑现。
+  // 注意：预留必须同时加到「地图本体」这一项上——学生较少、地图是最高元素时，
+  // 若只加在标注列项上，画布不会加高，覆盖层就会直接压在地图与学生标注上。
   const reserveL = options?.reserveLeftBottom ?? 0
   const reserveR = options?.reserveRightBottom ?? 0
   const svgHeight = Math.max(
-    TOP + MAP_H + BOTTOM,
+    TOP + MAP_H + BOTTOM + Math.max(reserveL, reserveR),
     l.total + BOTTOM + reserveL,
     r.total + BOTTOM + reserveR,
     120,
