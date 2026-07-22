@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { EMPTY_MAP_DATA, newId, type MapData, type StudentEntry } from '@/types'
 import { DEFAULT_THEME, presetById, type ThemeConfig } from '@/utils/themes'
+import { isLikelyCountryOrRegion, normalizeProvinceName, provinceOfCity } from '@/utils/geo'
 import {
   DEFAULT_FONT_SLOTS,
   ensureCustomFontsLoaded,
@@ -149,6 +150,8 @@ function normalizeData(raw: unknown): MapData | null {
       province: px(ls.province, 16, 10, 28),
       person: px(ls.person, 13, 9, 22),
       place: px(ls.place, 13, 9, 22),
+      // v1.10 迁移：旧数据无 teacher 字段时按默认 13px（与学生姓名一致）
+      teacher: px(ls.teacher, 13, 9, 22),
     },
     customOrderProvinces: Array.isArray(d.customOrderProvinces)
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
@@ -370,7 +373,15 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
 
   const importStudents = useCallback(
     (students: Array<Omit<StudentEntry, 'id'>>, mode: 'replace' | 'append') => {
-      const withIds = students.map((s) => ({ ...s, id: newId() }))
+      // Excel 导入的境外自动识别：城市栏填的是国家/地区名（如“美国”）时标记 overseas，
+      // 地图上不指向中国，单独列入「海外 / 境外」区块；错别字不匹配名单，仍按未定位处理
+      const withIds = students.map((s) => {
+        const city = s.city.trim()
+        const overseas =
+          s.overseas === true ||
+          (city !== '' && !provinceOfCity(city) && !normalizeProvinceName(city) && isLikelyCountryOrRegion(city))
+        return { ...s, id: newId(), overseas: overseas || undefined }
+      })
       setPersisted((prev) => ({
         ...prev,
         canvases: prev.canvases.map((c) =>

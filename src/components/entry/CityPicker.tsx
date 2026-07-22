@@ -26,12 +26,18 @@ interface CityPickerProps {
   /** 当前城市名（可不带“市”后缀），为空表示未选 */
   value: string
   onChange: (city: string) => void
+  /** 境外标记：true 时 value 视为国家/地区名，不在中国地图定位 */
+  overseas?: boolean
+  onOverseasChange?: (v: boolean) => void
   /** 降级为文本输入时透传回车键处理（最后一行回车加行） */
   onEnterKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
   ariaLabel?: string
 }
 
 type Status = 'loading' | 'ready' | 'offline'
+
+/** 省份下拉里「海外 / 境外」选项的取值（不会与真实省份重名） */
+const OVERSEAS_VALUE = '__overseas__'
 
 /** 去掉“市”后缀存储（与 geo.ts 的 provinceOfCity / inferCityFromUniversity 输出保持一致） */
 function stripCitySuffix(name: string): string {
@@ -42,8 +48,10 @@ function stripCitySuffix(name: string): string {
  * 省 → 市二级联动选择器。
  * - 数据来自 /api 城市服务（cities.ts）；服务不可用时降级为手动文本输入。
  * - value 变化（含大学失焦自动推断）时通过 provinceOfCity 反查省份并回显两个下拉。
+ * - 省份下拉首项为「海外 / 境外」：选中后城市位变为国家/地区自由输入，
+ *   该同学不指向地图，单独列入「海外 / 境外」区块。
  */
-export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel }: CityPickerProps) {
+export default function CityPicker({ value, onChange, overseas, onOverseasChange, onEnterKeyDown, ariaLabel }: CityPickerProps) {
   const [status, setStatus] = useState<Status>('loading')
   const [provinces, setProvinces] = useState<string[]>([])
   const [province, setProvince] = useState('')
@@ -72,14 +80,18 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
 
   // 外部 value 变化（含自动推断、Excel 导入、示例数据）→ 反查省份回显
   useEffect(() => {
+    if (overseas) {
+      if (province !== OVERSEAS_VALUE) setProvince(OVERSEAS_VALUE)
+      return
+    }
     const inferred = value.trim() ? provinceOfCity(value) : null
     if (inferred && inferred !== province) setProvince(inferred)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
+  }, [value, overseas])
 
-  // 省份变化 → 拉取该省城市（带序号防竞态）
+  // 省份变化 → 拉取该省城市（带序号防竞态）；境外模式不拉取
   useEffect(() => {
-    if (status !== 'ready' || !province) {
+    if (status !== 'ready' || !province || province === OVERSEAS_VALUE) {
       setCities([])
       return
     }
@@ -94,6 +106,13 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
 
   const handleProvinceChange = (p: string) => {
     setProvince(p)
+    if (p === OVERSEAS_VALUE) {
+      onOverseasChange?.(true)
+      // 切换为境外时，若当前值是国内城市则清空，请用户改写国家/地区
+      if (value.trim() && provinceOfCity(value)) onChange('')
+      return
+    }
+    onOverseasChange?.(false)
     // 切换省份后，若当前城市不属于新省份则清空，避免“河北省 + 广州”这种错配
     if (value.trim() && provinceOfCity(value) !== p) onChange('')
   }
@@ -111,14 +130,25 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onEnterKeyDown}
-          placeholder="自动推断，可修改"
+          placeholder={overseas ? '国家 / 地区，如：美国' : '自动推断，可修改'}
           aria-label={ariaLabel}
           className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
         />
-        <p className="flex items-center gap-1 text-[11px] text-stone-400">
-          <WifiOff className="h-3 w-3 shrink-0" />
-          城市数据服务未连接，可手动输入
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-1 text-[11px] text-stone-400">
+            <WifiOff className="h-3 w-3 shrink-0" />
+            城市数据服务未连接，可手动输入
+          </p>
+          <label className="flex cursor-pointer items-center gap-1 text-[11px] text-stone-500">
+            <input
+              type="checkbox"
+              checked={overseas === true}
+              onChange={(e) => onOverseasChange?.(e.target.checked)}
+              className="h-3 w-3 accent-stone-600"
+            />
+            境外
+          </label>
+        </div>
       </div>
     )
   }
@@ -140,7 +170,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
 
   return (
     <>
-      {/* 省份下拉 */}
+      {/* 省份下拉（首项为「海外 / 境外」） */}
       <Select value={province} onValueChange={handleProvinceChange}>
         <SelectTrigger
           aria-label={`${ariaLabel ?? ''}所在省份`}
@@ -149,6 +179,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
           <SelectValue placeholder="省份" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value={OVERSEAS_VALUE}>海外 / 境外</SelectItem>
           {provinces.map((p) => (
             <SelectItem key={p} value={p}>
               {p}
@@ -157,7 +188,17 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
         </SelectContent>
       </Select>
 
-      {/* 城市下拉：Popover + Command，支持搜索过滤 */}
+      {/* 境外：国家/地区自由输入；境内：城市下拉（Popover + Command，支持搜索过滤） */}
+      {overseas === true ? (
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onEnterKeyDown}
+          placeholder="国家 / 地区，如：美国"
+          aria-label={`${ariaLabel ?? ''}国家或地区`}
+          className="col-span-1 h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
+        />
+      ) : (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -208,6 +249,7 @@ export default function CityPicker({ value, onChange, onEnterKeyDown, ariaLabel 
           </Command>
         </PopoverContent>
       </Popover>
+      )}
     </>
   )
 }

@@ -4,6 +4,14 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.10.0',
+    date: '2026-07-22',
+    items: [
+      '新增境外同学支持：录入时省份选「海外 / 境外」并填国家/地区，该同学不指向地图，单独列入右下角海外区块；Excel 城市列填国家名可自动识别',
+      '老师名单字号加入「字体设置」可调，默认调小至与学生姓名一致',
+    ],
+  },
+  {
     version: 'v1.9.6',
     date: '2026-07-22',
     items: [
@@ -55,6 +63,7 @@ const features = [
   '支持下载 Excel 模板批量填写、一键导入（解析过程在控制台可见）',
   '地图可视化展示蹭饭分布，全国地级市精确定位，城市聚合标注',
   '每行标注为「姓名 大学 · 城市」，校名前自动展示校徽（已收录 870+ 所院校）',
+  '支持境外同学：省份选「海外 / 境外」后不指向地图，单独列入海外区块并标注国家/地区',
   '省内默认按软科中国大学排名排序，录入弹窗按省份分组、组内可拖动改为手动顺序',
   '大标题字体/字号/数字字体自由搭配，省份名/姓名/城市大学的字体与字号可分别调整',
   '画布主题一键切换（含卡通、水墨等风格），支持上传校徽/班徽与自定义字体',
@@ -105,7 +114,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.9.6</dd>
+          <dd className="text-stone-700">v1.10.0</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

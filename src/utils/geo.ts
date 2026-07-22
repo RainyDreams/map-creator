@@ -152,6 +152,31 @@ const UNIVERSITY_TO_CITY: Record<string, string> = {
   台湾大学: '台北',
 }
 
+/**
+ * 判断一段文字是否像国家/地区名（用于 Excel 导入时自动识别境外学生）。
+ * 规则：常见留学目的地名单 + 「X国」「X洲」后缀模式。
+ * 城市名打错字（如“北景”）不会误判——不在名单也不匹配后缀，仍按未定位处理。
+ */
+const COMMON_COUNTRIES = new Set([
+  '美国', '英国', '加拿大', '澳大利亚', '澳洲', '新西兰', '新加坡', '日本', '韩国',
+  '德国', '法国', '意大利', '西班牙', '荷兰', '瑞士', '瑞典', '挪威', '芬兰', '丹麦',
+  '爱尔兰', '俄罗斯', '马来西亚', '泰国', '越南', '阿联酋', '卡塔尔', '以色列',
+  '印度', '巴西', '墨西哥', '阿根廷', '智利', '南非', '埃及', '比利时', '奥地利',
+  '葡萄牙', '波兰', '捷克', '匈牙利', '希腊', '土耳其', '菲律宾', '印度尼西亚', '印尼',
+  '老挝', '缅甸', '柬埔寨', '尼泊尔', '巴基斯坦', '哈萨克斯坦', '蒙古', '卢森堡',
+])
+
+export function isLikelyCountryOrRegion(text: string): boolean {
+  const t = text.trim().replace(/[（(].*$/, '')
+  if (t === '') return false
+  if (COMMON_COUNTRIES.has(t)) return true
+  // 「XX国」「XX洲」后缀（美国/德国/欧洲等），但排除国内地名（中国/全国）
+  if (t.length >= 2 && /[国洲]$/.test(t) && !PROVINCE_ALIASES[t] && t !== '中国' && t !== '全国') {
+    return true
+  }
+  return false
+}
+
 /** 规范化省份名（支持短名/全称/带括号别名），匹配不到返回 null */
 export function normalizeProvinceName(name: string): ProvinceName | null {
   const cleaned = name.trim().replace(/[（(].*$/, '')

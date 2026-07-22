@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownUp, Brush, ChevronDown, ChevronUp, GripVertical, ImagePlus, MapPinOff, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
+import { ArrowDownUp, Brush, ChevronDown, ChevronUp, GripVertical, ImagePlus, MapPinOff, Plane, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +18,8 @@ import { newId, type CalligraphyAsset, type StudentBadge, type StudentEntry } fr
 
 /** 未定位条目的虚拟分组键 */
 const UNLOCATED = '__unlocated__'
+/** 境外学生的分组键（不指向中国地图，单独成组） */
+const OVERSEAS = '__overseas__'
 
 /** 毛笔字图片上传处理：读取 → 等比压缩到最长边 600px → PNG dataURL（保留透明底） */
 function processCalliFile(file: File): Promise<CalligraphyAsset> {
@@ -121,10 +123,11 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     }
   }, [students])
 
-  /** 展示用学生：城市为空时用院校数据/本地推断补全（与地图一致，不回写录入数据） */
+  /** 展示用学生：城市为空时用院校数据/本地推断补全（与地图一致，不回写录入数据；境外学生不推断） */
   const display = useMemo(
     () =>
       students.map((s) => {
+        if (s.overseas === true) return s
         if (s.city.trim() !== '') return s
         const c = getUniInfoSync(s.university.trim())?.c ?? inferCityFromUniversity(s.university) ?? ''
         return c === '' ? s : { ...s, city: c }
@@ -140,21 +143,26 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     return typeof r === 'number' ? r : 9999
   }
 
-  /** 按省份分组；组内顺序与地图一致（手动省保持顺序，其余按软科排名，未定位沉底） */
+  /** 按省份分组；组内顺序与地图一致（手动省保持顺序，其余按软科排名；境外、未定位依次沉底） */
   const groups = useMemo(() => {
     const g = new Map<string, StudentEntry[]>()
     for (const s of display) {
-      const prov = resolveProvince(s) ?? UNLOCATED
+      const prov = s.overseas === true ? OVERSEAS : (resolveProvince(s) ?? UNLOCATED)
       const list = g.get(prov)
       if (list) list.push(s)
       else g.set(prov, [s])
     }
     for (const [prov, list] of g) {
-      if (prov !== UNLOCATED && !manual.has(prov)) {
+      if (prov !== UNLOCATED && prov !== OVERSEAS && !manual.has(prov)) {
         list.sort((a, b) => rankOf(a) - rankOf(b))
       }
     }
-    // 未定位组沉底
+    // 境外组、未定位组依次沉底
+    const overseas = g.get(OVERSEAS)
+    if (overseas) {
+      g.delete(OVERSEAS)
+      g.set(OVERSEAS, overseas)
+    }
     const unlocated = g.get(UNLOCATED)
     if (unlocated) {
       g.delete(UNLOCATED)
@@ -200,7 +208,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
         peerSet.has(s.id) ? (byId.get(queue.shift()!) ?? s) : s,
       )
       const customOrderProvinces =
-        groupKey !== UNLOCATED && !prev.customOrderProvinces.includes(groupKey)
+        groupKey !== UNLOCATED && groupKey !== OVERSEAS && !prev.customOrderProvinces.includes(groupKey)
           ? [...prev.customOrderProvinces, groupKey]
           : prev.customOrderProvinces
       return { ...prev, students: nextStudents, customOrderProvinces }
@@ -293,11 +301,11 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
 
   /* ---------- 新增同学（嵌套模态框；自动归入所在省份分组） ---------- */
   const [addOpen, setAddOpen] = useState(false)
-  const [addForm, setAddForm] = useState({ name: '', university: '', city: '' })
+  const [addForm, setAddForm] = useState({ name: '', university: '', city: '', overseas: false })
   const addNameRef = useRef<HTMLInputElement>(null)
 
   const openAdd = () => {
-    setAddForm({ name: '', university: '', city: '' })
+    setAddForm({ name: '', university: '', city: '', overseas: false })
     setAddOpen(true)
     // 对话框动画结束后聚焦姓名输入框
     setTimeout(() => addNameRef.current?.focus(), 120)
@@ -306,11 +314,16 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
   const confirmAdd = () => {
     const name = addForm.name.trim()
     const university = addForm.university.trim()
-    const city = addForm.city.trim() || inferCityFromUniversity(university) || ''
+    const city =
+      addForm.city.trim() ||
+      (addForm.overseas ? '' : inferCityFromUniversity(university) || '')
     if (name === '' && university === '' && city === '') return
     setData((prev) => ({
       ...prev,
-      students: [...prev.students, { id: newId(), name, university, city }],
+      students: [
+        ...prev.students,
+        { id: newId(), name, university, city, overseas: addForm.overseas || undefined },
+      ],
     }))
     setAddOpen(false)
   }
@@ -369,18 +382,20 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
       </p>
       {[...groups.entries()].map(([prov, members]) => {
         const isUnlocated = prov === UNLOCATED
-        const isManual = !isUnlocated && manual.has(prov)
+        const isOverseas = prov === OVERSEAS
+        const isManual = !isUnlocated && !isOverseas && manual.has(prov)
         return (
           <section key={prov} className="space-y-1.5">
             <header className="flex items-center gap-2">
               <h3
-                className={`text-sm font-semibold ${isUnlocated ? 'flex items-center gap-1 text-amber-700' : 'text-stone-700'}`}
+                className={`text-sm font-semibold ${isUnlocated ? 'flex items-center gap-1 text-amber-700' : 'flex items-center gap-1 text-stone-700'}`}
               >
                 {isUnlocated && <MapPinOff className="h-3.5 w-3.5" />}
-                {isUnlocated ? '未定位（请补充城市）' : prov}
+                {isOverseas && <Plane className="h-3.5 w-3.5 text-stone-400" />}
+                {isUnlocated ? '未定位（请补充城市）' : isOverseas ? '海外 / 境外' : prov}
               </h3>
               <span className="text-xs text-stone-400">{members.length} 人</span>
-              {!isUnlocated && (
+              {!isUnlocated && !isOverseas && (
                 <span className="ml-auto flex items-center gap-1 text-[11px] text-stone-400">
                   {isManual ? '手动顺序' : '按软科排名'}
                   {isManual && (
@@ -530,7 +545,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                     value={s.university}
                     onChange={(e) => updateRow(s.id, { university: e.target.value })}
                     onBlur={() => {
-                      if (s.city.trim() === '') {
+                      if (s.overseas !== true && s.city.trim() === '') {
                         const inferred = inferCityFromUniversity(s.university)
                         if (inferred) updateRow(s.id, { city: inferred })
                       }
@@ -541,11 +556,18 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                   />
                   </div>
 
-                  {/* 第二行：省 / 市级联下拉（单独一行，接口不可用时降级为手动输入） */}
+                  {/* 第二行：省 / 市级联下拉（单独一行，接口不可用时降级为手动输入；支持「海外 / 境外」） */}
                   <div className="mt-1.5 grid grid-cols-2 gap-1.5 pl-0 md:pl-[52px]">
                     <CityPicker
                       value={s.city}
                       onChange={(city) => updateRow(s.id, { city })}
+                      overseas={s.overseas === true}
+                      onOverseasChange={(v) =>
+                        updateRow(
+                          s.id,
+                          v ? { overseas: true, city: '' } : { overseas: undefined },
+                        )
+                      }
                       ariaLabel={`${s.name || `第 ${index + 1} 行`}的城市`}
                     />
                   </div>
@@ -731,8 +753,8 @@ function AddStudentDialog({
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
-  form: { name: string; university: string; city: string }
-  setForm: React.Dispatch<React.SetStateAction<{ name: string; university: string; city: string }>>
+  form: { name: string; university: string; city: string; overseas: boolean }
+  setForm: React.Dispatch<React.SetStateAction<{ name: string; university: string; city: string; overseas: boolean }>>
   nameRef: React.RefObject<HTMLInputElement | null>
   onConfirm: () => void
 }) {
@@ -768,7 +790,7 @@ function AddStudentDialog({
               value={form.university}
               onChange={(e) => setForm((f) => ({ ...f, university: e.target.value }))}
               onBlur={() => {
-                if (form.city.trim() === '') {
+                if (!form.overseas && form.city.trim() === '') {
                   const inferred = inferCityFromUniversity(form.university)
                   if (inferred) setForm((f) => ({ ...f, city: inferred }))
                 }
@@ -778,11 +800,13 @@ function AddStudentDialog({
             />
           </div>
           <div className="space-y-1">
-            <span className="text-xs text-stone-500">省份 / 城市</span>
+            <span className="text-xs text-stone-500">省份 / 城市（境外学校选「海外 / 境外」）</span>
             <div className="grid grid-cols-2 gap-2">
               <CityPicker
                 value={form.city}
                 onChange={(city) => setForm((f) => ({ ...f, city }))}
+                overseas={form.overseas}
+                onOverseasChange={(v) => setForm((f) => ({ ...f, overseas: v }))}
                 ariaLabel="新增同学的城市"
               />
             </div>

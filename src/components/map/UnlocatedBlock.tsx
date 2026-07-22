@@ -4,6 +4,7 @@ import type { StudentEntry } from '@/types'
 /**
  * 温和提示块：列出 resolveProvince 返回 null 的学生姓名，
  * 提示回录入页补充城市/大学；无未定位学生时不渲染。
+ * 定位由外层容器负责（与 OverseasBlock 在右下角纵向堆叠）。
  * 卡片用半透明白 + 主题色文字，保证任何主题下可读。
  */
 export function UnlocatedBlock({ students }: { students: StudentEntry[] }) {
@@ -11,7 +12,7 @@ export function UnlocatedBlock({ students }: { students: StudentEntry[] }) {
   if (students.length === 0) return null
   return (
     <div
-      className="absolute right-4 bottom-12 z-10 max-w-[42%] rounded-lg border bg-white/75 px-3.5 py-2.5 backdrop-blur-[2px]"
+      className="max-w-full rounded-lg border bg-white/75 px-3.5 py-2.5 backdrop-blur-[2px]"
       style={{ borderColor: theme.leaderLine }}
     >
       <p className="text-xs font-semibold" style={{ color: theme.accent }}>

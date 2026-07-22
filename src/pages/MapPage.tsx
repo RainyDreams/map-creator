@@ -10,6 +10,7 @@ import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
+import { OverseasBlock } from '@/components/map/OverseasBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
 import type { UniEnrichment } from '@/components/map/labels'
 import '@/components/map/fonts.css'
@@ -244,10 +245,11 @@ export default function MapPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.students, data.showBadges, uniTick])
 
-  /** 展示用学生列表：城市为空时用院校数据/本地推断补全（不回写录入数据） */
+  /** 展示用学生列表：城市为空时用院校数据/本地推断补全（不回写录入数据；境外学生不推断） */
   const displayStudents = useMemo(
     () =>
       data.students.map((s) => {
+        if (s.overseas === true) return s
         if (s.city.trim() !== '') return s
         const enriched = getUniInfoSync(s.university.trim())?.c ?? inferCityFromUniversity(s.university) ?? ''
         return enriched === '' ? s : { ...s, city: enriched }
@@ -256,11 +258,17 @@ export default function MapPage() {
     [data.students, uniTick],
   )
 
-  /** 学生 → 省份分组（保持录入顺序，保证色块与列序稳定）；无法定位的单独收集 */
-  const { groups, unlocated } = useMemo(() => {
+  /** 学生 → 省份分组（保持录入顺序，保证色块与列序稳定）；
+      境外学生单独收集（不指向地图），无法定位的单独收集 */
+  const { groups, unlocated, overseas } = useMemo(() => {
     const g = new Map<string, StudentEntry[]>()
     const u: StudentEntry[] = []
+    const o: StudentEntry[] = []
     for (const s of displayStudents) {
+      if (s.overseas === true) {
+        o.push(s)
+        continue
+      }
       const province = resolveProvince(s)
       if (province === null) {
         diagnoseUnlocated(s) // 控制台输出定位失败原因（每条目仅一次）
@@ -271,7 +279,7 @@ export default function MapPage() {
         else g.set(province, [s])
       }
     }
-    return { groups: g, unlocated: u }
+    return { groups: g, unlocated: u, overseas: o }
   }, [displayStudents])
 
   const hasHeader = data.title.trim() !== '' || data.subtitle.trim() !== ''
@@ -454,7 +462,10 @@ export default function MapPage() {
                   ? Math.round((110 + data.teachers.length * 24) * 1.3)
                   : 0
               }
-              reserveRightBottom={unlocated.length > 0 ? 200 : 0}
+              reserveRightBottom={
+                (overseas.length > 0 ? Math.round(80 + overseas.length * 22) : 0) +
+                (unlocated.length > 0 ? 130 : 0)
+              }
               uniInfo={uniInfo}
               labelSizes={data.labelSizes}
               manualProvinces={manualProvinces}
@@ -470,7 +481,14 @@ export default function MapPage() {
             )}
 
             <TeachersBlock teachers={data.teachers} />
-            <UnlocatedBlock students={unlocated} />
+
+            {/* 右下角堆叠区：海外/境外名单在上、未定位提示在下 */}
+            {(overseas.length > 0 || unlocated.length > 0) && (
+              <div className="absolute right-4 bottom-12 z-10 flex max-w-[42%] flex-col items-end gap-2">
+                <OverseasBlock students={overseas} />
+                <UnlocatedBlock students={unlocated} />
+              </div>
+            )}
 
             {/* 底部来源条：画布的一部分，随导出一起进 PNG。
                 左侧生成时间，中央生成信息（字距正常、极小字、克制不喧宾夺主）；字体固定思源黑体 */}

@@ -5,6 +5,12 @@ export interface StudentEntry {
   university: string
   /** 城市名，如“北京”“武汉”。可由大学名自动推断，也可手动修改 */
   city: string
+  /**
+   * 境外（海外）学生：true 时不在中国地图上定位/引线，
+   * city 字段存放国家或地区名（如“美国”“新加坡”），
+   * 在地图右下角「海外 / 境外」区块中单独列出
+   */
+  overseas?: boolean
 }
 
 /** 老师条目（可选填） */
@@ -16,16 +22,17 @@ export interface TeacherEntry {
 }
 
 /**
- * 地图标注三个模块的字号（px，以 1500px 宽虚拟画布为基准）。
- * province 省份名 / person 姓名 / place 城市·大学。
+ * 地图标注四个模块的字号（px，以 1500px 宽虚拟画布为基准）。
+ * province 省份名 / person 姓名 / place 城市·大学 / teacher 老师名单。
  */
 export interface LabelSizes {
   province: number
   person: number
   place: number
+  teacher: number
 }
 
-export const DEFAULT_LABEL_SIZES: LabelSizes = { province: 16, person: 13, place: 13 }
+export const DEFAULT_LABEL_SIZES: LabelSizes = { province: 16, person: 13, place: 13, teacher: 13 }
 
 /** 大学毛笔字图片（用户自备的透明底横版 PNG，同校学生共用） */
 export interface CalligraphyAsset {

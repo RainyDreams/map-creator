@@ -24,6 +24,8 @@ const SIZE_OPTIONS: Record<(typeof SLOTS)[number], readonly number[]> = {
   person: [10, 11, 12, 13, 14, 15, 16, 18, 20],
   place: [10, 11, 12, 13, 14, 15, 16, 18, 20],
 }
+/** 老师名单字号档位（与学生姓名同范围） */
+const TEACHER_SIZE_OPTIONS: readonly number[] = [10, 11, 12, 13, 14, 15, 16, 18, 20]
 
 /**
  * 字体设置面板：地图标注类槽位（省份名/姓名/城市大学）独立选字体（预设 + 用户上传），
@@ -117,6 +119,24 @@ export function FontPanel() {
             />
           </div>
         ))}
+        {/* 老师名单只有字号可调（字体跟随标题/姓名/地点槽位） */}
+        <div className="flex items-center gap-2">
+          <span className="w-20 shrink-0 text-xs text-stone-500 md:w-24">老师名单</span>
+          <span className="min-w-0 flex-1 text-[11px] text-stone-400">
+            字体随上方设置，仅调字号
+          </span>
+          <SizeSelect
+            value={data.labelSizes.teacher}
+            options={TEACHER_SIZE_OPTIONS}
+            onChange={(px) =>
+              setData((prev) => ({
+                ...prev,
+                labelSizes: { ...prev.labelSizes, teacher: px },
+              }))
+            }
+            ariaLabel="老师名单字号"
+          />
+        </div>
       </div>
 
       {/* 校徽显示开关：关闭后地图与导出图中都不渲染校徽，大学文字照常 */}
