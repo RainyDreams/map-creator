@@ -71,6 +71,11 @@ export interface LabelLayoutOptions {
   sizes?: { province: number; person: number; place: number }
   /** 省内手动排序的省份：这些省保持录入/手动顺序，不按软科排名重排 */
   manualProvinces?: Set<string>
+  /**
+   * 真实文字宽度测量（canvas measureText + 实际字体栈），换行判定优先使用；
+   * 缺省时回退 em 估算（偏保守，可能把「（北京）· 北京」这类行误判为超宽）
+   */
+  measure?: (text: string, px: number, slot: 'person' | 'place') => number
 }
 
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
@@ -139,13 +144,17 @@ export interface LineFontSizes {
  * - 首行与「姓名+校徽」同行（之间无间隙），续行与大学起点对齐；
  * - 若姓名+校徽已占去大半宽度（首行放不下 4 个字），place 整段从第二行起全宽排列；
  * - 断行处若为「·」或空格则吞掉，保证续行不以分隔符开头；
+ * - 宽度判定优先用真实测量（canvas measureText），缺省时回退 em 估算；
  * - 返回的行数即该学生占用的行数（≥1）。
  */
 export function wrapStudentLine(
   parts: Omit<StudentLineParts, 'placeLines'>,
   sizes: LineFontSizes,
+  measure?: (text: string, px: number, slot: 'person' | 'place') => number,
 ): StudentLineParts {
-  const personW = textEms(parts.person) * sizes.person
+  const mPerson = (t: string) => (measure ? measure(t, sizes.person, 'person') : textEms(t) * sizes.person)
+  const mPlace = (t: string) => (measure ? measure(t, sizes.place, 'place') : textEms(t) * sizes.place)
+  const personW = mPerson(parts.person)
   const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
   const indent = personW + badgeW
   // 首行剩余宽度（px）；过窄时 place 整段换到全宽续行
@@ -155,22 +164,18 @@ export function wrapStudentLine(
     avail = COL_TEXT_W
     firstOnOwnLine = true
   }
-  const availEms = avail / sizes.place
 
   const lines: string[] = []
   let cur = ''
-  let curW = 0
   for (const ch of parts.place) {
-    const cw = ch.charCodeAt(0) > 0xff ? 1 : 0.55
-    if (curW + cw > availEms && cur !== '') {
+    // 逐字累积实测宽度（含字距/连字影响，比逐字宽度求和更准）
+    if (cur !== '' && mPlace(cur + ch) > avail) {
       lines.push(cur)
       cur = ''
-      curW = 0
       // 续行不以分隔符/空格开头
       if (ch === ' ' || ch === '·' || ch === '　') continue
     }
     cur += ch
-    curW += cw
   }
   if (cur !== '') lines.push(cur)
   if (lines.length === 0) lines.push(parts.place)
@@ -258,7 +263,7 @@ export function computeLabelLayout(
     return typeof r === 'number' ? r : 9999
   }
 
-  /** 学生行的换行结果（按用户 px 字号在 scale=1 下计算，保守不溢出） */
+  /** 学生行的换行结果（按用户 px 字号在 scale=1 下计算，优先真实测量，保守不溢出） */
   const wrappedOf = (s: StudentEntry): StudentLineParts => {
     const parts = studentLineParts(s)
     const enrich = uniInfo?.get(s.university.trim())
@@ -266,6 +271,7 @@ export function computeLabelLayout(
     return wrapStudentLine(
       { ...parts, badge, badgeUrl: enrich?.badgeUrl ?? null },
       { person: sizes.person, place: sizes.place },
+      options?.measure,
     )
   }
 

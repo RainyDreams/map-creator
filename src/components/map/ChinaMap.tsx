@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import type { StudentEntry } from '@/types'
 import { useMapData } from '@/store/MapDataContext'
 import { prefetchCityCenters } from '@/utils/cities'
+import { slotFontFamily } from '@/utils/fonts'
 import {
   DESIGN_W,
   GEO_FEATURES,
@@ -12,7 +13,7 @@ import {
   MAP_X1,
   TOP,
 } from './geo'
-import { computeLabelLayout, type CityCenterMap, type UniEnrichment } from './labels'
+import { computeLabelLayout, textEms, type CityCenterMap, type UniEnrichment } from './labels'
 import { LabelColumns } from './LabelColumns'
 
 export interface ChinaMapProps {
@@ -36,7 +37,7 @@ export interface ChinaMapProps {
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
 export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces }: ChinaMapProps) {
-  const { theme } = useMapData()
+  const { theme, fontSlots, customFonts } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
   // 桌面端与移动端布局会同时挂载两个 ChinaMap（CSS 隐藏其一）；
   // clipPath id 必须按实例唯一，否则 url(#id) 解析到另一个实例的裁剪区，小插图溢出画框
@@ -66,6 +67,46 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     }
   }, [provincesKey])
 
+  /**
+   * 换行判定用的真实文字宽度测量（canvas measureText + 姓名/地点实际字体栈）。
+   * 字体未就绪时 measureText 回落到已加载字体，测量偏保守；fontTick 在字体
+   * 就绪后触发 layout 重算，消除「（北京）· 北京」这类行的误换行。
+   */
+  const personFont = slotFontFamily('person', fontSlots, customFonts)
+  const placeFont = slotFontFamily('place', fontSlots, customFonts)
+  const measureCtx = useMemo(() => document.createElement('canvas').getContext('2d'), [])
+  const measure = useMemo(
+    () =>
+      (text: string, px: number, slot: 'person' | 'place'): number => {
+        const family = slot === 'person' ? personFont : placeFont
+        if (measureCtx) {
+          try {
+            measureCtx.font = `${px}px ${family}`
+            const w = measureCtx.measureText(text).width
+            if (w > 0) return w
+          } catch {
+            // 回退估算
+          }
+        }
+        return textEms(text) * px
+      },
+    [measureCtx, personFont, placeFont],
+  )
+
+  /** 网络字体/自定义字体加载完成后触发一次重排，让换行判定用到真实字宽 */
+  const [fontTick, setFontTick] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    document.fonts?.ready
+      ?.then(() => {
+        if (!cancelled) setFontTick((t) => t + 1)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [personFont, placeFont])
+
   const layout = useMemo(
     () =>
       computeLabelLayout(groups, cityCenters ?? undefined, {
@@ -74,8 +115,10 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         uniInfo,
         sizes: labelSizes,
         manualProvinces,
+        measure,
       }),
-    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, measure, fontTick],
   )
 
   const fillByName = useMemo(() => {
