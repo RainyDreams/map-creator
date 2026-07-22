@@ -1,7 +1,7 @@
 import { useMapData } from '@/store/MapDataContext'
 import { slotFontFamily } from '@/utils/fonts'
 import { schoolBadgeUrl } from '@/utils/universities'
-import { BADGE_RATIO, textEms, type LabelBlock, type StudentLineParts } from './labels'
+import { BADGE_GAP, BADGE_RATIO, textEms, type LabelBlock, type StudentLineParts } from './labels'
 
 export interface LabelColumnsProps {
   left: LabelBlock[]
@@ -27,9 +27,10 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
   /** 渲染一个学生行（可能占多行），返回占用行数 */
   function renderStudent(b: LabelBlock, ln: StudentLineParts, rowOffset: number, key: string) {
     const badgeSize = b.placeSize * BADGE_RATIO
-    const badgeW = ln.badge ? badgeSize : 0
-    // placeLines[0] 为空表示姓名占满首行、大学段从第二行全宽起排
+    // 校徽与校名之间无间隙；与姓名之间留 BADGE_GAP 呼吸（大学独占行时不需要）
     const placeOnOwnLines = ln.placeLines[0] === ''
+    const gap = ln.badge && !placeOnOwnLines ? BADGE_GAP : 0
+    const badgeSlot = ln.badge ? badgeSize + gap : 0
     const badgeRow = placeOnOwnLines ? 1 : 0
     const personW = textEms(ln.person) * b.personSize
 
@@ -51,12 +52,12 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
         </text>,
       )
     } else {
-      // 右对齐：姓名右端顶到 大学段第一行（及校徽）的左缘
+      // 右对齐：姓名右端与校徽之间留 BADGE_GAP，校徽右缘顶到校名（无间隙）
       const placeW0 = placeOnOwnLines ? 0 : textEms(ln.placeLines[0]) * b.placeSize
       rows.push(
         <text
           key={`${key}-p`}
-          x={b.anchorX - placeW0 - badgeW}
+          x={b.anchorX - placeW0 - badgeSlot}
           y={row0Baseline}
           textAnchor="end"
           fontSize={b.personSize}
@@ -73,7 +74,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       const badgeBaseline = b.firstLineBaseline + (rowOffset + badgeRow) * b.lineH
       let badgeX: number
       if (b.textAnchor === 'start') {
-        badgeX = b.anchorX + (placeOnOwnLines ? 0 : personW)
+        badgeX = b.anchorX + (placeOnOwnLines ? 0 : personW + gap)
       } else {
         const placeW = textEms(ln.placeLines[badgeRow] ?? '') * b.placeSize
         badgeX = b.anchorX - placeW - badgeSize
@@ -96,7 +97,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       const baseline = b.firstLineBaseline + (rowOffset + r) * b.lineH
       let x: number
       if (b.textAnchor === 'start') {
-        x = b.anchorX + (placeOnOwnLines ? badgeW : personW + badgeW)
+        x = b.anchorX + (placeOnOwnLines ? (ln.badge ? badgeSize : 0) : personW + badgeSlot)
       } else {
         x = b.anchorX
       }

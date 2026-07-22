@@ -46,7 +46,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.6.0</dd>
+          <dd className="text-stone-700">v1.6.1</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

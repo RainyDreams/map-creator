@@ -49,9 +49,21 @@ function formatNow(): string {
 interface ExportProgress {
   pct: number
   stage: string
+  /** 预计剩余秒数（null = 刚开始，还在估算） */
+  etaSeconds: number | null
 }
 
-/** 导出进度模态框：居中原点卡片 + 百分比进度条，风格与全站一致（米白、圆角、主题色进度条） */
+/** 长耗时阶段的轮换提示文案（假进度的心理按摩：文案常换，用户不觉得卡住） */
+const PROGRESS_FILLERS = [
+  '正在渲染地图轮廓…',
+  '正在嵌入字体文件…',
+  '正在绘制标注与引线…',
+  '正在精修画面细节…',
+  '正在进行超清栅格化…',
+  '就快完成了，再等一下下…',
+] as const
+
+/** 导出进度模态框：居中原点卡片 + 百分比进度条 + 预计剩余时间，风格与全站一致 */
 function ExportProgressDialog({ progress }: { progress: ExportProgress }) {
   const pct = Math.min(100, Math.max(0, Math.round(progress.pct)))
   return (
@@ -73,6 +85,13 @@ function ExportProgressDialog({ progress }: { progress: ExportProgress }) {
           />
         </div>
         <p className="mt-2.5 text-xs text-stone-400">{progress.stage}</p>
+        <p className="mt-1 text-[11px] text-stone-300">
+          {progress.etaSeconds === null
+            ? '正在估算剩余时间…'
+            : progress.etaSeconds <= 1
+              ? '即将完成'
+              : `预计还需约 ${progress.etaSeconds} 秒`}
+        </p>
       </div>
     </div>
   )
@@ -84,23 +103,46 @@ export default function MapPage() {
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [progress, setProgress] = useState<ExportProgress | null>(null)
-  /** 进度锚点（真实阶段）与展示值（向锚点平滑爬行）分离，长耗时阶段也有前进感 */
-  const anchorRef = useRef<ExportProgress>({ pct: 0, stage: '' })
+  /** 进度锚点（真实阶段 + 到达时刻）与展示值（向锚点平滑爬行）分离，长耗时阶段也有前进感 */
+  const anchorRef = useRef<{ pct: number; stage: string; at: number }>({ pct: 0, stage: '', at: 0 })
+  /** 导出开始时刻（估算剩余时间用） */
+  const exportStartRef = useRef(0)
+  /** 已展示的剩余秒数（只减不增，避免假进度外推值越估越大引发焦虑） */
+  const etaRef = useRef<number | null>(null)
 
   /** 分模块字体栈：标题按字符类型分 数字/英文/中文 三槽位 */
   const digitFont = slotFontFamily('digit', fontSlots, customFonts)
   const latinFont = slotFontFamily('latin', fontSlots, customFonts)
   const hanFont = slotFontFamily('han', fontSlots, customFonts)
 
-  // 进度爬行：每 120ms 向锚点靠近一点（不越过锚点 -2），长阶段也有动感
+  // 进度爬行 + 文案轮换 + 剩余时间估算：
+  // 每 120ms 向锚点靠近一点（不越过锚点 -2）；锚点文案展示 2.2s 后轮换"假进度"提示；
+  // 按 已耗时/当前百分比 线性外推剩余秒数
   useEffect(() => {
     if (exporting === null) return
     const timer = setInterval(() => {
       setProgress((prev) => {
         if (!prev) return prev
-        const cap = Math.max(anchorRef.current.pct - 2, prev.pct)
-        const next = Math.min(prev.pct + 0.7, cap)
-        return next === prev.pct ? prev : { ...prev, pct: next }
+        const now = Date.now()
+        const anchor = anchorRef.current
+        const cap = Math.max(anchor.pct - 2, prev.pct)
+        const pct = Math.min(prev.pct + 0.7, cap)
+        // 文案：锚点阶段先展示 2.2s，之后每 2.4s 轮换一条安抚提示
+        const sinceAnchor = now - anchor.at
+        const stage =
+          sinceAnchor < 2200
+            ? anchor.stage
+            : PROGRESS_FILLERS[Math.floor(sinceAnchor / 2400) % PROGRESS_FILLERS.length]
+        // 剩余时间：线性外推；<12% 时样本太少不估算；展示值只减不增
+        const elapsed = (now - exportStartRef.current) / 1000
+        let etaSeconds: number | null = etaRef.current
+        if (pct >= 12 && elapsed > 0.5) {
+          const computed = Math.min(90, Math.max(1, Math.round((elapsed * (100 - pct)) / pct)))
+          etaSeconds = etaRef.current === null ? computed : Math.min(computed, etaRef.current)
+          etaRef.current = etaSeconds
+        }
+        if (pct >= 100) etaSeconds = 1
+        return { pct, stage, etaSeconds }
       })
     }, 120)
     return () => clearInterval(timer)
@@ -185,17 +227,20 @@ export default function MapPage() {
     if (!node || exporting) return
     setExporting(quality)
     setExportError(null)
-    anchorRef.current = { pct: 4, stage: '正在启动导出…' }
-    setProgress({ pct: 4, stage: '正在启动导出…' })
+    exportStartRef.current = Date.now()
+    etaRef.current = null
+    anchorRef.current = { pct: 4, stage: '正在启动导出…', at: Date.now() }
+    setProgress({ pct: 4, stage: '正在启动导出…', etaSeconds: null })
     // 等一拍：让 footer 的生成时间在克隆前刷新到当前时刻
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
     try {
       await exportNodeToPng(node, data.title, quality, (pct, stage) => {
-        anchorRef.current = { pct, stage }
-        setProgress((prev) => ({
-          pct: Math.max(prev?.pct ?? 0, Math.min(pct, anchorRef.current.pct)),
-          stage,
-        }))
+        anchorRef.current = { pct, stage, at: Date.now() }
+        setProgress((prev) =>
+          prev === null
+            ? prev
+            : { ...prev, pct: Math.max(prev.pct, Math.min(pct, anchorRef.current.pct)), stage },
+        )
       })
     } catch (err) {
       console.error('导出 PNG 失败', err)
@@ -344,7 +389,7 @@ export default function MapPage() {
             >
               <span className="tabular-nums">生成于 {formatNow()}</span>
               <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap">
-                本图片由 map.linkbrain.top 生成 (C)零本
+                本图片由 map.linkbrain.top 生成 © {new Date().getFullYear()} 零本
               </span>
             </div>
           </div>

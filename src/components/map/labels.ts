@@ -108,8 +108,10 @@ export function studentLineParts(s: StudentEntry): Omit<StudentLineParts, 'place
 
 /** 单侧标注列文字可用宽度（viewBox 单位）：锚点 264 到画布边缘留 12px 余量 */
 const COL_TEXT_W = 252
-/** 校徽占位：图标边长 = 地点字号 × 1.05；校徽与两侧文字无间隙 */
+/** 校徽占位：图标边长 = 地点字号 × 1.05；校徽与校名无间隙，与姓名间留 3px 呼吸 */
 export const BADGE_RATIO = 1.05
+/** 姓名与校徽之间的间隙（校徽与校名之间保持无间隙） */
+export const BADGE_GAP = 3
 
 /** 估算文本宽度（em）：中文/全角字符≈1em，ASCII≈0.55em */
 export function textEms(s: string): number {
@@ -136,7 +138,7 @@ export function wrapStudentLine(
   sizes: LineFontSizes,
 ): StudentLineParts {
   const personW = textEms(parts.person) * sizes.person
-  const badgeW = parts.badge ? sizes.place * BADGE_RATIO : 0
+  const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
   const indent = personW + badgeW
   // 首行剩余宽度（px）；过窄时 place 整段换到全宽续行
   let avail = COL_TEXT_W - indent
@@ -171,7 +173,7 @@ export function wrapStudentLine(
 /** 估算单行宽度（用于渲染端校徽/文字定位；不换行的完整行） */
 export function lineWidth(parts: StudentLineParts, sizes: LineFontSizes): number {
   const personW = textEms(parts.person) * sizes.person
-  const badgeW = parts.badge ? sizes.place * BADGE_RATIO : 0
+  const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
   return personW + badgeW + textEms(parts.placeLines[0] ?? '') * sizes.place
 }
 
@@ -328,9 +330,12 @@ export function computeLabelLayout(
     return MIN_SCALE
   }
 
+  /** 左右两列共享同一缩放档（取两侧所需较小值），保证两列字号完全一致 */
+  const sharedScale = Math.min(pickScale(left), pickScale(right))
+
   function buildSide(list: SideItem[], side: 'left' | 'right'): { blocks: LabelBlock[]; total: number } {
     if (list.length === 0) return { blocks: [], total: 0 }
-    const scale = pickScale(list)
+    const scale = sharedScale
     const headerH = BASE_HEADER_H * scale * provPct
     const lineH = BASE_LINE_H * scale * linePct
     const gap = BASE_GAP * scale
