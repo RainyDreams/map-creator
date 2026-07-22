@@ -30,6 +30,8 @@ export interface ChinaMapProps {
   uniInfo?: Map<string, UniEnrichment>
   /** 三个标注模块的字号（px，以 1500px 宽画布为基准） */
   labelSizes?: { province: number; person: number; place: number }
+  /** 每侧标注列数：1（默认）或 2（人多时更宽松） */
+  labelColumns?: 1 | 2
   /** 省内手动排序的省份（保持手动顺序，不按排名重排） */
   manualProvinces?: Set<string>
   /** 大学名 → 用户上传的毛笔字图片（提供后该校文字被图片替代） */
@@ -43,7 +45,7 @@ export interface ChinaMapProps {
  * 宽度自适应容器，高度按 viewBox 等比缩放；内部全部为 SVG 文本，导出 PNG 时清晰。
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
-export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, calligraphy, badgeOverrides }: ChinaMapProps) {
+export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, calligraphy, badgeOverrides }: ChinaMapProps) {
   const { theme, fontSlots, customFonts } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
   /** 地图轮廓数据（/data/china.json）异步加载：未就绪时渲染同尺寸占位 SVG，避免布局跳动 */
@@ -135,13 +137,14 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         reserveRightBottom,
         uniInfo,
         sizes: labelSizes,
+        columnsPerSide: labelColumns,
         manualProvinces,
         measure,
         calligraphy,
         badgeOverrides,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, measure, fontTick, calligraphy, badgeOverrides],
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, measure, fontTick, calligraphy, badgeOverrides],
   )
 
   const fillByName = useMemo(() => {
@@ -168,19 +171,69 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     return list
   }, [layout])
 
-  // 地图数据未就绪：渲染与正式图同高度的占位 SVG（与 labels.ts 的 svgHeight 公式一致）
+  // 地图数据未就绪：渲染与正式图同高度的骨架占位（与 labels.ts 的 svgHeight 公式一致），
+  // 灰底呼吸块模拟标题/地图/两侧标注列，避免布局跳动与空白闪烁
   if (!geoReady) {
     const h = Math.max(
       TOP + MAP_H + BOTTOM + Math.max(reserveLeftBottom ?? 0, reserveRightBottom ?? 0),
       120,
     )
+    const midY = TOP + MAP_H / 2
     return (
       <svg
         viewBox={`0 0 ${DESIGN_W} ${Math.round(h)}`}
-        className="block h-auto w-full"
+        className="block h-auto w-full animate-pulse"
         role="img"
         aria-label="地图加载中"
-      />
+      >
+        {/* 标题条 */}
+        <rect x={40} y={TOP + 6} width={340} height={26} rx={6} fill="#e7e5e4" />
+        {/* 地图主体 */}
+        <rect
+          x={MAP_X0 + 60}
+          y={TOP + 20}
+          width={MAP_X1 - MAP_X0 - 120}
+          height={MAP_H - 40}
+          rx={18}
+          fill="#e7e5e4"
+        />
+        {/* 左右标注列的模拟行（3 组：省份条 + 学生行） */}
+        {[0, 1, 2].map((i) => {
+          const y = TOP + 40 + i * 118
+          return (
+            <g key={`skel-l-${i}`}>
+              <rect x={MAP_X0 - 136} y={y} width={120} height={15} rx={4} fill="#e7e5e4" />
+              <rect x={MAP_X0 - 216} y={y + 24} width={200} height={11} rx={4} fill="#f5f5f4" />
+              <rect x={MAP_X0 - 186} y={y + 42} width={170} height={11} rx={4} fill="#f5f5f4" />
+            </g>
+          )
+        })}
+        {[0, 1, 2].map((i) => {
+          const y = TOP + 52 + i * 108
+          return (
+            <g key={`skel-r-${i}`}>
+              <rect x={MAP_X1 + 16} y={y} width={120} height={15} rx={4} fill="#e7e5e4" />
+              <rect x={MAP_X1 + 16} y={y + 24} width={200} height={11} rx={4} fill="#f5f5f4" />
+              <rect x={MAP_X1 + 16} y={y + 42} width={170} height={11} rx={4} fill="#f5f5f4" />
+            </g>
+          )
+        })}
+        {/* 模拟引线 */}
+        <path
+          d={`M${MAP_X0 + 90},${midY - 90} C${MAP_X0 + 40},${midY - 90} ${MAP_X0 - 60},${midY - 110} ${MAP_X0 - 130},${midY - 110}`}
+          fill="none"
+          stroke="#e7e5e4"
+          strokeWidth={2}
+          strokeDasharray="6 5"
+        />
+        <path
+          d={`M${MAP_X1 - 90},${midY + 70} C${MAP_X1 - 40},${midY + 70} ${MAP_X1 + 60},${midY + 90} ${MAP_X1 + 130},${midY + 90}`}
+          fill="none"
+          stroke="#e7e5e4"
+          strokeWidth={2}
+          strokeDasharray="6 5"
+        />
+      </svg>
     )
   }
   const features = getGeoFeatures()

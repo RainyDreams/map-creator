@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Copy, Layers, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Copy, Layers, Link2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -121,6 +121,36 @@ export function CanvasManager() {
                     <span className="mt-0.5 block text-[11px] text-stone-400">
                       {c.studentCount} 名学生 · 更新于 {formatTime(c.updatedAt)}
                     </span>
+                    {c.share && (
+                      <span className="mt-1 flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const url = `${window.location.origin}/?share=${c.share!.id}`
+                            void navigator.clipboard
+                              .writeText(url)
+                              .then(() => toast.success('协同链接已复制'))
+                              .catch(() => toast.info(`链接：${url}`))
+                          }}
+                          title="复制协同链接（拿到链接的人可以查看并修改）"
+                          className="flex min-w-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+                        >
+                          <Link2 className="h-3 w-3 shrink-0" />
+                          <span className="font-mono">{c.share.id}</span>
+                        </button>
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-[10px]',
+                            c.share.role === 'admin'
+                              ? 'border border-amber-200 bg-amber-50 text-amber-700'
+                              : 'border border-stone-200 bg-white text-stone-500',
+                          )}
+                        >
+                          {c.share.role === 'admin' ? '管理员' : '成员'}
+                        </span>
+                      </span>
+                    )}
                   </button>
                 )}
 

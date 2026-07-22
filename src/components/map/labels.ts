@@ -48,6 +48,8 @@ export interface LabelLayout {
   left: LabelBlock[]
   right: LabelBlock[]
   svgHeight: number
+  /** 实际采用的整体字号缩放档（1 = 用户设定字号原样放下；<1 说明做了整体缩小） */
+  scale: number
 }
 
 /** 院校补充信息（来自 /api/universities 预取） */
@@ -80,6 +82,8 @@ export interface LabelLayoutOptions {
   calligraphy?: Record<string, CalligraphyAsset>
   /** 学生 id → 校徽覆盖：hidden 隐藏该生校徽；dataUrl 用自定义图片替代自动匹配（优先于自动校徽） */
   badgeOverrides?: Record<string, StudentBadge>
+  /** 每侧标注列数：1（默认）或 2（人多时更宽松，文字列宽减半、换行更多） */
+  columnsPerSide?: 1 | 2
 }
 
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
@@ -135,6 +139,10 @@ export function studentLineParts(s: StudentEntry): Omit<StudentLineParts, 'place
 
 /** 单侧标注列文字可用宽度（viewBox 单位）：锚点 304 到画布边缘留 8px 余量 */
 const COL_TEXT_W = 296
+/** 每侧两列模式：子列占位宽 144、子列间距 12，文字可用宽 136（边缘留 8px 余量） */
+const COL2_W = 144
+const COL2_GAP = 12
+const COL2_TEXT_W = 136
 /** 校徽占位：图标边长 = 地点字号 × 1.05；校徽与校名无间隙，与姓名间留 3px 呼吸 */
 export const BADGE_RATIO = 1.05
 /** 姓名与校徽之间的间隙（校徽与校名之间保持无间隙） */
@@ -180,6 +188,7 @@ export function wrapStudentLine(
   parts: Omit<StudentLineParts, 'placeLines' | 'ownLine'>,
   sizes: LineFontSizes,
   measure?: (text: string, px: number, slot: 'person' | 'place') => number,
+  colTextW: number = COL_TEXT_W,
 ): StudentLineParts {
   const mPerson = (t: string) => (measure ? measure(t, sizes.person, 'person') : textEms(t) * sizes.person)
   const mPlace = (t: string) => (measure ? measure(t, sizes.place, 'place') : textEms(t) * sizes.place)
@@ -190,17 +199,17 @@ export function wrapStudentLine(
 
   // 首行剩余宽度（px）；过窄时 place 整段换到第二行起排
   let ownLine = false
-  if (COL_TEXT_W - indent < sizes.place * 4 && parts.place !== '') {
+  if (colTextW - indent < sizes.place * 4 && parts.place !== '') {
     ownLine = true
   }
 
   /** 第 idx 条文本行的可用宽度：图片/姓名只占首行纵向空间，续行从大学起点可用到列尾 */
   const availFor = (idx: number): number => {
     if (!ownLine) {
-      return idx === 0 ? COL_TEXT_W - indent : COL_TEXT_W - personW - badgeW
+      return idx === 0 ? colTextW - indent : colTextW - personW - badgeW
     }
     // ownLine：第 0 条文本行与校徽+图片同行（无姓名），续行全宽
-    return idx === 0 ? COL_TEXT_W - badgeW - calliW : COL_TEXT_W
+    return idx === 0 ? colTextW - badgeW - calliW : colTextW
   }
 
   const lines: string[] = []
@@ -295,6 +304,9 @@ export function computeLabelLayout(
 ): LabelLayout {
   const uniInfo = options?.uniInfo
   const sizes = options?.sizes ?? { province: 16, person: 13, place: 13 }
+  const columnsPerSide = options?.columnsPerSide ?? 1
+  /** 当前列数模式下的文字可用宽度（换行/毛笔字收敛都按它计算） */
+  const colTextW = columnsPerSide === 2 ? COL2_TEXT_W : COL_TEXT_W
   /** 用户 px 字号 → 相对基准的比例（布局内部仍按比例与档位计算） */
   const provPct = sizes.province / BASE_HEADER
   const personPct = sizes.person / BASE_LINE
@@ -330,7 +342,7 @@ export function computeLabelLayout(
     if (raw && raw.w > 0 && raw.h > 0) {
       const aspect = raw.w / raw.h
       const badgeW = badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
-      const maxW = COL_TEXT_W - badgeW - 8
+      const maxW = colTextW - badgeW - 8
       const natW = sizes.place * CALLI_RATIO * raw.scale * aspect
       const sizeScale = natW > maxW ? raw.scale * (maxW / natW) : raw.scale
       calli = { dataUrl: raw.dataUrl, aspect, sizeScale }
@@ -344,6 +356,7 @@ export function computeLabelLayout(
       { ...parts, place, badge, badgeUrl, calli },
       { person: sizes.person, place: sizes.place },
       options?.measure,
+      colTextW,
     )
   }
 
@@ -398,7 +411,7 @@ export function computeLabelLayout(
   const left = byLng.slice(0, bestK).sort(byLatDesc)
   const right = byLng.slice(bestK).sort(byLatDesc)
 
-  /** 某侧在指定档位下的总高度（省份名/学生行分别按各自字号比例缩放，换行与图片行加高已计入） */
+  /** 某一（子）列在指定档位下的总高度（省份名/学生行分别按各自字号比例缩放，换行与图片行加高已计入） */
   function heightAt(list: SideItem[], scale: number): number {
     if (list.length === 0) return 0
     return (
@@ -411,9 +424,36 @@ export function computeLabelLayout(
     )
   }
 
-  // 两侧共享同一可用高度：先求各自最低档所需高度，取大者与列最小高度比较，
+  /** 把一侧的省份块按行数权重连续切分为 count 个子列（两列模式时左右负载均衡） */
+  function splitSide(list: SideItem[], count: number): SideItem[][] {
+    if (count <= 1 || list.length <= 1) return [list]
+    const total = list.reduce((s, i) => s + i.rowCount + HEADER_WEIGHT, 0)
+    const target = total / count
+    const cols: SideItem[][] = []
+    let cur: SideItem[] = []
+    let acc = 0
+    for (const item of list) {
+      const w = item.rowCount + HEADER_WEIGHT
+      // 当前子列已过半且还有子列可分时，切到下一子列
+      if (cur.length > 0 && acc + w / 2 > target && cols.length < count - 1) {
+        cols.push(cur)
+        cur = []
+        acc = 0
+      }
+      cur.push(item)
+      acc += w
+    }
+    cols.push(cur)
+    return cols.filter((c) => c.length > 0)
+  }
+
+  const leftCols = splitSide(left, columnsPerSide)
+  const rightCols = splitSide(right, columnsPerSide)
+  const allCols = [...leftCols, ...rightCols]
+
+  // 各（子）列共享同一可用高度：先求各自最低档所需高度，取大者与列最小高度比较，
   // 这样人少的列在加高的画布上能用更大的字号档位
-  const floorNeed = Math.max(heightAt(left, MIN_SCALE), heightAt(right, MIN_SCALE))
+  const floorNeed = Math.max(0, ...allCols.map((c) => heightAt(c, MIN_SCALE)))
   const colTarget = Math.max(MAP_H, COL_MIN, floorNeed)
 
   function pickScale(list: SideItem[]): number {
@@ -423,11 +463,21 @@ export function computeLabelLayout(
     return MIN_SCALE
   }
 
-  /** 左右两列共享同一缩放档（取两侧所需较小值），保证两列字号完全一致 */
-  const sharedScale = Math.min(pickScale(left), pickScale(right))
+  /** 全部（子）列共享同一缩放档（取所需较小值），保证所有列字号完全一致 */
+  const sharedScale = Math.min(...allCols.map((c) => pickScale(c)), 1)
 
-  function buildSide(list: SideItem[], side: 'left' | 'right'): { blocks: LabelBlock[]; total: number } {
-    if (list.length === 0) return { blocks: [], total: 0 }
+  /**
+   * 构建一个子列的标注块。
+   * anchorX/edgeX 由调用方按「内侧列（靠地图）/外侧列」给出：
+   * 引线只接入各子列朝向地图一侧的边缘，不穿过文字区。
+   */
+  function buildColumn(
+    list: SideItem[],
+    side: 'left' | 'right',
+    anchorX: number,
+    edgeX: number,
+  ): { blocks: LabelBlock[]; bottom: number } {
+    if (list.length === 0) return { blocks: [], bottom: 0 }
     const scale = sharedScale
     const headerH = BASE_HEADER_H * scale * provPct
     const gap = BASE_GAP * scale
@@ -444,7 +494,7 @@ export function computeLabelLayout(
         province: i.province,
         // 长校名已换行（不缩小、不省略），行数计入块高
         lines: i.students.map((s) => wrappedOf(s)),
-        anchorX: side === 'left' ? MAP_X0 - 16 : MAP_X1 + 16,
+        anchorX,
         textAnchor: side === 'left' ? 'end' : 'start',
         headerBaseline: y + headerH - 8 * scale,
         firstLineBaseline: y + headerH + lineH * 0.72,
@@ -453,8 +503,7 @@ export function computeLabelLayout(
         personSize,
         placeSize,
         centerY: y + h / 2,
-        // 接入点在文字锚点靠地图一侧之外，引线只到块边缘、不穿过文字区
-        edgeX: side === 'left' ? MAP_X0 - 6 : MAP_X1 + 6,
+        edgeX,
         centroidX: i.cx,
         centroidY: i.cy,
         cityPoints: i.cityPoints,
@@ -462,11 +511,37 @@ export function computeLabelLayout(
       y += h + gap
       return block
     })
-    return { blocks, total: y - gap }
+    return { blocks, bottom: y - gap }
   }
 
-  const l = buildSide(left, 'left')
-  const r = buildSide(right, 'right')
+  /** 构建一侧（1 或 2 个子列）：内侧列贴地图，外侧列在其外；返回全部块与侧底边 y */
+  function buildSide(cols: SideItem[][], side: 'left' | 'right'): { blocks: LabelBlock[]; bottom: number } {
+    if (cols.length === 0) return { blocks: [], bottom: 0 }
+    // 子列锚点：内侧列与单列模式一致；外侧列再向外平移 (COL2_W + COL2_GAP)
+    const anchors =
+      side === 'left'
+        ? cols.length === 1
+          ? [{ anchorX: MAP_X0 - 16, edgeX: MAP_X0 - 6 }]
+          : [
+              { anchorX: MAP_X0 - 16 - COL2_W - COL2_GAP, edgeX: MAP_X0 - 16 - COL2_W - COL2_GAP + 6 },
+              { anchorX: MAP_X0 - 16, edgeX: MAP_X0 - 6 },
+            ]
+        : cols.length === 1
+          ? [{ anchorX: MAP_X1 + 16, edgeX: MAP_X1 + 6 }]
+          : [
+              { anchorX: MAP_X1 + 16, edgeX: MAP_X1 + 6 },
+              { anchorX: MAP_X1 + 16 + COL2_W + COL2_GAP, edgeX: MAP_X1 + 16 + COL2_W + COL2_GAP - 6 },
+            ]
+    // 左列：外侧子列放前半（偏北）省份、内侧放后半，引线更少交叉；右列反之
+    const built = cols.map((c, idx) => buildColumn(c, side, anchors[idx].anchorX, anchors[idx].edgeX))
+    return {
+      blocks: built.flatMap((b) => b.blocks),
+      bottom: Math.max(...built.map((b) => b.bottom)),
+    }
+  }
+
+  const l = buildSide(leftCols, 'left')
+  const r = buildSide(rightCols, 'right')
   // 超出列高时加高画布（纵向扩展），保证最低档字号下依然不重叠；
   // 左右下角的覆盖层（老师名单/未定位提示）预留区同样通过加高画布兑现。
   // 注意：预留必须同时加到「地图本体」这一项上——学生较少、地图是最高元素时，
@@ -475,9 +550,74 @@ export function computeLabelLayout(
   const reserveR = options?.reserveRightBottom ?? 0
   const svgHeight = Math.max(
     TOP + MAP_H + BOTTOM + Math.max(reserveL, reserveR),
-    l.total + BOTTOM + reserveL,
-    r.total + BOTTOM + reserveR,
+    l.bottom + BOTTOM + reserveL,
+    r.bottom + BOTTOM + reserveR,
     120,
   )
-  return { left: l.blocks, right: r.blocks, svgHeight }
+  return { left: l.blocks, right: r.blocks, svgHeight, scale: sharedScale }
+}
+
+/** 排版自适应推荐结果 */
+export interface FitRecommendation {
+  /** 建议切换为每侧两列（当前为一列且两列明显更宽松时为 true） */
+  twoColumns: boolean
+  /** 推荐字号（px）：按当前所需缩放档换算，应用后内容可按原字号比例放下 */
+  sizes: { province: number; person: number; place: number }
+  /** 当前设置下的实际缩放档（<1 表示画布被迫整体缩小了字号） */
+  currentScale: number
+}
+
+/** 字号可调范围（与录入面板档位一致） */
+const FIT_RANGE = {
+  province: { min: 10, max: 28 },
+  person: { min: 9, max: 22 },
+  place: { min: 9, max: 22 },
+} as const
+
+/**
+ * 标注排版自适应推荐：
+ * - 当前字号能按原样放下（scale = 1）→ 返回 null，不打扰；
+ * - 当前为一列且改两列明显更宽松 → 推荐两列（字号按两列所需档换算，能原样放下则不变）；
+ * - 否则只推荐缩小后的字号（按当前缩放档换算到 px，向下取整并夹在可调范围内）。
+ * 是否采纳由用户决定（调用方弹提示）。
+ */
+export function recommendLabelFit(
+  groups: Map<string, StudentEntry[]>,
+  options?: LabelLayoutOptions,
+): FitRecommendation | null {
+  if (groups.size === 0) return null
+  const sizes = options?.sizes ?? { province: 16, person: 13, place: 13 }
+  const cols = options?.columnsPerSide ?? 1
+  const current = computeLabelLayout(groups, undefined, { ...options, columnsPerSide: cols })
+  if (current.scale >= 0.999) return null
+
+  const clamp = (v: number, range: { min: number; max: number }) =>
+    Math.min(range.max, Math.max(range.min, v))
+  const scaledSizes = (s: number) => ({
+    province: clamp(Math.floor(sizes.province * s), FIT_RANGE.province),
+    person: clamp(Math.floor(sizes.person * s), FIT_RANGE.person),
+    place: clamp(Math.floor(sizes.place * s), FIT_RANGE.place),
+  })
+
+  if (cols === 1) {
+    const two = computeLabelLayout(groups, undefined, { ...options, columnsPerSide: 2 })
+    if (two.scale > current.scale + 0.04) {
+      return {
+        twoColumns: true,
+        sizes: two.scale >= 0.999 ? { ...sizes } : scaledSizes(two.scale),
+        currentScale: current.scale,
+      }
+    }
+  }
+
+  const sizes2 = scaledSizes(current.scale)
+  // 推荐值与当前完全一致（字号已到下限）且无列数建议时不打扰
+  if (
+    sizes2.province === sizes.province &&
+    sizes2.person === sizes.person &&
+    sizes2.place === sizes.place
+  ) {
+    return null
+  }
+  return { twoColumns: false, sizes: sizes2, currentScale: current.scale }
 }

@@ -83,7 +83,42 @@
     <div style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
       <img src="/og-cover.png" alt="" width="600" height="500" />
     </div>
-    <div id="root"></div>
+    <!-- 首屏骨架屏：React 挂载前展示，挂载后自动被替换；色调与主界面（stone 系）一致 -->
+    <style>
+      @keyframes cf-shimmer {
+        0% { background-position: -200px 0; }
+        100% { background-position: calc(200px + 100%) 0; }
+      }
+      .cf-skel {
+        background: linear-gradient(90deg, #e7e5e4 0%, #f5f5f4 50%, #e7e5e4 100%);
+        background-size: 400px 100%;
+        animation: cf-shimmer 1.4s ease-in-out infinite;
+        border-radius: 8px;
+      }
+      .cf-skel-root { display: flex; height: 100dvh; background: #f5f5f4; }
+      .cf-skel-side {
+        display: none; width: 420px; flex-shrink: 0; background: #ffffff;
+        border-right: 1px solid #e7e5e4; padding: 16px; box-sizing: border-box;
+      }
+      .cf-skel-main { flex: 1; min-width: 0; padding: 20px 24px; box-sizing: border-box; }
+      @media (min-width: 768px) {
+        .cf-skel-side { display: block; }
+      }
+    </style>
+    <div id="root">
+      <div class="cf-skel-root" aria-hidden="true">
+        <div class="cf-skel-side">
+          <div class="cf-skel" style="height: 36px; margin-bottom: 14px"></div>
+          <div class="cf-skel" style="height: 88px; margin-bottom: 12px"></div>
+          <div class="cf-skel" style="height: 88px; margin-bottom: 12px"></div>
+          <div class="cf-skel" style="height: 140px"></div>
+        </div>
+        <div class="cf-skel-main">
+          <div class="cf-skel" style="height: 30px; width: 42%; margin-bottom: 18px"></div>
+          <div class="cf-skel" style="height: min(62dvh, 560px); border-radius: 12px"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

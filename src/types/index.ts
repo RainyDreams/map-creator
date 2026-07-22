@@ -71,6 +71,8 @@ export interface MapData {
   subtitle: string
   /** 地图标注三个模块的字号（px，画布基准） */
   labelSizes: LabelSizes
+  /** 每侧标注列数：1（默认）或 2（人多时更宽松，文字列宽减半） */
+  labelColumns: 1 | 2
   /**
    * 省内手动排序的省份列表：在录入弹窗中拖动调整过顺序的省份，
    * 该省在地图上保持手动顺序（不再按软科排名自动排序）
@@ -95,6 +97,7 @@ export const EMPTY_MAP_DATA: MapData = {
   titleAlign: 'left',
   subtitle: '',
   labelSizes: DEFAULT_LABEL_SIZES,
+  labelColumns: 1,
   customOrderProvinces: [],
   calligraphy: {},
   badgeOverrides: {},

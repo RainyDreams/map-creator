@@ -22,7 +22,7 @@ import { useMapData } from '@/store/MapDataContext'
 import { newId } from '@/types'
 import { downloadTemplate, exportWorkbook, parseWorkbook, type ParseResult } from '@/utils/excel'
 import { exportCanvasJson, parseCanvasJson, type CanvasJsonPayload } from '@/utils/exportData'
-import { createShareLink, type ShareBuildResult } from '@/utils/share'
+import { createShareLink, type ShareCreateResult } from '@/utils/share'
 import { requestMapExport } from '@/utils/exportBus'
 
 interface PendingExcel {
@@ -38,14 +38,30 @@ interface PendingJson {
 }
 
 export default function DataToolbar() {
-  const { data, theme, fontSlots, badge, activeCanvasName, importStudents, setData, importCanvas } =
-    useMapData()
+  const {
+    data,
+    theme,
+    fontSlots,
+    badge,
+    activeCanvasName,
+    activeShare,
+    importStudents,
+    setData,
+    importCanvas,
+    attachShare,
+  } = useMapData()
 
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
-  const [shareResult, setShareResult] = useState<ShareBuildResult | null>(null)
+  const [shareResult, setShareResult] = useState<ShareCreateResult | null>(null)
   const [sharing, setSharing] = useState(false)
+
+  // 面板中展示的链接：刚生成的优先，否则用当前画布已绑定的协同链接
+  const shownShareUrl =
+    shareResult?.url ??
+    (activeShare ? `${window.location.origin}/?share=${activeShare.id}` : null)
+  const shownShareExpiresAt = shareResult?.expiresAt ?? activeShare?.expiresAt ?? null
 
   const excelInputRef = useRef<HTMLInputElement>(null)
   const jsonInputRef = useRef<HTMLInputElement>(null)
@@ -75,6 +91,7 @@ export default function DataToolbar() {
 
   /* ---------------- 分享为链接 ---------------- */
 
+  /** 生成新协同链接并绑定到当前画布（重新生成时旧链接不再同步，7 天后失效） */
   const handleCreateShareLink = async () => {
     if (sharing) return
     setSharing(true)
@@ -87,6 +104,7 @@ export default function DataToolbar() {
         fontSlots,
         badge,
       })
+      attachShare({ id: result.id, role: result.role, rev: result.rev, expiresAt: result.expiresAt })
       setShareResult(result)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '分享链接生成失败，请稍后重试')
@@ -96,9 +114,9 @@ export default function DataToolbar() {
   }
 
   const handleCopyShareLink = async () => {
-    if (!shareResult) return
+    if (!shownShareUrl) return
     try {
-      await navigator.clipboard.writeText(shareResult.url)
+      await navigator.clipboard.writeText(shownShareUrl)
       toast.success('链接已复制')
     } catch {
       // 剪贴板 API 不可用时降级为手动复制：选中输入框内容
@@ -555,54 +573,50 @@ export default function DataToolbar() {
         </DialogContent>
       </Dialog>
 
-      {/* ==================== 分享为链接面板 ==================== */}
-      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+      {/* ==================== 分享面板：主路径是导出图片，链接分享为小选项 ==================== */}
+      <Dialog
+        open={shareOpen}
+        onOpenChange={(open) => {
+          setShareOpen(open)
+          if (open) setShareResult(null)
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>分享为链接</DialogTitle>
+            <DialogTitle>分享这张蹭饭图</DialogTitle>
             <DialogDescription>
-              生成一个 7 天有效的短链接，拿到链接的人打开即可查看并继续编辑这张画布
+              推荐给同学和老师的方式：导出超清图片，直接发到班级群
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
-            {/* 重要告知：可编辑性 + 有效期 */}
-            <div className="space-y-1.5 rounded-lg border border-amber-200/70 bg-amber-50/70 px-3 py-2.5 text-xs leading-5 text-amber-800">
-              <p>
-                <strong>任何拿到这个链接的人，都可以查看并修改里面的内容</strong>
-                （修改只保存在各自设备上，互不影响，请勿发给不信任的人）。
-              </p>
-              <p>
-                链接有效期 <strong>7 天</strong>，到期后自动失效、数据即刻删除。
-              </p>
-              <p>
-                多端协同：在自己另一台设备上打开这个链接，即可继续编辑同一张画布。
-              </p>
-            </div>
+            {/* 最明显的选项：导出为图片 */}
+            <button
+              type="button"
+              onClick={() => {
+                setShareOpen(false)
+                requestMapExport()
+              }}
+              className="flex w-full items-center gap-3 rounded-lg bg-stone-900 px-3.5 py-3.5 text-left text-white shadow-sm transition-colors hover:bg-stone-700"
+            >
+              <ImageIcon className="h-6 w-6 shrink-0" />
+              <span>
+                <span className="block text-sm font-semibold">导出为图片</span>
+                <span className="block text-xs text-stone-300">
+                  跳转到地图画面，导出超清 PNG（微信中请长按图片保存）
+                </span>
+              </span>
+            </button>
 
-            {shareResult === null ? (
-              <Button
-                type="button"
-                onClick={handleCreateShareLink}
-                disabled={sharing}
-                className="w-full bg-stone-900 text-white hover:bg-stone-700"
-              >
-                {sharing ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Link2 className="size-4" />
-                )}
-                {sharing ? '正在生成链接…' : '生成分享链接'}
-              </Button>
-            ) : (
-              <div className="space-y-2.5">
+            {shownShareUrl !== null && (
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <input
                     id="share-link-input"
                     readOnly
-                    value={shareResult.url}
+                    value={shownShareUrl}
                     onFocus={(e) => e.target.select()}
-                    className="h-9 min-w-0 flex-1 rounded-md border border-stone-200 bg-stone-50 px-2.5 font-mono text-xs text-stone-700 outline-none"
+                    className="h-8 min-w-0 flex-1 rounded-md border border-stone-200 bg-stone-50 px-2.5 font-mono text-xs text-stone-700 outline-none"
                   />
                   <Button
                     type="button"
@@ -614,27 +628,30 @@ export default function DataToolbar() {
                     复制
                   </Button>
                 </div>
-                <p className="text-[11px] leading-4 text-stone-400">
-                  有效期至 {new Date(shareResult.expiresAt).toLocaleString('zh-CN')}
-                </p>
-                {shareResult.stripped.length > 0 && (
-                  <p className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-[11px] leading-4 text-stone-500">
-                    因容量限制，{shareResult.stripped.join('、')}不随链接分享；
-                    对方打开后如需这些内容，请在对应设备上重新上传。
+                {shownShareExpiresAt !== null && (
+                  <p className="text-[11px] leading-4 text-stone-400">
+                    有效期至 {new Date(shownShareExpiresAt).toLocaleString('zh-CN')}
                   </p>
                 )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCreateShareLink}
-                  disabled={sharing}
-                  className="border-stone-200 text-xs text-stone-500 hover:bg-stone-50"
-                >
-                  {sharing ? '正在生成…' : '重新生成（旧链接仍有效至到期）'}
-                </Button>
               </div>
             )}
+
+            {/* 特别小的选项：分享为链接 */}
+            <div className="flex items-center justify-center gap-1 pt-1">
+              <button
+                type="button"
+                onClick={handleCreateShareLink}
+                disabled={sharing}
+                className="flex items-center gap-1 text-[11px] text-stone-400 underline decoration-stone-300 underline-offset-2 transition-colors hover:text-stone-600 disabled:opacity-50"
+              >
+                {sharing ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Link2 className="h-3 w-3" />
+                )}
+                {sharing ? '正在生成链接…' : '分享为链接（7 天有效）'}
+              </button>
+            </div>
           </div>
 
           <DialogFooter>

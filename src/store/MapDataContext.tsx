@@ -4,9 +4,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
+import { toast } from 'sonner'
 import { EMPTY_MAP_DATA, newId, type MapData, type StudentEntry } from '@/types'
 import { DEFAULT_THEME, presetById, type ThemeConfig } from '@/utils/themes'
 import { isLikelyCountryOrRegion, normalizeProvinceName, provinceOfCity } from '@/utils/geo'
@@ -16,9 +18,20 @@ import {
   type CustomFont,
   type FontSlot,
 } from '@/utils/fonts'
+import { fetchShareState, pushShareUpdate, type ShareRole } from '@/utils/share'
 
 const STORAGE_KEY = 'cenfan-map-store-v2'
 const LEGACY_KEY = 'cenfan-map-data-v1'
+
+/** 分享协同状态：画布与一条分享短链接绑定后携带 */
+export interface ShareMeta {
+  id: string
+  role: ShareRole
+  /** 本端已同步到的服务端版本号 */
+  rev: number
+  /** 过期时间戳（毫秒），有编辑活动会顺延 */
+  expiresAt: number
+}
 
 /** 一张独立画布：完整的一份蹭饭图工程（名单 + 主题 + 字体 + 班徽） */
 export interface CanvasDoc {
@@ -30,6 +43,8 @@ export interface CanvasDoc {
   fontSlots: Record<FontSlot, string>
   badge: string | null
   updatedAt: number
+  /** 绑定的分享协同（可选） */
+  share?: ShareMeta
 }
 
 interface Persisted {
@@ -56,6 +71,8 @@ export interface CanvasSummary {
   studentCount: number
   updatedAt: number
   active: boolean
+  /** 已绑定分享时给出链接 id 与本端角色（管理台展示用） */
+  share?: { id: string; role: ShareRole }
 }
 
 export interface MapDataContextValue {
@@ -85,6 +102,13 @@ export interface MapDataContextValue {
   /** 校徽/班徽 */
   badge: string | null
   setBadge: (dataUrl: string | null) => void
+  /** —— 分享协同 —— */
+  /** 当前画布绑定的分享；未绑定为 null */
+  activeShare: ShareMeta | null
+  /** 把当前画布绑定到一条分享链接（创建或加入后调用） */
+  attachShare: (share: ShareMeta) => void
+  /** 解除当前画布的分享绑定（本地不再同步） */
+  detachShare: () => void
   /** —— 多画布管理 —— */
   canvases: CanvasSummary[]
   activeCanvasId: string
@@ -100,14 +124,18 @@ export interface MapDataContextValue {
   /**
    * 从 JSON 文件导入为一张新画布并切换过去（不覆盖现有画布）。
    * 字段经 normalize 校验/迁移；名单数据非法时返回 null。
+   * 传入 share 时同时绑定协同（打开分享链接场景）。
    */
-  importCanvas: (input: {
-    name?: unknown
-    data?: unknown
-    theme?: unknown
-    fontSlots?: unknown
-    badge?: unknown
-  }) => string | null
+  importCanvas: (
+    input: {
+      name?: unknown
+      data?: unknown
+      theme?: unknown
+      fontSlots?: unknown
+      badge?: unknown
+    },
+    share?: ShareMeta,
+  ) => string | null
 }
 
 const MapDataContext = createContext<MapDataContextValue | null>(null)
@@ -153,6 +181,8 @@ function normalizeData(raw: unknown): MapData | null {
       // v1.10 迁移：旧数据无 teacher 字段时按默认 13px（与学生姓名一致）
       teacher: px(ls.teacher, 13, 9, 22),
     },
+    // v1.11 迁移：旧数据无 labelColumns 字段时默认每侧一列
+    labelColumns: d.labelColumns === 2 ? 2 : 1,
     customOrderProvinces: Array.isArray(d.customOrderProvinces)
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
       : [],
@@ -237,6 +267,19 @@ function normalizeCustomFonts(raw: unknown): CustomFont[] {
   )
 }
 
+/** 分享协同元信息校验（localStorage 迁移防御） */
+function normalizeShare(raw: unknown): ShareMeta | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const s = raw as Partial<ShareMeta>
+  if (typeof s.id !== 'string' || !/^[A-Za-z0-9]{10}$/.test(s.id)) return undefined
+  return {
+    id: s.id,
+    role: s.role === 'admin' ? 'admin' : 'member',
+    rev: typeof s.rev === 'number' && s.rev >= 0 ? s.rev : 0,
+    expiresAt: typeof s.expiresAt === 'number' ? s.expiresAt : 0,
+  }
+}
+
 function newCanvasDoc(name: string): CanvasDoc {
   return {
     id: newId(),
@@ -268,6 +311,7 @@ function loadInitial(): Persisted {
               fontSlots: normalizeFontSlots(c.fontSlots),
               badge: typeof c.badge === 'string' ? c.badge : null,
               updatedAt: typeof c.updatedAt === 'number' ? c.updatedAt : Date.now(),
+              share: normalizeShare(c.share),
             }
           })
           .filter((c): c is CanvasDoc => c !== null)
@@ -319,11 +363,17 @@ function loadInitial(): Persisted {
   return { canvases: [doc], activeId: doc.id, customFonts: [] }
 }
 
+/** 协同推送防抖（毫秒） */
+const SHARE_PUSH_DEBOUNCE = 2000
+/** 协同拉取轮询间隔（毫秒） */
+const SHARE_PULL_INTERVAL = 5000
+
 export function MapDataProvider({ children }: { children: ReactNode }) {
   const [persisted, setPersisted] = useState<Persisted>(loadInitial)
   const { canvases, activeId, customFonts } = persisted
   const active = canvases.find((c) => c.id === activeId) ?? canvases[0]
   const { data, theme, fontSlots, badge } = active
+  const activeShare = active.share ?? null
 
   useEffect(() => {
     try {
@@ -337,6 +387,129 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void ensureCustomFontsLoaded(customFonts)
   }, [customFonts])
+
+  /* ---------------- 分享协同同步引擎 ----------------
+   * 推送：本地编辑（名单/主题/字体/画布名）防抖 2s 后 PUT 到服务端；
+   * 拉取：每 5s 带 rev 轮询，有变化时整包应用（last-write-wins）。
+   * suppressPushRef：应用远端修改会触发本地 state 变化，置位以避免回声推送。
+   * pushInFlightRef：推送在途时跳过该次轮询，避免 rev 竞态。
+   * syncInitRef：挂载/切换画布后的首次 effect 不推送（内容本就来自服务端）。
+   */
+  const suppressPushRef = useRef(false)
+  const pushInFlightRef = useRef(false)
+  const syncInitRef = useRef<string | null>(null)
+  const shareRevRef = useRef(0)
+  const activeShareId = activeShare?.id ?? null
+  const activeShareRev = activeShare?.rev ?? 0
+
+  useEffect(() => {
+    shareRevRef.current = activeShareRev
+  }, [activeShareRev])
+
+  const activeName = active.name
+
+  // —— 推送 ——
+  useEffect(() => {
+    if (!activeShareId) return
+    if (syncInitRef.current !== activeShareId) {
+      syncInitRef.current = activeShareId
+      return
+    }
+    if (suppressPushRef.current) {
+      suppressPushRef.current = false
+      return
+    }
+    const snapshot = { name: activeName, data, theme, fontSlots }
+    const shareId = activeShareId
+    const timer = setTimeout(() => {
+      pushInFlightRef.current = true
+      void pushShareUpdate(shareId, snapshot).then((result) => {
+        pushInFlightRef.current = false
+        if (result.ok && typeof result.rev === 'number') {
+          // 只回写 rev/expiresAt；这些字段不在推送依赖里，不会再次触发推送
+          setPersisted((prev) => ({
+            ...prev,
+            canvases: prev.canvases.map((c) =>
+              c.share?.id === shareId
+                ? {
+                    ...c,
+                    share: {
+                      ...c.share,
+                      rev: result.rev ?? c.share.rev,
+                      expiresAt: result.expiresAt ?? c.share.expiresAt,
+                    },
+                  }
+                : c,
+            ),
+          }))
+        } else if (result.gone) {
+          setPersisted((prev) => ({
+            ...prev,
+            canvases: prev.canvases.map((c) =>
+              c.share?.id === shareId ? { ...c, share: undefined } : c,
+            ),
+          }))
+          toast('分享链接已过期，协同已断开', {
+            id: `share-gone-${shareId}`,
+            description: '本地内容已保留，可重新生成分享链接',
+          })
+        }
+      })
+    }, SHARE_PUSH_DEBOUNCE)
+    return () => clearTimeout(timer)
+  }, [activeShareId, activeName, data, theme, fontSlots])
+
+  // —— 拉取 ——
+  useEffect(() => {
+    if (!activeShareId) return
+    const shareId = activeShareId
+    let stopped = false
+    const pull = async () => {
+      if (stopped) return
+      if (document.visibilityState !== 'visible') return
+      if (pushInFlightRef.current) return
+      const state = await fetchShareState(shareId, shareRevRef.current)
+      if (!state || stopped || !state.changed) return
+      const remoteData = normalizeData(state.data)
+      if (!remoteData) return
+      // 防回声：本次 state 变化不触发推送
+      suppressPushRef.current = true
+      setPersisted((prev) => ({
+        ...prev,
+        canvases: prev.canvases.map((c) =>
+          c.share?.id === shareId
+            ? {
+                ...c,
+                name:
+                  typeof state.name === 'string' && state.name.trim() !== ''
+                    ? state.name
+                    : c.name,
+                data: remoteData,
+                theme: normalizeTheme(state.theme),
+                fontSlots: normalizeFontSlots(state.fontSlots),
+                share: {
+                  id: shareId,
+                  role: state.role,
+                  rev: state.rev,
+                  expiresAt: state.expiresAt || c.share.expiresAt,
+                },
+                updatedAt: Date.now(),
+              }
+            : c,
+        ),
+      }))
+      toast('画布已同步其他设备的修改', { id: `share-sync-${shareId}` })
+    }
+    void pull()
+    const timer = setInterval(() => void pull(), SHARE_PULL_INTERVAL)
+    const onVisible = () => void pull()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [activeShareId])
 
   /** 更新当前画布的部分字段（并刷新 updatedAt） */
   const patchActive = useCallback(
@@ -454,6 +627,26 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     [patchActive],
   )
 
+  /* ---------------- 分享协同绑定 ---------------- */
+
+  const attachShare = useCallback((share: ShareMeta) => {
+    setPersisted((prev) => ({
+      ...prev,
+      canvases: prev.canvases.map((c) =>
+        c.id === prev.activeId ? { ...c, share } : c,
+      ),
+    }))
+  }, [])
+
+  const detachShare = useCallback(() => {
+    setPersisted((prev) => ({
+      ...prev,
+      canvases: prev.canvases.map((c) =>
+        c.id === prev.activeId ? { ...c, share: undefined } : c,
+      ),
+    }))
+  }, [])
+
   /* ---------------- 多画布管理 ---------------- */
 
   const switchCanvas = useCallback(
@@ -494,6 +687,8 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
         name: `${src.name} 副本`,
         updatedAt: Date.now(),
       }
+      // 副本不参与原画布的协同
+      delete copy.share
       return { ...prev, canvases: [...prev.canvases, copy], activeId: copy.id }
     })
     return newDocId
@@ -509,7 +704,10 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const importCanvas = useCallback(
-    (input: { name?: unknown; data?: unknown; theme?: unknown; fontSlots?: unknown; badge?: unknown }): string | null => {
+    (
+      input: { name?: unknown; data?: unknown; theme?: unknown; fontSlots?: unknown; badge?: unknown },
+      share?: ShareMeta,
+    ): string | null => {
       const data = normalizeData(input.data)
       if (!data) return null
       const doc: CanvasDoc = {
@@ -526,6 +724,7 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
             ? input.badge
             : null,
         updatedAt: Date.now(),
+        share,
       }
       setPersisted((prev) => ({ ...prev, canvases: [...prev.canvases, doc], activeId: doc.id }))
       return doc.id
@@ -543,6 +742,7 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
         ).length,
         updatedAt: c.updatedAt,
         active: c.id === active.id,
+        share: c.share ? { id: c.share.id, role: c.share.role } : undefined,
       })),
     [canvases, active.id],
   )
@@ -562,6 +762,9 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
       removeCustomFont,
       badge,
       setBadge,
+      activeShare,
+      attachShare,
+      detachShare,
       canvases: canvasSummaries,
       activeCanvasId: active.id,
       activeCanvasName: active.name,
@@ -586,6 +789,9 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
       removeCustomFont,
       badge,
       setBadge,
+      activeShare,
+      attachShare,
+      detachShare,
       canvasSummaries,
       active.id,
       active.name,

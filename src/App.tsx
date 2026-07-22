@@ -14,7 +14,7 @@ import { WeChatGuideDialog } from '@/components/WeChatGuideDialog'
 import { ClipboardList, Info, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { onGotoMapExport } from '@/utils/exportBus'
-import { takeShareIdFromUrl, fetchSharedCanvas } from '@/utils/share'
+import { takeShareIdFromUrl, fetchShareState } from '@/utils/share'
 
 type TabKey = 'entry' | 'map' | 'about'
 
@@ -55,34 +55,47 @@ function Creator() {
   const [sidebarWidth, setSidebarWidth] = useState<number>(loadSidebarWidth)
   const [dragging, setDragging] = useState(false)
   const dragState = useRef<{ startX: number; startW: number } | null>(null)
-  const { importCanvas } = useMapData()
+  const { canvases, importCanvas, switchCanvas } = useMapData()
 
-  // 打开分享短链接：?share=<id> → 拉取画布数据导入为新画布
+  // 打开分享短链接：?share=<id> → 拉取协同文档并加入协同
   useEffect(() => {
     const id = takeShareIdFromUrl()
     if (!id) return
     let cancelled = false
     toast.loading('正在打开分享的画布…', { id: 'share-open' })
-    fetchSharedCanvas(id).then((payload) => {
+    fetchShareState(id).then((state) => {
       if (cancelled) return
-      if (!payload) {
+      if (!state || !state.changed) {
         toast.error('分享链接不存在或已超过 7 天有效期', { id: 'share-open' })
         return
       }
-      const docId = importCanvas({
-        name: payload.name,
-        data: payload.data,
-        theme: payload.theme,
-        fontSlots: payload.fontSlots,
-        badge: null,
-      })
+      // 本机已有绑定同一链接的画布（多端回访）：直接切换过去，轮询会自动补齐最新内容
+      const existing = canvases.find((c) => c.share?.id === id)
+      if (existing) {
+        switchCanvas(existing.id)
+        toast.success(`已切换到协同画布「${existing.name}」`, {
+          id: 'share-open',
+          description: '修改会自动同步到所有打开该链接的设备',
+        })
+        return
+      }
+      const docId = importCanvas(
+        {
+          name: state.name,
+          data: state.data,
+          theme: state.theme,
+          fontSlots: state.fontSlots,
+          badge: null,
+        },
+        { id, role: state.role, rev: state.rev, expiresAt: state.expiresAt },
+      )
       if (docId === null) {
         toast.error('分享的画布数据不完整，无法打开', { id: 'share-open' })
         return
       }
-      toast.success(`已打开分享的画布「${payload.name || '未命名画布'}」`, {
+      toast.success(`已加入协同画布「${state.name || '未命名画布'}」`, {
         id: 'share-open',
-        description: '你的修改只保存在这台设备上，想同步给其他设备可再生成新的分享链接',
+        description: '你是成员，你的修改会自动同步给所有打开链接的设备',
       })
     })
     return () => {

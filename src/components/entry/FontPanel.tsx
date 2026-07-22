@@ -139,6 +139,29 @@ export function FontPanel() {
         </div>
       </div>
 
+      {/* 每侧标注列数：人多时两列更宽松（文字列宽减半、换行更多） */}
+      <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
+        <span className="text-xs text-stone-500">每侧标注列数</span>
+        <div className="flex overflow-hidden rounded-md border border-stone-200" role="radiogroup" aria-label="每侧标注列数">
+          {([1, 2] as const).map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={data.labelColumns === n}
+              onClick={() => setData((prev) => ({ ...prev, labelColumns: n }))}
+              className={
+                data.labelColumns === n
+                  ? 'bg-stone-900 px-2.5 py-1 text-[11px] text-white'
+                  : 'bg-white px-2.5 py-1 text-[11px] text-stone-500 transition-colors hover:bg-stone-50'
+              }
+            >
+              {n === 1 ? '一列' : '两列（人多时）'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* 校徽显示开关：关闭后地图与导出图中都不渲染校徽，大学文字照常 */}
       <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
         <Label htmlFor="badge-toggle" className="text-xs text-stone-500">

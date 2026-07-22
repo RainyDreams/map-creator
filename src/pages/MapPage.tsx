@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Download, Loader2, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
@@ -12,7 +13,7 @@ import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { OverseasBlock } from '@/components/map/OverseasBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
-import type { UniEnrichment } from '@/components/map/labels'
+import { recommendLabelFit, textEms, type UniEnrichment } from '@/components/map/labels'
 import '@/components/map/fonts.css'
 import type { StudentEntry } from '@/types'
 
@@ -142,7 +143,7 @@ function WeChatSaveDialog({
 }
 
 export default function MapPage() {
-  const { data, theme, fontSlots, customFonts, badge } = useMapData()
+  const { data, theme, fontSlots, customFonts, badge, setData } = useMapData()
   const canvasRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -160,6 +161,9 @@ export default function MapPage() {
   const digitFont = slotFontFamily('digit', fontSlots, customFonts)
   const latinFont = slotFontFamily('latin', fontSlots, customFonts)
   const hanFont = slotFontFamily('han', fontSlots, customFonts)
+  /** 标注排版自适应推荐用的姓名/地点字体栈 */
+  const personFont = slotFontFamily('person', fontSlots, customFonts)
+  const placeFont = slotFontFamily('place', fontSlots, customFonts)
 
   // 进度爬行 + 文案轮换 + 剩余时间估算：
   // 每 120ms 向锚点靠近一点（不越过锚点 -2）；锚点文案展示 2.2s 后轮换"假进度"提示；
@@ -288,6 +292,96 @@ export default function MapPage() {
     () => new Set(data.customOrderProvinces),
     [data.customOrderProvinces],
   )
+
+  /** 左右下角覆盖层（老师名单 / 海外+未定位）的画布预留高度（ChinaMap 与排版推荐共用） */
+  const reserveLeftBottom =
+    data.showTeachers && data.teachers.length > 0
+      ? Math.round((110 + data.teachers.length * 24) * 1.3)
+      : 0
+  const reserveRightBottom =
+    (overseas.length > 0 ? Math.round(80 + overseas.length * 22) : 0) +
+    (unlocated.length > 0 ? 130 : 0)
+
+  /* ---------------- 标注排版自适应推荐 ----------------
+   * 内容按用户设定字号放不下时（布局被迫整体缩小），计算最美观的推荐方案：
+   * 优先推荐「每侧两列」（人数多时更宽松），否则推荐缩小后的字号。
+   * 只提示不擅改：用户点「采用推荐」后才写入；同一方案只提示一次。
+   */
+  const fitMeasureCtx = useMemo(() => document.createElement('canvas').getContext('2d'), [])
+  const lastFitAdviceRef = useRef('')
+  useEffect(() => {
+    if (groups.size === 0) return
+    const measure = (text: string, px: number, slot: 'person' | 'place'): number => {
+      const family = slot === 'person' ? personFont : placeFont
+      if (fitMeasureCtx) {
+        try {
+          fitMeasureCtx.font = `${px}px ${family}`
+          const w = fitMeasureCtx.measureText(text).width
+          if (w > 0) return w
+        } catch {
+          // 回退估算
+        }
+      }
+      return textEms(text) * px
+    }
+    const rec = recommendLabelFit(groups, {
+      reserveLeftBottom,
+      reserveRightBottom,
+      uniInfo,
+      sizes: data.labelSizes,
+      columnsPerSide: data.labelColumns,
+      manualProvinces,
+      measure,
+      calligraphy: data.calligraphy,
+      badgeOverrides: data.badgeOverrides,
+    })
+    if (!rec) return
+    const signature = JSON.stringify({
+      rec,
+      cols: data.labelColumns,
+      sizes: data.labelSizes,
+      n: data.students.length,
+    })
+    if (lastFitAdviceRef.current === signature) return
+    lastFitAdviceRef.current = signature
+    const sizeText = `省份 ${rec.sizes.province}px、姓名 ${rec.sizes.person}px、城市/大学 ${rec.sizes.place}px`
+    toast('同学较多，建议优化标注排版', {
+      id: 'fit-advice',
+      duration: 15000,
+      description: rec.twoColumns
+        ? `当前内容被迫整体缩小到约 ${Math.round(rec.currentScale * 100)}%。建议切换为「每侧两列」，并把字号调整为 ${sizeText}，画面会更宽松。`
+        : `当前内容在画布内被迫整体缩小到约 ${Math.round(rec.currentScale * 100)}%。建议把标注字号调整为 ${sizeText}。`,
+      action: {
+        label: '采用推荐',
+        onClick: () => {
+          setData((prev) => ({
+            ...prev,
+            labelColumns: rec.twoColumns ? 2 : prev.labelColumns,
+            labelSizes: { ...prev.labelSizes, ...rec.sizes },
+          }))
+          toast.success(
+            rec.twoColumns ? '已切换为每侧两列，并应用推荐字号' : '已应用推荐字号',
+          )
+        },
+      },
+    })
+  }, [
+    groups,
+    uniInfo,
+    data.labelSizes,
+    data.labelColumns,
+    data.students.length,
+    data.calligraphy,
+    data.badgeOverrides,
+    manualProvinces,
+    reserveLeftBottom,
+    reserveRightBottom,
+    personFont,
+    placeFont,
+    fitMeasureCtx,
+    setData,
+  ])
+
   const alignClass =
     data.titleAlign === 'center'
       ? 'justify-center text-center'
@@ -460,17 +554,11 @@ export default function MapPage() {
             {/* 地图主体（含标注列与引线）；左右下角覆盖层换算为画布预留高度，避免压字 */}
             <ChinaMap
               groups={groups}
-              reserveLeftBottom={
-                data.showTeachers && data.teachers.length > 0
-                  ? Math.round((110 + data.teachers.length * 24) * 1.3)
-                  : 0
-              }
-              reserveRightBottom={
-                (overseas.length > 0 ? Math.round(80 + overseas.length * 22) : 0) +
-                (unlocated.length > 0 ? 130 : 0)
-              }
+              reserveLeftBottom={reserveLeftBottom}
+              reserveRightBottom={reserveRightBottom}
               uniInfo={uniInfo}
               labelSizes={data.labelSizes}
+              labelColumns={data.labelColumns}
               manualProvinces={manualProvinces}
               calligraphy={data.calligraphy}
               badgeOverrides={data.badgeOverrides}

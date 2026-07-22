@@ -4,6 +4,17 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.11.0',
+    date: '2026-07-22',
+    items: [
+      '新增加载骨架屏：页面打开与地图轮廓加载期间展示与主界面同风格的呼吸占位，不再白屏闪烁',
+      '新增「每侧两列」标注布局：同学较多时可在「字体设置」中把每侧标注从一列切换为两列，画面更宽松',
+      '新增排版自适应推荐：人数较多、当前字号放不下时，自动计算最美观的列数与字号方案并弹提示，经你同意后一键应用',
+      '城市查询接口支持批量合并：多个省份的城市数据合并为一个请求发出，减少网络请求与服务器调用次数',
+      '分享弹窗改版：主选项为「导出为图片」（发班级群的最佳方式），「分享为链接」降级为小选项；链接分享功能暂时关闭（实现代码保留，后续视资源情况开放）',
+    ],
+  },
+  {
     version: 'v1.10.3',
     date: '2026-07-22',
     items: [
@@ -136,7 +147,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.10.3</dd>
+          <dd className="text-stone-700">v1.11.0</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a
