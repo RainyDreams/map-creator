@@ -35,6 +35,8 @@ export default function StudentTable() {
   const { data } = useMapData()
   const students = data.students
   const [modalOpen, setModalOpen] = useState(false)
+  /** 点击某行时，面板打开后滚动定位并高亮该学生 */
+  const [focusId, setFocusId] = useState<string | null>(null)
 
   const filledCount = students.filter((s) => !isRowEmpty(s)).length
 
@@ -69,7 +71,10 @@ export default function StudentTable() {
             <button
               key={s.id}
               type="button"
-              onClick={() => setModalOpen(true)}
+              onClick={() => {
+                setFocusId(s.id)
+                setModalOpen(true)
+              }}
               className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors ${
                 warn
                   ? 'border-amber-400/70 bg-amber-50/50 hover:bg-amber-50'
@@ -95,7 +100,10 @@ export default function StudentTable() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => setModalOpen(true)}
+          onClick={() => {
+            setFocusId(null)
+            setModalOpen(true)
+          }}
           className="h-9 w-full border-stone-300 text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
         >
           <PencilLine className="h-4 w-4" />
@@ -107,7 +115,10 @@ export default function StudentTable() {
       </CardContent>
 
       {/* 录入面板：按省份分组（与地图一致），支持增删改、组内拖动排序、新增同学、毛笔字图片 */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={(v) => {
+        setModalOpen(v)
+        if (!v) setFocusId(null)
+      }}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>学生名单录入 · 按省份分组</DialogTitle>
@@ -115,7 +126,7 @@ export default function StudentTable() {
               分组与地图标注一致，默认按软科排名排序；拖动行首手柄调整组内顺序后，该省保持手动顺序
             </DialogDescription>
           </DialogHeader>
-          <StudentGroupModal />
+          <StudentGroupModal focusStudentId={focusId} />
         </DialogContent>
       </Dialog>
     </Card>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownUp, Brush, GripVertical, ImagePlus, MapPinOff, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { ArrowDownUp, Brush, ChevronDown, ChevronUp, GripVertical, ImagePlus, MapPinOff, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -57,10 +57,27 @@ function processCalliFile(file: File): Promise<CalligraphyAsset> {
  *   地图同步保持此顺序，组头可一键「恢复排名」
  * - 行内可直接修改姓名/大学/城市、删除行，与左侧名单共享同一份数据
  */
-export function StudentGroupModal() {
+export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string | null }) {
   const { data, setData } = useMapData()
   const students = data.students
   const [tick, setTick] = useState(0)
+  /** 打开面板时定位并短暂高亮的目标学生 */
+  const [focusFlash, setFocusFlash] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!focusStudentId) return
+    const timer = setTimeout(() => {
+      document
+        .querySelector(`[data-student-id="${CSS.escape(focusStudentId)}"]`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      setFocusFlash(focusStudentId)
+    }, 220)
+    const clear = setTimeout(() => setFocusFlash(null), 2000)
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(clear)
+    }
+  }, [focusStudentId])
 
   /** 预取院校数据（城市补全/排名），模块级缓存与地图页共享 */
   useEffect(() => {
@@ -160,6 +177,16 @@ export function StudentGroupModal() {
     })
   }
 
+  /** 移动端上移/下移（同组内；与拖拽共用回填逻辑） */
+  const moveWithin = (groupKey: string, id: string, dir: -1 | 1) => {
+    const members = groups.get(groupKey) ?? []
+    const ids = members.map((m) => m.id)
+    const idx = ids.indexOf(id)
+    const target = idx + dir
+    if (idx < 0 || target < 0 || target >= ids.length) return
+    reorderWithin(groupKey, id, ids[target])
+  }
+
   const resetOrder = (prov: string) => {
     setData((prev) => ({
       ...prev,
@@ -235,7 +262,7 @@ export function StudentGroupModal() {
           type="button"
           variant="outline"
           onClick={openAdd}
-          className="h-9 w-full border-dashed border-stone-300 text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
+          className="h-9 w-full border-stone-800 bg-stone-800 text-xs text-white shadow-md hover:bg-stone-700 hover:text-white md:text-sm"
         >
           <Plus className="h-4 w-4" />
           新增同学
@@ -263,7 +290,12 @@ export function StudentGroupModal() {
       />
       <p className="flex items-center gap-1.5 text-xs text-stone-400">
         <ArrowDownUp className="h-3.5 w-3.5" />
-        名单按省份分组（与地图一致）；拖动行首手柄可调整组内顺序，调整后该省保持手动顺序
+        <span className="hidden md:inline">
+          名单按省份分组（与地图一致）；拖动行首手柄可调整组内顺序，调整后该省保持手动顺序
+        </span>
+        <span className="md:hidden">
+          名单按省份分组（与地图一致）；用行首上下按钮调整组内顺序，调整后该省保持手动顺序
+        </span>
       </p>
       {[...groups.entries()].map(([prov, members]) => {
         const isUnlocated = prov === UNLOCATED
@@ -304,6 +336,7 @@ export function StudentGroupModal() {
                 return (
                 <li
                   key={s.id}
+                  data-student-id={s.id}
                   onDragOver={(e) => {
                     if (!dragRef.current || dragRef.current.group !== prov || dragRef.current.id === s.id) return
                     e.preventDefault()
@@ -321,10 +354,10 @@ export function StudentGroupModal() {
                     isUnlocated ? 'border-amber-300/70 bg-amber-50/50' : 'border-stone-200 bg-stone-50/50'
                   } ${dropTargetId === s.id ? 'ring-2 ring-amber-400/70' : ''} ${
                     draggingId === s.id ? 'opacity-50' : ''
-                  }`}
+                  } ${focusFlash === s.id ? 'ring-2 ring-stone-400' : ''}`}
                 >
-                  {/* 第一行：手柄 + 序号 + 姓名 + 大学 + 毛笔字/删除 */}
-                  <div className="flex items-center gap-1.5">
+                  {/* 第一行：手柄（桌面）/上下按钮（移动端） + 序号 + 姓名 + 毛笔字/删除 + 大学（移动端独占一行） */}
+                  <div className="flex flex-wrap items-center gap-1.5">
                   <span
                     draggable
                     onDragStart={(e) => {
@@ -336,9 +369,30 @@ export function StudentGroupModal() {
                     onDragEnd={endDrag}
                     title="拖动调整组内顺序"
                     aria-label={`拖动调整 ${s.name || '该行'} 的顺序`}
-                    className="shrink-0 cursor-grab touch-none text-stone-300 hover:text-stone-500 active:cursor-grabbing"
+                    className="hidden shrink-0 cursor-grab touch-none text-stone-300 hover:text-stone-500 active:cursor-grabbing md:block"
                   >
                     <GripVertical className="h-4 w-4" />
+                  </span>
+                  {/* 移动端：上移/下移按钮（窄屏不拖拽） */}
+                  <span className="flex shrink-0 flex-col md:hidden">
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={() => moveWithin(prov, s.id, -1)}
+                      aria-label={`上移 ${s.name || '该行'}`}
+                      className="rounded-sm p-0.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 disabled:opacity-30"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === members.length - 1}
+                      onClick={() => moveWithin(prov, s.id, 1)}
+                      aria-label={`下移 ${s.name || '该行'}`}
+                      className="rounded-sm p-0.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 disabled:opacity-30"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
                   </span>
                   <span className="w-5 shrink-0 text-center text-[11px] tabular-nums text-stone-400">
                     {index + 1}
@@ -348,20 +402,7 @@ export function StudentGroupModal() {
                     onChange={(e) => updateRow(s.id, { name: e.target.value })}
                     placeholder="姓名"
                     aria-label="姓名"
-                    className="h-7 w-20 shrink-0 border-stone-200 bg-white text-xs focus-visible:ring-stone-300"
-                  />
-                  <Input
-                    value={s.university}
-                    onChange={(e) => updateRow(s.id, { university: e.target.value })}
-                    onBlur={() => {
-                      if (s.city.trim() === '') {
-                        const inferred = inferCityFromUniversity(s.university)
-                        if (inferred) updateRow(s.id, { city: inferred })
-                      }
-                    }}
-                    placeholder="大学"
-                    aria-label="大学"
-                    className="h-7 min-w-0 flex-1 border-stone-200 bg-white text-xs focus-visible:ring-stone-300"
+                    className="h-7 min-w-0 flex-1 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:w-20 md:flex-none"
                   />
                   <button
                     type="button"
@@ -391,10 +432,23 @@ export function StudentGroupModal() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
+                  <Input
+                    value={s.university}
+                    onChange={(e) => updateRow(s.id, { university: e.target.value })}
+                    onBlur={() => {
+                      if (s.city.trim() === '') {
+                        const inferred = inferCityFromUniversity(s.university)
+                        if (inferred) updateRow(s.id, { city: inferred })
+                      }
+                    }}
+                    placeholder="大学"
+                    aria-label="大学"
+                    className="order-6 h-7 w-full min-w-0 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:order-none md:w-auto md:flex-1"
+                  />
                   </div>
 
                   {/* 第二行：省 / 市级联下拉（单独一行，接口不可用时降级为手动输入） */}
-                  <div className="mt-1.5 grid grid-cols-2 gap-1.5 pl-[52px]">
+                  <div className="mt-1.5 grid grid-cols-2 gap-1.5 pl-0 md:pl-[52px]">
                     <CityPicker
                       value={s.city}
                       onChange={(city) => updateRow(s.id, { city })}
@@ -487,7 +541,7 @@ export function StudentGroupModal() {
           type="button"
           variant="outline"
           onClick={openAdd}
-          className="h-9 w-full border-dashed border-stone-300 text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
+          className="h-9 w-full border-stone-800 bg-stone-800 text-xs text-white shadow-md hover:bg-stone-700 hover:text-white md:text-sm"
         >
           <Plus className="h-4 w-4" />
           新增同学
