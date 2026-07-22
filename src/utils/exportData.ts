@@ -13,6 +13,34 @@ export interface CanvasJsonPayload {
   badge: string | null
 }
 
+/** 解析 JSON 画布文件；非法时抛出带中文信息的 Error */
+export function parseCanvasJson(text: string): CanvasJsonPayload {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    throw new Error('不是有效的 JSON 文件')
+  }
+  if (!raw || typeof raw !== 'object') throw new Error('JSON 内容不是画布数据')
+  const p = raw as Partial<CanvasJsonPayload>
+  if (p.format !== 'cenfan-map-canvas') {
+    throw new Error('这不是蹭饭图生成器导出的画布文件（format 标识不符）')
+  }
+  if (!p.data || typeof p.data !== 'object') {
+    throw new Error('画布文件缺少名单数据（data 字段）')
+  }
+  return {
+    format: 'cenfan-map-canvas',
+    version: 1,
+    exportedAt: typeof p.exportedAt === 'string' ? p.exportedAt : '',
+    name: typeof p.name === 'string' ? p.name : '',
+    data: p.data,
+    theme: p.theme,
+    fontSlots: p.fontSlots,
+    badge: typeof p.badge === 'string' ? p.badge : null,
+  }
+}
+
 export function exportCanvasJson(canvas: {
   name: string
   data: unknown

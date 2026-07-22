@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { RotateCcw, Sparkles } from 'lucide-react'
 import { useMapData } from '@/store/MapDataContext'
-import ExcelToolbar from '@/components/entry/ExcelToolbar'
+import DataToolbar from '@/components/entry/DataToolbar'
 import { CanvasManager } from '@/components/entry/CanvasManager'
 import MetaForm from '@/components/entry/MetaForm'
 import StudentTable from '@/components/entry/StudentTable'
@@ -43,7 +43,7 @@ export default function EntryPage() {
         {/* 顶部工具条：画布管理 + Excel 导入导出 + 清空 */}
         <div className="flex flex-wrap items-center gap-2">
           <CanvasManager />
-          <ExcelToolbar />
+          <DataToolbar />
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button

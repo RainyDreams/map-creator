@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import type { CalligraphyAsset, StudentEntry } from '@/types'
+import type { CalligraphyAsset, StudentBadge, StudentEntry } from '@/types'
 import { useMapData } from '@/store/MapDataContext'
 import { prefetchCityCenters } from '@/utils/cities'
 import { slotFontFamily } from '@/utils/fonts'
@@ -31,6 +31,8 @@ export interface ChinaMapProps {
   manualProvinces?: Set<string>
   /** 大学名 → 用户上传的毛笔字图片（提供后该校文字被图片替代） */
   calligraphy?: Record<string, CalligraphyAsset>
+  /** 学生 id → 校徽覆盖（隐藏或自定义图片） */
+  badgeOverrides?: Record<string, StudentBadge>
 }
 
 /**
@@ -38,7 +40,7 @@ export interface ChinaMapProps {
  * 宽度自适应容器，高度按 viewBox 等比缩放；内部全部为 SVG 文本，导出 PNG 时清晰。
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
-export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, calligraphy }: ChinaMapProps) {
+export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, calligraphy, badgeOverrides }: ChinaMapProps) {
   const { theme, fontSlots, customFonts } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
   // 桌面端与移动端布局会同时挂载两个 ChinaMap（CSS 隐藏其一）；
@@ -119,9 +121,10 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         manualProvinces,
         measure,
         calligraphy,
+        badgeOverrides,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, measure, fontTick, calligraphy],
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, measure, fontTick, calligraphy, badgeOverrides],
   )
 
   const fillByName = useMemo(() => {

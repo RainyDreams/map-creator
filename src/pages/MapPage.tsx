@@ -390,6 +390,7 @@ export default function MapPage() {
               labelSizes={data.labelSizes}
               manualProvinces={manualProvinces}
               calligraphy={data.calligraphy}
+              badgeOverrides={data.badgeOverrides}
             />
 
             {/* 无数据时的温和提示 */}

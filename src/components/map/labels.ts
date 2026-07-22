@@ -12,7 +12,7 @@
  * - 引线：质心（或城市点簇中心）→ 标注块朝向地图一侧的边缘中点；
  *   边缘接入点在文字锚点之外，保证引线不穿标注块
  */
-import type { CalligraphyAsset, StudentEntry } from '@/types'
+import type { CalligraphyAsset, StudentBadge, StudentEntry } from '@/types'
 import { inferCityFromUniversity } from '@/utils/geo'
 import { getProvinceShape, MAP_H, MAP_X0, MAP_X1, projectToMap, TOP, BOTTOM } from './geo'
 
@@ -78,6 +78,8 @@ export interface LabelLayoutOptions {
   measure?: (text: string, px: number, slot: 'person' | 'place') => number
   /** 大学名 → 用户上传的毛笔字图片；提供后该校文字被图片替代 */
   calligraphy?: Record<string, CalligraphyAsset>
+  /** 学生 id → 校徽覆盖：hidden 隐藏该生校徽；dataUrl 用自定义图片替代自动匹配（优先于自动校徽） */
+  badgeOverrides?: Record<string, StudentBadge>
 }
 
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
@@ -311,7 +313,17 @@ export function computeLabelLayout(
     const parts = studentLineParts(s)
     const key = s.university.trim()
     const enrich = uniInfo?.get(key)
-    const badge = enrich?.badge === true
+    let badge = enrich?.badge === true
+    let badgeUrl: string | null = enrich?.badgeUrl ?? null
+    // 每人校徽覆盖：hidden 优先（不显示）；自定义图片替代自动匹配（即使全局开关关闭也显示）
+    const ovr = options?.badgeOverrides?.[s.id]
+    if (ovr?.hidden) {
+      badge = false
+      badgeUrl = null
+    } else if (ovr?.dataUrl) {
+      badge = true
+      badgeUrl = ovr.dataUrl
+    }
     // 毛笔字图片：替代大学文字，place 只剩「· 城市」；图片宽度按列宽上限收敛倍率
     const raw = options?.calligraphy?.[key]
     let calli: CalliPlacement | null = null
@@ -329,7 +341,7 @@ export function computeLabelLayout(
         : ''
       : parts.place
     return wrapStudentLine(
-      { ...parts, place, badge, badgeUrl: enrich?.badgeUrl ?? null, calli },
+      { ...parts, place, badge, badgeUrl, calli },
       { person: sizes.person, place: sizes.place },
       options?.measure,
     )

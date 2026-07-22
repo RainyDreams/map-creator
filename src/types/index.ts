@@ -38,6 +38,14 @@ export interface CalligraphyAsset {
   scale: number
 }
 
+/** 单个学生的校徽覆盖设置：可隐藏自动校徽，或上传自定义校徽图片（替代自动匹配） */
+export interface StudentBadge {
+  /** true 时该学生的校徽不显示（即使全局校徽开关开启） */
+  hidden?: boolean
+  /** 自定义校徽图片 dataURL（方形 PNG，上传时已压缩）；设置后替代自动匹配的校徽 */
+  dataUrl?: string
+}
+
 /** 蹭饭图全部数据 */
 export interface MapData {
   /** 大标题，如“2026届 高三（2）班的蹭饭图”——年份直接写进标题，其中的数字可用专用字体渲染 */
@@ -66,6 +74,8 @@ export interface MapData {
    * 上传后地图上该校不再显示大学文字，校徽后直接渲染这张图片
    */
   calligraphy: Record<string, CalligraphyAsset>
+  /** 学生 id → 校徽覆盖设置（隐藏或自定义图片，优先于全局校徽开关与自动匹配） */
+  badgeOverrides: Record<string, StudentBadge>
 }
 
 export const EMPTY_MAP_DATA: MapData = {
@@ -80,6 +90,7 @@ export const EMPTY_MAP_DATA: MapData = {
   labelSizes: DEFAULT_LABEL_SIZES,
   customOrderProvinces: [],
   calligraphy: {},
+  badgeOverrides: {},
 }
 
 export function newId(): string {

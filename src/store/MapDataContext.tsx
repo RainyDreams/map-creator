@@ -96,6 +96,17 @@ export interface MapDataContextValue {
   duplicateCanvas: (id: string) => string
   /** 删除指定画布；至少保留一张 */
   deleteCanvas: (id: string) => void
+  /**
+   * 从 JSON 文件导入为一张新画布并切换过去（不覆盖现有画布）。
+   * 字段经 normalize 校验/迁移；名单数据非法时返回 null。
+   */
+  importCanvas: (input: {
+    name?: unknown
+    data?: unknown
+    theme?: unknown
+    fontSlots?: unknown
+    badge?: unknown
+  }) => string | null
 }
 
 const MapDataContext = createContext<MapDataContextValue | null>(null)
@@ -143,7 +154,25 @@ function normalizeData(raw: unknown): MapData | null {
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
       : [],
     calligraphy: normalizeCalligraphy(d.calligraphy),
+    badgeOverrides: normalizeBadgeOverrides(d.badgeOverrides),
   }
+}
+
+/** v1.9 迁移：旧数据无 badgeOverrides 字段时回退空表；逐项校验结构 */
+function normalizeBadgeOverrides(raw: unknown): MapData['badgeOverrides'] {
+  const out: MapData['badgeOverrides'] = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [id, o] of Object.entries(raw as Record<string, unknown>)) {
+    const b = o as Partial<MapData['badgeOverrides'][string]> | null
+    if (!b || typeof b !== 'object') continue
+    const item: MapData['badgeOverrides'][string] = {}
+    if (b.hidden === true) item.hidden = true
+    if (typeof b.dataUrl === 'string' && b.dataUrl.startsWith('data:image/')) {
+      item.dataUrl = b.dataUrl
+    }
+    if (item.hidden || item.dataUrl) out[id] = item
+  }
+  return out
 }
 
 /** v1.7 迁移：旧数据无 calligraphy 字段时回退空表；逐项校验结构 */
@@ -468,6 +497,31 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const importCanvas = useCallback(
+    (input: { name?: unknown; data?: unknown; theme?: unknown; fontSlots?: unknown; badge?: unknown }): string | null => {
+      const data = normalizeData(input.data)
+      if (!data) return null
+      const doc: CanvasDoc = {
+        id: newId(),
+        name:
+          typeof input.name === 'string' && input.name.trim() !== ''
+            ? input.name.trim()
+            : '导入的画布',
+        data,
+        theme: normalizeTheme(input.theme),
+        fontSlots: normalizeFontSlots(input.fontSlots),
+        badge:
+          typeof input.badge === 'string' && input.badge.startsWith('data:image/')
+            ? input.badge
+            : null,
+        updatedAt: Date.now(),
+      }
+      setPersisted((prev) => ({ ...prev, canvases: [...prev.canvases, doc], activeId: doc.id }))
+      return doc.id
+    },
+    [],
+  )
+
   const canvasSummaries = useMemo<CanvasSummary[]>(
     () =>
       canvases.map((c) => ({
@@ -505,6 +559,7 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
       renameCanvas,
       duplicateCanvas,
       deleteCanvas,
+      importCanvas,
     }),
     [
       data,
@@ -528,6 +583,7 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
       renameCanvas,
       duplicateCanvas,
       deleteCanvas,
+      importCanvas,
     ],
   )
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownUp, Brush, ChevronDown, ChevronUp, GripVertical, ImagePlus, MapPinOff, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { ArrowDownUp, Brush, ChevronDown, ChevronUp, GripVertical, ImagePlus, MapPinOff, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,8 +13,8 @@ import { Slider } from '@/components/ui/slider'
 import CityPicker from '@/components/entry/CityPicker'
 import { useMapData } from '@/store/MapDataContext'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
-import { getUniInfoSync, prefetchUniversities } from '@/utils/universities'
-import { newId, type CalligraphyAsset, type StudentEntry } from '@/types'
+import { getUniInfoSync, prefetchUniversities, schoolBadgeUrl } from '@/utils/universities'
+import { newId, type CalligraphyAsset, type StudentBadge, type StudentEntry } from '@/types'
 
 /** 未定位条目的虚拟分组键 */
 const UNLOCATED = '__unlocated__'
@@ -40,6 +40,36 @@ function processCalliFile(file: File): Promise<CalligraphyAsset> {
       }
       ctx.drawImage(img, 0, 0, w, h)
       resolve({ dataUrl: canvas.toDataURL('image/png'), w, h, scale: 1 })
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('图片读取失败'))
+    }
+    img.src = url
+  })
+}
+
+/** 校徽上传处理：中心方形裁剪 → 压缩到 256px PNG dataURL（保留透明底） */
+function processBadgeFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const side = Math.min(img.naturalWidth, img.naturalHeight)
+      const sx = Math.round((img.naturalWidth - side) / 2)
+      const sy = Math.round((img.naturalHeight - side) / 2)
+      const out = Math.min(256, side)
+      const canvas = document.createElement('canvas')
+      canvas.width = out
+      canvas.height = out
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('canvas 不可用'))
+        return
+      }
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, out, out)
+      resolve(canvas.toDataURL('image/png'))
     }
     img.onerror = () => {
       URL.revokeObjectURL(url)
@@ -228,6 +258,39 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     }
   }
 
+  /* ---------- 每人校徽：自定义图片 / 单独隐藏（按学生 id 存储） ---------- */
+  const [badgeOpenId, setBadgeOpenId] = useState<string | null>(null)
+  const badgeFileRef = useRef<HTMLInputElement>(null)
+  /** 当前正在上传自定义校徽的学生 id */
+  const badgeTargetRef = useRef<string>('')
+
+  const setBadgeOverride = (id: string, patch: StudentBadge | null) => {
+    setData((prev) => {
+      const badgeOverrides = { ...prev.badgeOverrides }
+      if (patch && (patch.hidden || patch.dataUrl)) {
+        badgeOverrides[id] = { ...badgeOverrides[id], ...patch }
+        // 两个字段都空则移除整条，保持数据干净
+        if (!badgeOverrides[id].hidden && !badgeOverrides[id].dataUrl) delete badgeOverrides[id]
+      } else {
+        delete badgeOverrides[id]
+      }
+      return { ...prev, badgeOverrides }
+    })
+  }
+
+  const handleBadgeFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    const id = badgeTargetRef.current
+    if (!file || id === '') return
+    try {
+      const dataUrl = await processBadgeFile(file)
+      setBadgeOverride(id, { dataUrl, hidden: false })
+    } catch {
+      // 读取失败静默忽略（用户可重试）
+    }
+  }
+
   /* ---------- 新增同学（嵌套模态框；自动归入所在省份分组） ---------- */
   const [addOpen, setAddOpen] = useState(false)
   const [addForm, setAddForm] = useState({ name: '', university: '', city: '' })
@@ -288,6 +351,13 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
         className="hidden"
         onChange={handleCalliFile}
       />
+      <input
+        ref={badgeFileRef}
+        type="file"
+        accept="image/png,image/webp,image/*"
+        className="hidden"
+        onChange={handleBadgeFile}
+      />
       <p className="flex items-center gap-1.5 text-xs text-stone-400">
         <ArrowDownUp className="h-3.5 w-3.5" />
         <span className="hidden md:inline">
@@ -333,6 +403,9 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                 const uniKey = s.university.trim()
                 const calli = uniKey !== '' ? data.calligraphy[uniKey] : undefined
                 const calliOpen = calliOpenId === s.id
+                const ovr = data.badgeOverrides[s.id]
+                const badgeOpen = badgeOpenId === s.id
+                const autoBadge = uniKey !== '' && getUniInfoSync(uniKey)?.b != null
                 return (
                 <li
                   key={s.id}
@@ -423,6 +496,27 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                     } disabled:cursor-not-allowed disabled:opacity-40 ${calliOpen ? 'ring-1 ring-stone-400' : ''}`}
                   >
                     <Brush className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBadgeOpenId((cur) => (cur === s.id ? null : s.id))}
+                    aria-label={`自定义 ${s.name || '该行'} 的校徽`}
+                    title={
+                      ovr?.dataUrl
+                        ? '已上传自定义校徽，点击调整'
+                        : ovr?.hidden
+                          ? '此人的校徽已隐藏，点击调整'
+                          : '自定义此人的校徽（上传图片或单独隐藏）'
+                    }
+                    className={`shrink-0 rounded p-1 ${
+                      ovr?.dataUrl
+                        ? 'text-stone-700 bg-stone-200/70 hover:bg-stone-200'
+                        : ovr?.hidden
+                          ? 'text-amber-600 bg-amber-100/70 hover:bg-amber-100'
+                          : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
+                    } ${badgeOpen ? 'ring-1 ring-stone-400' : ''}`}
+                  >
+                    <Shield className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
@@ -525,6 +619,71 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                           上传毛笔字图片
                         </button>
                       )}
+                    </div>
+                  )}
+                  {/* 每人校徽面板：自定义图片 / 单独隐藏（优先于全局校徽开关） */}
+                  {badgeOpen && (
+                    <div className="mt-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-2">
+                      <p className="mb-1.5 text-[11px] leading-4 text-stone-400">
+                        「{s.name || '该同学'}」的校徽：默认按大学自动匹配（若该校已收录）；可上传自定义图片替代，或单独隐藏此人的校徽。
+                      </p>
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded border border-stone-100"
+                          style={{
+                            backgroundImage:
+                              'repeating-conic-gradient(#f0efec 0% 25%, #ffffff 0% 50%)',
+                            backgroundSize: '8px 8px',
+                          }}
+                        >
+                          {ovr?.dataUrl ? (
+                            <img src={ovr.dataUrl} alt="自定义校徽预览" className="max-h-9 max-w-9 object-contain" />
+                          ) : autoBadge ? (
+                            <img src={schoolBadgeUrl(uniKey)} alt="自动匹配校徽预览" className="max-h-9 max-w-9 object-contain" />
+                          ) : (
+                            <span className="px-1 text-center text-[10px] leading-3 text-stone-400">暂无自动校徽</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 text-[11px] leading-4 text-stone-500">
+                          {ovr?.dataUrl
+                            ? '当前：自定义图片'
+                            : autoBadge
+                              ? '当前：自动匹配'
+                              : '当前：无校徽可显示'}
+                          {ovr?.hidden && <span className="ml-1 text-amber-600">（已隐藏，不在图上显示）</span>}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            badgeTargetRef.current = s.id
+                            badgeFileRef.current?.click()
+                          }}
+                          className="flex items-center gap-1 rounded border border-stone-200 px-2 py-1 text-[11px] text-stone-600 hover:bg-stone-50"
+                        >
+                          <ImagePlus className="h-3 w-3" />
+                          {ovr?.dataUrl ? '替换图片' : '上传自定义校徽'}
+                        </button>
+                        {ovr?.dataUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setBadgeOverride(s.id, { ...ovr, dataUrl: undefined })}
+                            className="flex items-center gap-1 rounded border border-stone-200 px-2 py-1 text-[11px] text-stone-500 hover:bg-stone-50"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            恢复自动匹配
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setBadgeOverride(s.id, { ...ovr, hidden: !ovr?.hidden })}
+                          className="flex items-center gap-1 rounded border border-stone-200 px-2 py-1 text-[11px] text-stone-500 hover:bg-amber-50 hover:text-amber-700"
+                        >
+                          <Shield className="h-3 w-3" />
+                          {ovr?.hidden ? '恢复显示校徽' : '隐藏此人的校徽'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </li>
