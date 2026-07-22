@@ -21,13 +21,15 @@ import type { StudentEntry } from '@/types'
 
 type RunKind = 'digit' | 'latin' | 'han'
 
-/** 把标题按「数字 / 拉丁字母 / 其他（中文）」切段；空格与常见标点并入当前段，避免单词间掉字体 */
+/** 把标题按「数字 / 拉丁字母 / 其他（中文）」切段；空格与 ASCII 标点并入当前段，避免单词间掉字体。
+    注意：全角括号（）等中文标点必须归入 han 段——若作为中性字符并入相邻数字段，
+    会出现左括号在数字字体、右括号在中文字体的不一致 */
 function splitTitleRuns(text: string): Array<{ text: string; kind: RunKind }> {
   const runs: Array<{ text: string; kind: RunKind }> = []
   const kindOf = (ch: string): RunKind | null => {
     if (ch >= '0' && ch <= '9') return 'digit'
     if (/[A-Za-z]/.test(ch)) return 'latin'
-    if (/[\s&.,'’()（）\-–—]/.test(ch)) return null // 中性字符：并入当前段
+    if (/[\s&.,'’()\-–—]/.test(ch)) return null // 中性字符：并入当前段
     return 'han'
   }
   for (const ch of text) {
