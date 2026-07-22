@@ -2,7 +2,16 @@ import { useMemo } from 'react'
 import { useMapData } from '@/store/MapDataContext'
 import { slotFontFamily } from '@/utils/fonts'
 import { schoolBadgeUrl } from '@/utils/universities'
-import { BADGE_GAP, BADGE_RATIO, textEms, type LabelBlock, type StudentLineParts } from './labels'
+import {
+  BADGE_GAP,
+  BADGE_RATIO,
+  CALLI_RATIO,
+  calliSize,
+  studentRowCount,
+  textEms,
+  type LabelBlock,
+  type StudentLineParts,
+} from './labels'
 
 export interface LabelColumnsProps {
   left: LabelBlock[]
@@ -47,12 +56,19 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
   /** 渲染一个学生行（可能占多行），返回占用行数 */
   function renderStudent(b: LabelBlock, ln: StudentLineParts, rowOffset: number, key: string) {
     const badgeSize = b.placeSize * BADGE_RATIO
-    // 校徽与校名之间无间隙；与姓名之间留 BADGE_GAP 呼吸（大学独占行时不需要）
-    const placeOnOwnLines = ln.placeLines[0] === ''
+    // 校徽与校名（或毛笔字图）之间无间隙；与姓名之间留 BADGE_GAP 呼吸（place 独占行时不需要）
+    const placeOnOwnLines = ln.ownLine
     const gap = ln.badge && !placeOnOwnLines ? BADGE_GAP : 0
     const badgeSlot = ln.badge ? badgeSize + gap : 0
     const badgeRow = placeOnOwnLines ? 1 : 0
     const personW = measureW(ln.person, b.personSize, personFont)
+    // 毛笔字图片尺寸（随地点字号与列缩放联动）
+    const calli = ln.calli ?? null
+    const calliW = calli ? calliSize(calli, b.placeSize).w : 0
+    const calliH = calli ? b.placeSize * CALLI_RATIO * calli.sizeScale : 0
+    /** 首行文本（大学/城市段第 0 行）宽度 */
+    const firstTextW =
+      ln.placeLines.length > 0 ? measureW(ln.placeLines[0] ?? '', b.placeSize, placeFont) : 0
 
     const rows: React.ReactNode[] = []
     // 姓名（仅首行）
@@ -72,12 +88,12 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
         </text>,
       )
     } else {
-      // 右对齐：姓名右端与校徽之间留 BADGE_GAP，校徽右缘顶到校名（无间隙）
-      const placeW0 = placeOnOwnLines ? 0 : measureW(ln.placeLines[0], b.placeSize, placeFont)
+      // 右对齐：姓名右端依次让出 文本+图片+校徽 的宽度（各段之间无间隙，姓名与校徽间留 BADGE_GAP）
+      const rightW = (placeOnOwnLines ? 0 : firstTextW + (calli ? calliW + 2 : 0)) + badgeSlot
       rows.push(
         <text
           key={`${key}-p`}
-          x={b.anchorX - placeW0 - badgeSlot}
+          x={b.anchorX - rightW}
           y={row0Baseline}
           textAnchor="end"
           fontSize={b.personSize}
@@ -89,15 +105,15 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       )
     }
 
-    // 校徽（在大学段第一行文字前）
+    // 校徽（在大学段第一行文字/图片前）
     if (ln.badge && ln.uni) {
       const badgeBaseline = b.firstLineBaseline + (rowOffset + badgeRow) * b.lineH
       let badgeX: number
       if (b.textAnchor === 'start') {
         badgeX = b.anchorX + (placeOnOwnLines ? 0 : personW + gap)
       } else {
-        const placeW = measureW(ln.placeLines[badgeRow] ?? '', b.placeSize, placeFont)
-        badgeX = b.anchorX - placeW - badgeSize
+        const afterW = firstTextW + (calli ? calliW + 2 : 0)
+        badgeX = b.anchorX - afterW - badgeSize
       }
       rows.push(
         <image
@@ -111,13 +127,37 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       )
     }
 
-    // 大学 · 城市（逐行；续行与大学起点对齐）
+    // 毛笔字图片（替代大学文字；校徽后直接跟随，无间隙）
+    if (calli) {
+      const imgBaseline = b.firstLineBaseline + (rowOffset + badgeRow) * b.lineH
+      let imgX: number
+      if (b.textAnchor === 'start') {
+        imgX = b.anchorX + (placeOnOwnLines ? badgeSlot : personW + badgeSlot)
+      } else {
+        imgX = b.anchorX - firstTextW - (firstTextW > 0 ? 2 : 0) - calliW
+      }
+      rows.push(
+        <image
+          key={`${key}-c`}
+          href={calli.dataUrl}
+          x={imgX}
+          y={imgBaseline - calliH * 0.8}
+          width={calliW}
+          height={calliH}
+          preserveAspectRatio="none"
+        />,
+      )
+    }
+
+    // 大学 · 城市（逐行；续行与大学起点对齐）。有毛笔字图片时此处只剩「· 城市」文本
     ln.placeLines.forEach((seg, r) => {
       if (seg === '') return
-      const baseline = b.firstLineBaseline + (rowOffset + r) * b.lineH
+      const baseline = b.firstLineBaseline + (rowOffset + r + (placeOnOwnLines ? 1 : 0)) * b.lineH
       let x: number
       if (b.textAnchor === 'start') {
-        x = b.anchorX + (placeOnOwnLines ? (ln.badge ? badgeSize : 0) : personW + badgeSlot)
+        const lineStart =
+          (placeOnOwnLines ? 0 : personW) + badgeSlot + (calli && r === 0 ? calliW + 2 : 0)
+        x = b.anchorX + lineStart
       } else {
         x = b.anchorX
       }
@@ -136,7 +176,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       )
     })
 
-    return { nodes: rows, rows: ln.placeLines.length }
+    return { nodes: rows, rows: studentRowCount(ln) }
   }
 
   return (

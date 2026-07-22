@@ -389,6 +389,7 @@ export default function MapPage() {
               uniInfo={uniInfo}
               labelSizes={data.labelSizes}
               manualProvinces={manualProvinces}
+              calligraphy={data.calligraphy}
             />
 
             {/* 无数据时的温和提示 */}

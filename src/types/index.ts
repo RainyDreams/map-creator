@@ -27,6 +27,17 @@ export interface LabelSizes {
 
 export const DEFAULT_LABEL_SIZES: LabelSizes = { province: 16, person: 13, place: 13 }
 
+/** 大学毛笔字图片（用户自备的透明底横版 PNG，同校学生共用） */
+export interface CalligraphyAsset {
+  /** 图片 dataURL（上传时已压缩到合理尺寸，保留透明底） */
+  dataUrl: string
+  /** 图片宽高（布局按宽高比计算显示宽度） */
+  w: number
+  h: number
+  /** 显示大小倍率（0.3–3，默认 1；通过自绘滑块调节） */
+  scale: number
+}
+
 /** 蹭饭图全部数据 */
 export interface MapData {
   /** 大标题，如“2026届 高三（2）班的蹭饭图”——年份直接写进标题，其中的数字可用专用字体渲染 */
@@ -48,6 +59,11 @@ export interface MapData {
    * 该省在地图上保持手动顺序（不再按软科排名自动排序）
    */
   customOrderProvinces: string[]
+  /**
+   * 大学名（trim 后）→ 用户上传的毛笔字图片。
+   * 上传后地图上该校不再显示大学文字，校徽后直接渲染这张图片
+   */
+  calligraphy: Record<string, CalligraphyAsset>
 }
 
 export const EMPTY_MAP_DATA: MapData = {
@@ -60,6 +76,7 @@ export const EMPTY_MAP_DATA: MapData = {
   subtitle: '',
   labelSizes: DEFAULT_LABEL_SIZES,
   customOrderProvinces: [],
+  calligraphy: {},
 }
 
 export function newId(): string {

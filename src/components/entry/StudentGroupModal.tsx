@@ -1,13 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownUp, GripVertical, MapPinOff, RotateCcw, Trash2 } from 'lucide-react'
+import { ArrowDownUp, Brush, GripVertical, ImagePlus, MapPinOff, RotateCcw, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Slider } from '@/components/ui/slider'
 import { useMapData } from '@/store/MapDataContext'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
 import { getUniInfoSync, prefetchUniversities } from '@/utils/universities'
-import type { StudentEntry } from '@/types'
+import type { CalligraphyAsset, StudentEntry } from '@/types'
 
 /** 未定位条目的虚拟分组键 */
 const UNLOCATED = '__unlocated__'
+
+/** 毛笔字图片上传处理：读取 → 等比压缩到最长边 600px → PNG dataURL（保留透明底） */
+function processCalliFile(file: File): Promise<CalligraphyAsset> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const maxSide = 600
+      const ratio = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight))
+      const w = Math.max(1, Math.round(img.naturalWidth * ratio))
+      const h = Math.max(1, Math.round(img.naturalHeight * ratio))
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('canvas 不可用'))
+        return
+      }
+      ctx.drawImage(img, 0, 0, w, h)
+      resolve({ dataUrl: canvas.toDataURL('image/png'), w, h, scale: 1 })
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('图片读取失败'))
+    }
+    img.src = url
+  })
+}
 
 /**
  * 弹出式学生录入（PC 端模态框内容）：
@@ -133,6 +164,34 @@ export function StudentGroupModal() {
     setDropTargetId(null)
   }
 
+  /* ---------- 大学毛笔字图片（按校名存储，同校学生共用） ---------- */
+  const [calliOpenId, setCalliOpenId] = useState<string | null>(null)
+  const calliFileRef = useRef<HTMLInputElement>(null)
+  /** 当前正在上传/替换毛笔字的大学名 */
+  const calliTargetRef = useRef<string>('')
+
+  const setCalli = (uni: string, asset: CalligraphyAsset | null) => {
+    setData((prev) => {
+      const calligraphy = { ...prev.calligraphy }
+      if (asset) calligraphy[uni] = asset
+      else delete calligraphy[uni]
+      return { ...prev, calligraphy }
+    })
+  }
+
+  const handleCalliFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    const uni = calliTargetRef.current
+    if (!file || uni === '') return
+    try {
+      const asset = await processCalliFile(file)
+      setCalli(uni, asset)
+    } catch {
+      // 读取失败静默忽略（用户可重试）
+    }
+  }
+
   if (students.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-6 text-center text-sm text-stone-500">
@@ -143,6 +202,13 @@ export function StudentGroupModal() {
 
   return (
     <div className="space-y-4">
+      <input
+        ref={calliFileRef}
+        type="file"
+        accept="image/png,image/webp,image/*"
+        className="hidden"
+        onChange={handleCalliFile}
+      />
       <p className="flex items-center gap-1.5 text-xs text-stone-400">
         <ArrowDownUp className="h-3.5 w-3.5" />
         名单按省份分组（与地图一致）；拖动行首手柄可调整组内顺序，调整后该省保持手动顺序
@@ -179,7 +245,11 @@ export function StudentGroupModal() {
             </header>
 
             <ul className="space-y-1">
-              {members.map((s, index) => (
+              {members.map((s, index) => {
+                const uniKey = s.university.trim()
+                const calli = uniKey !== '' ? data.calligraphy[uniKey] : undefined
+                const calliOpen = calliOpenId === s.id
+                return (
                 <li
                   key={s.id}
                   onDragOver={(e) => {
@@ -195,12 +265,13 @@ export function StudentGroupModal() {
                     endDrag()
                     if (drag && drag.group === prov) reorderWithin(prov, drag.id, s.id)
                   }}
-                  className={`flex items-center gap-1.5 rounded-md border px-1.5 py-1 transition-colors ${
+                  className={`rounded-md border px-1.5 py-1 transition-colors ${
                     isUnlocated ? 'border-amber-300/70 bg-amber-50/50' : 'border-stone-200 bg-stone-50/50'
                   } ${dropTargetId === s.id ? 'ring-2 ring-amber-400/70' : ''} ${
                     draggingId === s.id ? 'opacity-50' : ''
                   }`}
                 >
+                  <div className="flex items-center gap-1.5">
                   <span
                     draggable
                     onDragStart={(e) => {
@@ -242,14 +313,108 @@ export function StudentGroupModal() {
                   />
                   <button
                     type="button"
+                    disabled={uniKey === ''}
+                    onClick={() => setCalliOpenId((cur) => (cur === s.id ? null : s.id))}
+                    aria-label={`${calli ? '编辑' : '上传'}${uniKey || '大学'}的毛笔字图片`}
+                    title={
+                      uniKey === ''
+                        ? '先填写大学名'
+                        : calli
+                          ? '已上传毛笔字图片，点击调整'
+                          : '上传该校的毛笔字图片（替代大学文字）'
+                    }
+                    className={`shrink-0 rounded p-1 ${
+                      calli
+                        ? 'text-stone-700 bg-stone-200/70 hover:bg-stone-200'
+                        : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
+                    } disabled:cursor-not-allowed disabled:opacity-40 ${calliOpen ? 'ring-1 ring-stone-400' : ''}`}
+                  >
+                    <Brush className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => removeRow(s.id)}
                     aria-label="删除该行"
                     className="shrink-0 rounded p-1 text-stone-400 hover:bg-red-50 hover:text-red-500"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
+                  </div>
+
+                  {/* 毛笔字图片编辑面板：透明底横版 PNG，同校学生共用；上传后地图上替代大学文字 */}
+                  {calliOpen && uniKey !== '' && (
+                    <div className="mt-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-2">
+                      <p className="mb-1.5 text-[11px] leading-4 text-stone-400">
+                        「{uniKey}」的毛笔字图片：透明底横版 PNG（自备），同校学生共用；上传后地图上不再显示大学文字，校徽后直接渲染该图片。
+                      </p>
+                      {calli ? (
+                        <div className="space-y-2">
+                          <div
+                            className="flex h-12 items-center justify-center overflow-hidden rounded border border-stone-100"
+                            style={{
+                              backgroundImage:
+                                'repeating-conic-gradient(#f0efec 0% 25%, #ffffff 0% 50%)',
+                              backgroundSize: '10px 10px',
+                            }}
+                          >
+                            <img
+                              src={calli.dataUrl}
+                              alt={`${uniKey} 毛笔字预览`}
+                              className="max-h-10 max-w-full object-contain"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="shrink-0 text-[11px] text-stone-500">大小</span>
+                            <Slider
+                              value={Math.round(calli.scale * 100)}
+                              min={30}
+                              max={300}
+                              step={1}
+                              format={(v) => `${v}%`}
+                              aria-label="毛笔字图片大小"
+                              onChange={(v) => setCalli(uniKey, { ...calli, scale: v / 100 })}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                calliTargetRef.current = uniKey
+                                calliFileRef.current?.click()
+                              }}
+                              className="flex items-center gap-1 rounded border border-stone-200 px-2 py-1 text-[11px] text-stone-600 hover:bg-stone-50"
+                            >
+                              <ImagePlus className="h-3 w-3" />
+                              替换图片
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCalli(uniKey, null)}
+                              className="flex items-center gap-1 rounded border border-stone-200 px-2 py-1 text-[11px] text-stone-500 hover:bg-red-50 hover:text-red-500"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              移除（恢复显示大学文字）
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            calliTargetRef.current = uniKey
+                            calliFileRef.current?.click()
+                          }}
+                          className="flex items-center gap-1 rounded border border-dashed border-stone-300 px-2.5 py-1.5 text-[11px] text-stone-500 hover:bg-stone-50 hover:text-stone-700"
+                        >
+                          <ImagePlus className="h-3.5 w-3.5" />
+                          上传毛笔字图片
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </li>
-              ))}
+                )
+              })}
             </ul>
           </section>
         )

@@ -12,7 +12,7 @@
  * - 引线：质心（或城市点簇中心）→ 标注块朝向地图一侧的边缘中点；
  *   边缘接入点在文字锚点之外，保证引线不穿标注块
  */
-import type { StudentEntry } from '@/types'
+import type { CalligraphyAsset, StudentEntry } from '@/types'
 import { inferCityFromUniversity } from '@/utils/geo'
 import { getProvinceShape, MAP_H, MAP_X0, MAP_X1, projectToMap, TOP, BOTTOM } from './geo'
 
@@ -76,6 +76,8 @@ export interface LabelLayoutOptions {
    * 缺省时回退 em 估算（偏保守，可能把「（北京）· 北京」这类行误判为超宽）
    */
   measure?: (text: string, px: number, slot: 'person' | 'place') => number
+  /** 大学名 → 用户上传的毛笔字图片；提供后该校文字被图片替代 */
+  calligraphy?: Record<string, CalligraphyAsset>
 }
 
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
@@ -87,26 +89,40 @@ export function provinceShortName(province: string): string {
 }
 
 /**
- * 学生行排版：`姓名[校徽]大学 · 城市`（姓名/校徽/大学之间无间隙）。
+ * 学生行排版：`姓名[校徽][毛笔字图]大学 · 城市`（姓名/校徽/大学之间无间隙）。
  * 城市总是显示（不再因直辖市/校名含城市而省略）；城市未知时只显示大学。
  * 超出列宽时 place 段换行为多行（placeLines），绝不省略号截断。
+ * 上传毛笔字图片后：大学文字被图片替代（校徽后直接渲染图片），place 段只剩「· 城市」。
  */
+/** 毛笔字图片在布局中的定位信息（宽高比 + 用户倍率；显示尺寸随地点字号与列缩放联动） */
+export interface CalliPlacement {
+  dataUrl: string
+  /** 宽高比 w/h */
+  aspect: number
+  /** 用户倍率（已按列宽上限收敛，避免图片超宽） */
+  sizeScale: number
+}
+
 export interface StudentLineParts {
   /** 姓名段（人名字体） */
   person: string
-  /** 大学 · 城市完整文本（未换行） */
+  /** 大学 · 城市完整文本（未换行）；有毛笔字图片时为「· 城市」或空串 */
   place: string
-  /** place 按列宽换行后的各行（至少 1 行；首行与姓名/校徽同行） */
+  /** place 按列宽换行后的各行（不含姓名独占的首行标记；可为空数组=纯图片行） */
   placeLines: string[]
+  /** true 时首行只有姓名+校徽，大学/图片段从第二行起排（原 placeLines[0]==='' 的显式化） */
+  ownLine: boolean
   /** 是否有校徽可在大学名前渲染 */
   badge?: boolean
   /** 原始校名（校徽代理 URL 用） */
   uni?: string
   /** 校徽内联 dataURL（预取完成时有值，渲染/导出免网络） */
   badgeUrl?: string | null
+  /** 大学毛笔字图片（上传后替代大学文字渲染） */
+  calli?: CalliPlacement | null
 }
 
-export function studentLineParts(s: StudentEntry): Omit<StudentLineParts, 'placeLines'> {
+export function studentLineParts(s: StudentEntry): Omit<StudentLineParts, 'placeLines' | 'ownLine'> {
   const name = s.name.trim() || '（未命名）'
   const uni = s.university.trim() || '（未填大学）'
   const city = s.city.trim()
@@ -139,16 +155,27 @@ export interface LineFontSizes {
   place: number
 }
 
+/** 毛笔字图片显示高度 = 地点字号 × CALLI_RATIO × 用户倍率（笔画比字形更舒展，略高于文字） */
+export const CALLI_RATIO = 1.6
+/** 图片比文字行高时，所在行额外保留的纵向余量比例 */
+const CALLI_ROW_PAD = 1.18
+
+/** 毛笔字图片在用户字号（scale=1）下的显示尺寸 */
+export function calliSize(calli: CalliPlacement, placePx: number): { w: number; h: number } {
+  const h = placePx * CALLI_RATIO * calli.sizeScale
+  return { w: h * calli.aspect, h }
+}
+
 /**
  * 把 place 段按列可用宽度换行：
- * - 首行与「姓名+校徽」同行（之间无间隙），续行与大学起点对齐；
- * - 若姓名+校徽已占去大半宽度（首行放不下 4 个字），place 整段从第二行起全宽排列；
+ * - 首行与「姓名+校徽(+毛笔字图)」同行（之间无间隙），续行与大学起点对齐；
+ * - 若首行剩余宽度放不下 4 个字，place 整段从第二行起排（ownLine）；
+ * - 有毛笔字图片时图片占住大学位，文本（· 城市）绕其后排布；无文本时为纯图片行；
  * - 断行处若为「·」或空格则吞掉，保证续行不以分隔符开头；
- * - 宽度判定优先用真实测量（canvas measureText），缺省时回退 em 估算；
- * - 返回的行数即该学生占用的行数（≥1）。
+ * - 宽度判定优先用真实测量（canvas measureText），缺省时回退 em 估算。
  */
 export function wrapStudentLine(
-  parts: Omit<StudentLineParts, 'placeLines'>,
+  parts: Omit<StudentLineParts, 'placeLines' | 'ownLine'>,
   sizes: LineFontSizes,
   measure?: (text: string, px: number, slot: 'person' | 'place') => number,
 ): StudentLineParts {
@@ -156,20 +183,29 @@ export function wrapStudentLine(
   const mPlace = (t: string) => (measure ? measure(t, sizes.place, 'place') : textEms(t) * sizes.place)
   const personW = mPerson(parts.person)
   const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
-  const indent = personW + badgeW
-  // 首行剩余宽度（px）；过窄时 place 整段换到全宽续行
-  let avail = COL_TEXT_W - indent
-  let firstOnOwnLine = false
-  if (avail < sizes.place * 4) {
-    avail = COL_TEXT_W
-    firstOnOwnLine = true
+  const calliW = parts.calli ? calliSize(parts.calli, sizes.place).w : 0
+  const indent = personW + badgeW + calliW
+
+  // 首行剩余宽度（px）；过窄时 place 整段换到第二行起排
+  let ownLine = false
+  if (COL_TEXT_W - indent < sizes.place * 4 && parts.place !== '') {
+    ownLine = true
+  }
+
+  /** 第 idx 条文本行的可用宽度：图片/姓名只占首行纵向空间，续行从大学起点可用到列尾 */
+  const availFor = (idx: number): number => {
+    if (!ownLine) {
+      return idx === 0 ? COL_TEXT_W - indent : COL_TEXT_W - personW - badgeW
+    }
+    // ownLine：第 0 条文本行与校徽+图片同行（无姓名），续行全宽
+    return idx === 0 ? COL_TEXT_W - badgeW - calliW : COL_TEXT_W
   }
 
   const lines: string[] = []
   let cur = ''
   for (const ch of parts.place) {
     // 逐字累积实测宽度（含字距/连字影响，比逐字宽度求和更准）
-    if (cur !== '' && mPlace(cur + ch) > avail) {
+    if (cur !== '' && mPlace(cur + ch) > availFor(lines.length)) {
       lines.push(cur)
       cur = ''
       // 续行不以分隔符/空格开头
@@ -178,16 +214,21 @@ export function wrapStudentLine(
     cur += ch
   }
   if (cur !== '') lines.push(cur)
-  if (lines.length === 0) lines.push(parts.place)
-  if (firstOnOwnLine) lines.unshift('')
-  return { ...parts, placeLines: lines }
+  if (lines.length === 0 && parts.place !== '') lines.push(parts.place)
+  return { ...parts, placeLines: lines, ownLine }
 }
 
-/** 估算单行宽度（用于渲染端校徽/文字定位；不换行的完整行） */
-export function lineWidth(parts: StudentLineParts, sizes: LineFontSizes): number {
-  const personW = textEms(parts.person) * sizes.person
-  const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
-  return personW + badgeW + textEms(parts.placeLines[0] ?? '') * sizes.place
+/** 学生行占用的文本行数（ownLine 时姓名独占一行；纯图片行也算 1 行） */
+export function studentRowCount(ln: StudentLineParts): number {
+  return (ln.ownLine ? 1 : 0) + Math.max(1, ln.placeLines.length)
+}
+
+/** 行高倍率：毛笔字图片比文字行高时，该省块整行加高（1 = 不 boost） */
+export function studentRowBoost(ln: StudentLineParts, placePx: number): number {
+  if (!ln.calli) return 1
+  const { h } = calliSize(ln.calli, placePx)
+  const base = BASE_LINE_H * (placePx / BASE_LINE)
+  return Math.max(1, (h * CALLI_ROW_PAD) / base)
 }
 
 const BASE_HEADER = 16
@@ -208,8 +249,10 @@ const HEADER_WEIGHT = 2
 interface SideItem {
   province: string
   students: StudentEntry[]
-  /** 换行后的总行数（负载均衡与列高估算用） */
+  /** 换行后的总行数（负载均衡与列高估算用；ownLine/纯图片行已计入） */
   rowCount: number
+  /** 行高倍率：块内含毛笔字图片行时 >1（图片比文字行高，整行加高避免压图） */
+  rowBoost: number
   /** 引线起点（城市点簇中心或省份质心，画布坐标） */
   cx: number
   cy: number
@@ -266,10 +309,27 @@ export function computeLabelLayout(
   /** 学生行的换行结果（按用户 px 字号在 scale=1 下计算，优先真实测量，保守不溢出） */
   const wrappedOf = (s: StudentEntry): StudentLineParts => {
     const parts = studentLineParts(s)
-    const enrich = uniInfo?.get(s.university.trim())
+    const key = s.university.trim()
+    const enrich = uniInfo?.get(key)
     const badge = enrich?.badge === true
+    // 毛笔字图片：替代大学文字，place 只剩「· 城市」；图片宽度按列宽上限收敛倍率
+    const raw = options?.calligraphy?.[key]
+    let calli: CalliPlacement | null = null
+    if (raw && raw.w > 0 && raw.h > 0) {
+      const aspect = raw.w / raw.h
+      const badgeW = badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
+      const maxW = COL_TEXT_W - badgeW - 8
+      const natW = sizes.place * CALLI_RATIO * raw.scale * aspect
+      const sizeScale = natW > maxW ? raw.scale * (maxW / natW) : raw.scale
+      calli = { dataUrl: raw.dataUrl, aspect, sizeScale }
+    }
+    const place = calli
+      ? parts.place.includes(' · ')
+        ? parts.place.slice(parts.place.indexOf(' · '))
+        : ''
+      : parts.place
     return wrapStudentLine(
-      { ...parts, badge, badgeUrl: enrich?.badgeUrl ?? null },
+      { ...parts, place, badge, badgeUrl: enrich?.badgeUrl ?? null, calli },
       { person: sizes.person, place: sizes.place },
       options?.measure,
     )
@@ -293,10 +353,12 @@ export function computeLabelLayout(
     // 点簇中心作为引线起点与主定位点
     const cx = canvasPts.reduce((s, p) => s + p.x, 0) / canvasPts.length
     const cy = canvasPts.reduce((s, p) => s + p.y, 0) / canvasPts.length
+    const wrapped = ordered.map((s) => wrappedOf(s))
     items.push({
       province,
       students: ordered,
-      rowCount: ordered.reduce((n, s) => n + wrappedOf(s).placeLines.length, 0),
+      rowCount: wrapped.reduce((n, w) => n + studentRowCount(w), 0),
+      rowBoost: wrapped.reduce((b, w) => Math.max(b, studentRowBoost(w, sizes.place)), 1),
       cx,
       cy,
       cityPoints: canvasPts,
@@ -324,12 +386,13 @@ export function computeLabelLayout(
   const left = byLng.slice(0, bestK).sort(byLatDesc)
   const right = byLng.slice(bestK).sort(byLatDesc)
 
-  /** 某侧在指定档位下的总高度（省份名/学生行分别按各自字号比例缩放，换行行数已计入） */
+  /** 某侧在指定档位下的总高度（省份名/学生行分别按各自字号比例缩放，换行与图片行加高已计入） */
   function heightAt(list: SideItem[], scale: number): number {
     if (list.length === 0) return 0
     return (
       list.reduce(
-        (sum, i) => sum + BASE_HEADER_H * scale * provPct + i.rowCount * BASE_LINE_H * scale * linePct,
+        (sum, i) =>
+          sum + BASE_HEADER_H * scale * provPct + i.rowCount * BASE_LINE_H * scale * linePct * i.rowBoost,
         0,
       ) +
       (list.length - 1) * BASE_GAP * scale
@@ -355,7 +418,6 @@ export function computeLabelLayout(
     if (list.length === 0) return { blocks: [], total: 0 }
     const scale = sharedScale
     const headerH = BASE_HEADER_H * scale * provPct
-    const lineH = BASE_LINE_H * scale * linePct
     const gap = BASE_GAP * scale
     const headerSize = BASE_HEADER * scale * provPct
     const personSize = BASE_LINE * scale * personPct
@@ -363,6 +425,8 @@ export function computeLabelLayout(
 
     let y = TOP + 4
     const blocks = list.map((i): LabelBlock => {
+      // 块级行高：含毛笔字图片的块整行加高（rowBoost），避免图片压住相邻行
+      const lineH = BASE_LINE_H * scale * linePct * i.rowBoost
       const h = headerH + i.rowCount * lineH
       const block: LabelBlock = {
         province: i.province,

@@ -140,7 +140,31 @@ function normalizeData(raw: unknown): MapData | null {
     customOrderProvinces: Array.isArray(d.customOrderProvinces)
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
       : [],
+    calligraphy: normalizeCalligraphy(d.calligraphy),
   }
+}
+
+/** v1.7 迁移：旧数据无 calligraphy 字段时回退空表；逐项校验结构 */
+function normalizeCalligraphy(raw: unknown): MapData['calligraphy'] {
+  const out: MapData['calligraphy'] = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [uni, asset] of Object.entries(raw as Record<string, unknown>)) {
+    const a = asset as Partial<MapData['calligraphy'][string]> | null
+    if (
+      a && typeof a === 'object' &&
+      typeof a.dataUrl === 'string' && a.dataUrl.startsWith('data:image/') &&
+      typeof a.w === 'number' && a.w > 0 &&
+      typeof a.h === 'number' && a.h > 0
+    ) {
+      out[uni] = {
+        dataUrl: a.dataUrl,
+        w: a.w,
+        h: a.h,
+        scale: typeof a.scale === 'number' && a.scale >= 0.3 && a.scale <= 3 ? a.scale : 1,
+      }
+    }
+  }
+  return out
 }
 
 function normalizeTheme(raw: unknown): ThemeConfig {

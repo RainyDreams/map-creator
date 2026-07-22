@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import type { StudentEntry } from '@/types'
+import type { CalligraphyAsset, StudentEntry } from '@/types'
 import { useMapData } from '@/store/MapDataContext'
 import { prefetchCityCenters } from '@/utils/cities'
 import { slotFontFamily } from '@/utils/fonts'
@@ -29,6 +29,8 @@ export interface ChinaMapProps {
   labelSizes?: { province: number; person: number; place: number }
   /** 省内手动排序的省份（保持手动顺序，不按排名重排） */
   manualProvinces?: Set<string>
+  /** 大学名 → 用户上传的毛笔字图片（提供后该校文字被图片替代） */
+  calligraphy?: Record<string, CalligraphyAsset>
 }
 
 /**
@@ -36,7 +38,7 @@ export interface ChinaMapProps {
  * 宽度自适应容器，高度按 viewBox 等比缩放；内部全部为 SVG 文本，导出 PNG 时清晰。
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
-export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces }: ChinaMapProps) {
+export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, calligraphy }: ChinaMapProps) {
   const { theme, fontSlots, customFonts } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
   // 桌面端与移动端布局会同时挂载两个 ChinaMap（CSS 隐藏其一）；
@@ -116,9 +118,10 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         sizes: labelSizes,
         manualProvinces,
         measure,
+        calligraphy,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, measure, fontTick],
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, manualProvinces, measure, fontTick, calligraphy],
   )
 
   const fillByName = useMemo(() => {
