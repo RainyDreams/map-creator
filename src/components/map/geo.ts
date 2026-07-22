@@ -107,28 +107,42 @@ export function getGeoFeatures(): GeoFeature[] {
 
 /**
  * 从 /data/china.json 加载并预编译地图数据（Promise 级去重，全局只请求一次）。
- * 失败时清空 Promise 允许下次重试。
+ * 每次尝试带 8 秒超时（AbortController）——挂起的请求无法触发重试，必须主动中止；
+ * 网络抖动（如 QUIC 协商失败）时自动重试 2 次；最终失败时清空 Promise 允许下次重试，
+ * 并在控制台输出原因，便于弱网/无头环境诊断。
  */
+const GEO_FETCH_TIMEOUT = 8000
 export function loadGeoFeatures(): Promise<GeoFeature[]> {
   if (geoFeatures.length > 0) return Promise.resolve(geoFeatures)
-  loadPromise ??= fetch('/data/china.json')
-    .then((res) => {
-      if (!res.ok) throw new Error(`china.json HTTP ${res.status}`)
-      return res.json() as Promise<{ features: RawFeature[] }>
-    })
-    .then((raw) => {
-      geoFeatures = raw.features.map((f) => ({
-        name: f.properties?.name ?? '',
-        d: buildPath(f.geometry),
-        centroid: f.properties?.centroid ?? deriveCentroid(f.geometry),
-      }))
-      shapeByName = new Map(geoFeatures.filter((f) => f.name !== '').map((f) => [f.name, f]))
-      return geoFeatures
-    })
-    .catch((err) => {
-      loadPromise = null
-      throw err
-    })
+  loadPromise ??= (async () => {
+    let lastErr: unknown = null
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), GEO_FETCH_TIMEOUT)
+      try {
+        const res = await fetch('/data/china.json', { signal: ctrl.signal })
+        if (!res.ok) throw new Error(`china.json HTTP ${res.status}`)
+        const raw = (await res.json()) as { features: RawFeature[] }
+        geoFeatures = raw.features.map((f) => ({
+          name: f.properties?.name ?? '',
+          d: buildPath(f.geometry),
+          centroid: f.properties?.centroid ?? deriveCentroid(f.geometry),
+        }))
+        shapeByName = new Map(geoFeatures.filter((f) => f.name !== '').map((f) => [f.name, f]))
+        return geoFeatures
+      } catch (err) {
+        lastErr = err
+        console.warn(`[geo] china.json 第 ${attempt}/3 次加载失败：`, err)
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 400 * attempt))
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+    throw lastErr
+  })().catch((err) => {
+    loadPromise = null
+    throw err
+  })
   return loadPromise
 }
 
@@ -192,3 +206,52 @@ export const INSET = (() => {
     )}) scale(${scale.toFixed(5)})`,
   }
 })()
+
+/* ---------------- 随内容动态界定的整体几何 ----------------
+ * 地图本体宽度固定为 860（两侧空白区域不作为地图的一部分）；
+ * 两侧标注区的宽度由实际内容动态界定（见 labels.ts：按最长单行内容实测宽度
+ * 计算，夹在省略/过宽之间的档位内），画布总宽 = 左标注区 + 860 + 右标注区。
+ * 内容少时画布自然收窄、地图在屏幕上显得更大；内容多时长校名也无需换行。
+ */
+export interface MapGeom {
+  designW: number
+  x0: number
+  x1: number
+  mapH: number
+  transform: string
+  inset: { x: number; y: number; w: number; h: number; transform: string }
+  project: (lng: number, lat: number) => [number, number]
+}
+
+/** 地图本体在画布中的固定宽度（虚拟单位） */
+export const MAP_W = MAP_X1 - MAP_X0
+
+export function buildGeom(designW: number, x0: number): MapGeom {
+  const x1 = x0 + MAP_W
+  const scale = MAP_W / ((LNG_MAX - LNG_MIN) * KX)
+  const mapH = (LAT_MAX - MAIN_MIN_LAT) * scale
+  const insetW = 88
+  const insetScale = insetW / ((INSET_LNG_MAX - INSET_LNG_MIN) * KX)
+  const insetH = (INSET_LAT_MAX - INSET_LAT_MIN) * insetScale
+  const insetX = x1 - insetW - 8
+  const insetY = TOP + mapH - insetH - 8
+  return {
+    designW,
+    x0,
+    x1,
+    mapH,
+    transform: `translate(${round2(x0 - scale * LNG_MIN * KX)} ${round2(
+      TOP + scale * LAT_MAX,
+    )}) scale(${scale.toFixed(5)})`,
+    inset: {
+      x: insetX,
+      y: insetY,
+      w: insetW,
+      h: insetH,
+      transform: `translate(${round2(insetX - insetScale * INSET_LNG_MIN * KX)} ${round2(
+        insetY + insetScale * INSET_LAT_MAX,
+      )}) scale(${insetScale.toFixed(5)})`,
+    },
+    project: (lng, lat) => [x0 + (lng - LNG_MIN) * KX * scale, TOP + (LAT_MAX - lat) * scale],
+  }
+}

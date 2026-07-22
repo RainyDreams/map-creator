@@ -6,7 +6,7 @@
  * 无 props，由录入页直接 <DataToolbar /> 使用。
  */
 import { useRef, useState } from 'react'
-import { Copy, Download, FileJson, FileSpreadsheet, Image as ImageIcon, Link2, Loader2, Share2, Upload } from 'lucide-react'
+import { Copy, Download, FileJson, FileSpreadsheet, Image as ImageIcon, Link2, Share2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,7 +22,6 @@ import { useMapData } from '@/store/MapDataContext'
 import { newId } from '@/types'
 import { downloadTemplate, exportWorkbook, parseWorkbook, type ParseResult } from '@/utils/excel'
 import { exportCanvasJson, parseCanvasJson, type CanvasJsonPayload } from '@/utils/exportData'
-import { createShareLink, type ShareCreateResult } from '@/utils/share'
 import { requestMapExport } from '@/utils/exportBus'
 
 interface PendingExcel {
@@ -48,20 +47,17 @@ export default function DataToolbar() {
     importStudents,
     setData,
     importCanvas,
-    attachShare,
   } = useMapData()
 
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
-  const [shareResult, setShareResult] = useState<ShareCreateResult | null>(null)
-  const [sharing, setSharing] = useState(false)
 
-  // 面板中展示的链接：刚生成的优先，否则用当前画布已绑定的协同链接
-  const shownShareUrl =
-    shareResult?.url ??
-    (activeShare ? `${window.location.origin}/?share=${activeShare.id}` : null)
-  const shownShareExpiresAt = shareResult?.expiresAt ?? activeShare?.expiresAt ?? null
+  // 面板中展示的链接：仅当前画布已绑定的历史链接（链接生成功能已置灰停用）
+  const shownShareUrl = activeShare
+    ? `${window.location.origin}/?share=${activeShare.id}`
+    : null
+  const shownShareExpiresAt = activeShare?.expiresAt ?? null
 
   const excelInputRef = useRef<HTMLInputElement>(null)
   const jsonInputRef = useRef<HTMLInputElement>(null)
@@ -89,29 +85,7 @@ export default function DataToolbar() {
     requestMapExport()
   }
 
-  /* ---------------- 分享为链接 ---------------- */
-
-  /** 生成新协同链接并绑定到当前画布（重新生成时旧链接不再同步，7 天后失效） */
-  const handleCreateShareLink = async () => {
-    if (sharing) return
-    setSharing(true)
-    setShareResult(null)
-    try {
-      const result = await createShareLink({
-        name: activeCanvasName,
-        data,
-        theme,
-        fontSlots,
-        badge,
-      })
-      attachShare({ id: result.id, role: result.role, rev: result.rev, expiresAt: result.expiresAt })
-      setShareResult(result)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '分享链接生成失败，请稍后重试')
-    } finally {
-      setSharing(false)
-    }
-  }
+  /* ---------------- 分享为链接（已置灰停用，仅保留历史链接的复制入口） ---------------- */
 
   const handleCopyShareLink = async () => {
     if (!shownShareUrl) return
@@ -261,10 +235,7 @@ export default function DataToolbar() {
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => {
-            setShareResult(null)
-            setShareOpen(true)
-          }}
+          onClick={() => setShareOpen(true)}
           className="border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
         >
           <Share2 className="size-4" />
@@ -574,13 +545,7 @@ export default function DataToolbar() {
       </Dialog>
 
       {/* ==================== 分享面板：主路径是导出图片，链接分享为小选项 ==================== */}
-      <Dialog
-        open={shareOpen}
-        onOpenChange={(open) => {
-          setShareOpen(open)
-          if (open) setShareResult(null)
-        }}
-      >
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>分享这张蹭饭图</DialogTitle>
@@ -636,20 +601,16 @@ export default function DataToolbar() {
               </div>
             )}
 
-            {/* 特别小的选项：分享为链接 */}
+            {/* 特别小的选项：分享为链接（暂时禁用，置灰不可点） */}
             <div className="flex items-center justify-center gap-1 pt-1">
               <button
                 type="button"
-                onClick={handleCreateShareLink}
-                disabled={sharing}
-                className="flex items-center gap-1 text-[11px] text-stone-400 underline decoration-stone-300 underline-offset-2 transition-colors hover:text-stone-600 disabled:opacity-50"
+                disabled
+                aria-disabled="true"
+                className="flex cursor-not-allowed items-center gap-1 text-[11px] text-stone-300"
               >
-                {sharing ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Link2 className="h-3 w-3" />
-                )}
-                {sharing ? '正在生成链接…' : '分享为链接（7 天有效）'}
+                <Link2 className="h-3 w-3" />
+                分享为链接（7 天有效）
               </button>
             </div>
           </div>

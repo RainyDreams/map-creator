@@ -13,7 +13,9 @@ import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { OverseasBlock } from '@/components/map/OverseasBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
-import { recommendLabelFit, textEms, type UniEnrichment } from '@/components/map/labels'
+import { recommendLabelFit, textEms, type FitRecommendation, type UniEnrichment } from '@/components/map/labels'
+import { FitAdviceDialog } from '@/components/map/FitAdviceDialog'
+import { isGeoReady, loadGeoFeatures } from '@/components/map/geo'
 import '@/components/map/fonts.css'
 import type { StudentEntry } from '@/types'
 
@@ -309,6 +311,22 @@ export default function MapPage() {
    */
   const fitMeasureCtx = useMemo(() => document.createElement('canvas').getContext('2d'), [])
   const lastFitAdviceRef = useRef('')
+  /** 排版建议弹窗内容（null = 不展示；用户关闭后同方案不再弹出，由 signature 去重） */
+  const [fitAdvice, setFitAdvice] = useState<{ rec: FitRecommendation; changes: string[] } | null>(null)
+  /** 地图轮廓数据异步加载完成后触发重算，避免用未就绪的投影算出过期的排版建议 */
+  const [geoTick, setGeoTick] = useState(0)
+  useEffect(() => {
+    if (isGeoReady()) return
+    let cancelled = false
+    loadGeoFeatures()
+      .then(() => {
+        if (!cancelled) setGeoTick((t) => t + 1)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
   useEffect(() => {
     if (groups.size === 0) return
     const measure = (text: string, px: number, slot: 'person' | 'place'): number => {
@@ -344,27 +362,20 @@ export default function MapPage() {
     })
     if (lastFitAdviceRef.current === signature) return
     lastFitAdviceRef.current = signature
-    const sizeText = `省份 ${rec.sizes.province}px、姓名 ${rec.sizes.person}px、城市/大学 ${rec.sizes.place}px`
-    toast('同学较多，建议优化标注排版', {
-      id: 'fit-advice',
-      duration: 15000,
-      description: rec.twoColumns
-        ? `当前内容被迫整体缩小到约 ${Math.round(rec.currentScale * 100)}%。建议切换为「每侧两列」，并把字号调整为 ${sizeText}，画面会更宽松。`
-        : `当前内容在画布内被迫整体缩小到约 ${Math.round(rec.currentScale * 100)}%。建议把标注字号调整为 ${sizeText}。`,
-      action: {
-        label: '采用推荐',
-        onClick: () => {
-          setData((prev) => ({
-            ...prev,
-            labelColumns: rec.twoColumns ? 2 : prev.labelColumns,
-            labelSizes: { ...prev.labelSizes, ...rec.sizes },
-          }))
-          toast.success(
-            rec.twoColumns ? '已切换为每侧两列，并应用推荐字号' : '已应用推荐字号',
-          )
-        },
-      },
-    })
+    // 逐条列出推荐方案相对当前设置的具体调整，让用户看清楚再决定（统一风格弹窗展示）
+    const changes: string[] = []
+    if (rec.twoColumns) changes.push('每侧标注列数：一列 → 两列')
+    const cur = data.labelSizes
+    if (rec.sizes.province !== cur.province) {
+      changes.push(`省份名字号：${cur.province}px → ${rec.sizes.province}px`)
+    }
+    if (rec.sizes.person !== cur.person) {
+      changes.push(`姓名字号：${cur.person}px → ${rec.sizes.person}px`)
+    }
+    if (rec.sizes.place !== cur.place) {
+      changes.push(`城市/大学字号：${cur.place}px → ${rec.sizes.place}px`)
+    }
+    setFitAdvice({ rec, changes })
   }, [
     groups,
     uniInfo,
@@ -380,6 +391,7 @@ export default function MapPage() {
     placeFont,
     fitMeasureCtx,
     setData,
+    geoTick,
   ])
 
   const alignClass =
@@ -602,6 +614,31 @@ export default function MapPage() {
 
       {/* 导出进度模态框 */}
       {exporting !== null && progress !== null && <ExportProgressDialog progress={progress} />}
+
+      {/* 排版自适应建议弹窗（统一风格；同一方案只弹一次，由 signature 去重） */}
+      <FitAdviceDialog
+        open={fitAdvice !== null}
+        onOpenChange={(open) => {
+          if (!open) setFitAdvice(null)
+        }}
+        title="优化标注排版"
+        description={
+          fitAdvice !== null
+            ? `当前内容被迫整体缩小到约 ${Math.round(fitAdvice.rec.currentScale * 100)}%，建议做如下调整：`
+            : ''
+        }
+        changes={fitAdvice?.changes ?? []}
+        onApply={() => {
+          if (!fitAdvice) return
+          const { rec } = fitAdvice
+          setData((prev) => ({
+            ...prev,
+            labelColumns: rec.twoColumns ? 2 : prev.labelColumns,
+            labelSizes: { ...prev.labelSizes, ...rec.sizes },
+          }))
+          toast.success(rec.twoColumns ? '已切换为每侧两列，并应用推荐字号' : '已应用推荐字号')
+        }}
+      />
 
       {/* 微信环境：图片生成后引导长按保存 */}
       {wechatImage !== null && (

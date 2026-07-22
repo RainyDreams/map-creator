@@ -6,6 +6,8 @@ import {
   BADGE_GAP,
   BADGE_RATIO,
   CALLI_RATIO,
+  GROUP_GAP,
+  NAME_PLACE_GAP,
   calliSize,
   studentRowCount,
   textEms,
@@ -29,7 +31,7 @@ export interface LabelColumnsProps {
  * 校徽渲染在大学段第一行文字前（本站代理地址，同源无跨域污染，可随导出进 PNG）。
  */
 export function LabelColumns({ left, right }: LabelColumnsProps) {
-  const { theme, fontSlots, customFonts } = useMapData()
+  const { theme, fontSlots, customFonts, data } = useMapData()
   const provinceFont = slotFontFamily('province', fontSlots, customFonts)
   const personFont = slotFontFamily('person', fontSlots, customFonts)
   const placeFont = slotFontFamily('place', fontSlots, customFonts)
@@ -56,10 +58,11 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
   /** 渲染一个学生行（可能占多行），返回占用行数 */
   function renderStudent(b: LabelBlock, ln: StudentLineParts, rowOffset: number, key: string) {
     const badgeSize = b.placeSize * BADGE_RATIO
-    // 校徽与校名（或毛笔字图）之间无间隙；与姓名之间留 BADGE_GAP 呼吸（place 独占行时不需要）
+    // 姓名与其后内容的间隙：有校徽时留 BADGE_GAP 呼吸（校徽与校名无间隙）；
+    // 不显示校徽的同学（个人隐藏或全局关闭）姓名与校名之间留 NAME_PLACE_GAP，避免名字挨着校名
     const placeOnOwnLines = ln.ownLine
-    const gap = ln.badge && !placeOnOwnLines ? BADGE_GAP : 0
-    const badgeSlot = ln.badge ? badgeSize + gap : 0
+    const gapAfterName = placeOnOwnLines ? 0 : ln.badge ? BADGE_GAP : NAME_PLACE_GAP
+    const badgeSlot = ln.badge ? badgeSize + gapAfterName : placeOnOwnLines ? 0 : gapAfterName
     const badgeRow = placeOnOwnLines ? 1 : 0
     const personW = measureW(ln.person, b.personSize, personFont)
     // 毛笔字图片尺寸（随地点字号与列缩放联动）
@@ -110,7 +113,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       const badgeBaseline = b.firstLineBaseline + (rowOffset + badgeRow) * b.lineH
       let badgeX: number
       if (b.textAnchor === 'start') {
-        badgeX = b.anchorX + (placeOnOwnLines ? 0 : personW + gap)
+        badgeX = b.anchorX + (placeOnOwnLines ? 0 : personW + gapAfterName)
       } else {
         const afterW = firstTextW + (calli ? calliW + 2 : 0)
         badgeX = b.anchorX - afterW - badgeSize
@@ -179,21 +182,132 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
     return { nodes: rows, rows: studentRowCount(ln) }
   }
 
+  /** 渲染一个同校合并单元：姓名一人一行竖排，学校信息（校徽+毛笔字/文字）在右侧垂直居中只显示一次 */
+  function renderGroup(b: LabelBlock, ln: StudentLineParts, rowOffset: number, key: string) {
+    const names = ln.groupNames ?? []
+    const badgeSize = b.placeSize * BADGE_RATIO
+    const calli = ln.calli ?? null
+    const calliW = calli ? calliSize(calli, b.placeSize).w : 0
+    const calliH = calli ? b.placeSize * CALLI_RATIO * calli.sizeScale : 0
+    const badgeSlot = ln.badge ? badgeSize + BADGE_GAP : 0
+    const nameColW = Math.max(0, ...names.map((n) => measureW(n, b.personSize, personFont)))
+    const schoolTextW = Math.max(0, ...ln.placeLines.map((t) => measureW(t, b.placeSize, placeFont)))
+    const schoolW = badgeSlot + calliW + (calli && schoolTextW > 0 ? 2 : 0) + schoolTextW
+
+    const rows = studentRowCount(ln)
+    const schoolRows = Math.max(1, ln.placeLines.length)
+    // 学校信息垂直居中于姓名列
+    const schoolStart = rowOffset + (rows - schoolRows) / 2
+
+    const nodes: React.ReactNode[] = []
+    // 姓名列（一人一行）
+    names.forEach((n, idx) => {
+      const baseline = b.firstLineBaseline + (rowOffset + idx) * b.lineH
+      const x = b.textAnchor === 'start' ? b.anchorX : b.anchorX - schoolW - GROUP_GAP
+      nodes.push(
+        <text
+          key={`${key}-n${idx}`}
+          x={x}
+          y={baseline}
+          textAnchor={b.textAnchor === 'start' ? 'start' : 'end'}
+          fontSize={b.personSize}
+          fill={theme.textColor}
+          style={{ fontFamily: personFont }}
+        >
+          {n}
+        </text>,
+      )
+    })
+    // 学校信息：校徽 → 毛笔字图片 → 文字行
+    const schoolX = b.textAnchor === 'start' ? b.anchorX + nameColW + GROUP_GAP : b.anchorX - schoolW
+    const firstBaseline = b.firstLineBaseline + schoolStart * b.lineH
+    if (ln.badge && ln.uni) {
+      nodes.push(
+        <image
+          key={`${key}-b`}
+          href={ln.badgeUrl ?? schoolBadgeUrl(ln.uni)}
+          x={schoolX}
+          y={firstBaseline - badgeSize * 0.86}
+          width={badgeSize}
+          height={badgeSize}
+        />,
+      )
+    }
+    if (calli) {
+      nodes.push(
+        <image
+          key={`${key}-c`}
+          href={calli.dataUrl}
+          x={schoolX + badgeSlot}
+          y={firstBaseline - calliH * 0.8}
+          width={calliW}
+          height={calliH}
+          preserveAspectRatio="none"
+        />,
+      )
+    }
+    ln.placeLines.forEach((seg, r) => {
+      if (seg === '') return
+      const baseline = b.firstLineBaseline + (schoolStart + r) * b.lineH
+      nodes.push(
+        <text
+          key={`${key}-z${r}`}
+          x={schoolX + badgeSlot + (calli && r === 0 ? calliW + 2 : 0)}
+          y={baseline}
+          textAnchor="start"
+          fontSize={b.placeSize}
+          fill={theme.textColor}
+          style={{ fontFamily: placeFont }}
+        >
+          {seg}
+        </text>,
+      )
+    })
+    return { nodes, rows }
+  }
+
+  const showCard = data.labelCardBg
+  const cardRx = data.cardRadius
+
+  const allBlocks = [...left, ...right]
   return (
     <g>
-      {[...left, ...right].map((b) => {
+      {/* 第一遍：全部引线（压在卡片与文字下层——开启卡片背景时，引线被其他省份卡片
+          自然遮住，视觉上不再穿过别人的名单） */}
+      {allBlocks.map((b) => {
         const midX = (b.centroidX + b.edgeX) / 2
+        const midY = (b.centroidY + b.centerY) / 2
+        return (
+          <path
+            key={`leader-${b.province}`}
+            d={`M${b.centroidX},${b.centroidY} C${midX},${b.centroidY} ${midX},${midY} ${b.edgeX},${b.centerY}`}
+            fill="none"
+            stroke={theme.leaderLine}
+            strokeWidth={1}
+            strokeDasharray="5 4"
+            opacity={0.85}
+          />
+        )
+      })}
+      {/* 第二遍：卡片背景 + 省份名 + 学生行 */}
+      {allBlocks.map((b) => {
         let rowOffset = 0
         return (
           <g key={b.province}>
-            <path
-              d={`M${b.centroidX},${b.centroidY} C${midX},${b.centroidY} ${midX},${b.centerY} ${b.edgeX},${b.centerY}`}
-              fill="none"
-              stroke={theme.leaderLine}
-              strokeWidth={1}
-              strokeDasharray="5 4"
-              opacity={0.85}
-            />
+            {showCard && (
+              <rect
+                x={b.cardX}
+                y={b.cardY}
+                width={b.cardW}
+                height={b.cardH}
+                rx={cardRx}
+                fill={theme.footerBg}
+                opacity={0.92}
+                stroke={theme.leaderLine}
+                strokeOpacity={0.35}
+                strokeWidth={0.75}
+              />
+            )}
             <text
               x={b.anchorX}
               y={b.headerBaseline}
@@ -206,7 +320,9 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
               {b.province}
             </text>
             {b.lines.map((ln, i) => {
-              const { nodes, rows } = renderStudent(b, ln, rowOffset, `${b.province}-${i}`)
+              const { nodes, rows } = ln.groupNames
+                ? renderGroup(b, ln, rowOffset, `${b.province}-${i}`)
+                : renderStudent(b, ln, rowOffset, `${b.province}-${i}`)
               rowOffset += rows
               return <g key={`${b.province}-${i}`}>{nodes}</g>
             })}

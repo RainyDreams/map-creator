@@ -33,3 +33,6 @@ map-screenshot.png
 
 # 本地验证临时文件
 .scratch/
+
+# 开发经验与任务记录（仅本机保留，不上传仓库）
+.dev-notes/

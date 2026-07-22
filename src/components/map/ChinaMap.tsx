@@ -6,11 +6,9 @@ import { slotFontFamily } from '@/utils/fonts'
 import {
   DESIGN_W,
   getGeoFeatures,
-  INSET,
   isGeoReady,
   loadGeoFeatures,
   MAP_H,
-  MAP_TRANSFORM,
   MAP_X0,
   MAP_X1,
   TOP,
@@ -46,18 +44,27 @@ export interface ChinaMapProps {
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
 export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, calligraphy, badgeOverrides }: ChinaMapProps) {
-  const { theme, fontSlots, customFonts } = useMapData()
+  const { theme, fontSlots, customFonts, data } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
   /** 地图轮廓数据（/data/china.json）异步加载：未就绪时渲染同尺寸占位 SVG，避免布局跳动 */
   const [geoReady, setGeoReady] = useState(isGeoReady())
   useEffect(() => {
     if (geoReady) return
     let cancelled = false
-    loadGeoFeatures()
-      .then(() => {
-        if (!cancelled) setGeoReady(true)
-      })
-      .catch(() => {})
+    let attempts = 0
+    /** 失败后有界重试（fetch 级 3 次超时重试之外的组件级兜底），弱网最终也能自愈 */
+    const tryLoad = () => {
+      loadGeoFeatures()
+        .then(() => {
+          if (!cancelled) setGeoReady(true)
+        })
+        .catch(() => {
+          if (cancelled) return
+          attempts += 1
+          if (attempts < 5) setTimeout(tryLoad, 1500 * attempts)
+        })
+    }
+    tryLoad()
     return () => {
       cancelled = true
     }
@@ -142,9 +149,13 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         measure,
         calligraphy,
         badgeOverrides,
+        mergeSameSchool: data.mergeSameSchool,
+        cardBg: data.labelCardBg,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, measure, fontTick, calligraphy, badgeOverrides],
+    // 注意：geoReady 必须在依赖里——computeLabelLayout 内部调用 getProvinceShape，
+    // 地图数据未加载时算出的布局是空的；数据就绪后必须重算，否则标注永久丢失
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, measure, fontTick, calligraphy, badgeOverrides, geoReady, data.mergeSameSchool, data.labelCardBg],
   )
 
   const fillByName = useMemo(() => {
@@ -237,10 +248,12 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     )
   }
   const features = getGeoFeatures()
+  /** 动态几何：画布宽/地图位置随标注内容界定（见 labels.ts） */
+  const geom = layout.geom
 
   return (
     <svg
-      viewBox={`0 0 ${DESIGN_W} ${Math.round(layout.svgHeight)}`}
+      viewBox={`0 0 ${Math.round(geom.designW)} ${Math.round(layout.svgHeight)}`}
       className="block h-auto w-full"
       role="img"
       aria-label="班级蹭饭地图"
@@ -250,16 +263,16 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     >
       <defs>
         <clipPath id={mainClipId}>
-          <rect x={MAP_X0 - 6} y={TOP - 6} width={MAP_X1 - MAP_X0 + 12} height={MAP_H + 12} />
+          <rect x={geom.x0 - 6} y={TOP - 6} width={geom.x1 - geom.x0 + 12} height={geom.mapH + 12} />
         </clipPath>
         <clipPath id={insetClipId}>
-          <rect x={INSET.x} y={INSET.y} width={INSET.w} height={INSET.h} />
+          <rect x={geom.inset.x} y={geom.inset.y} width={geom.inset.w} height={geom.inset.h} />
         </clipPath>
       </defs>
 
       {/* 主图省份（裁剪掉 17.5°N 以南，南沙等只进小插图）；无名要素为十段线细多边形，用引线色填充+描边保证亚像素厚度下仍可见 */}
       <g clipPath={`url(#${mainClipId})`}>
-        <g transform={MAP_TRANSFORM}>
+        <g transform={geom.transform}>
           {features.map((f, i) =>
             f.name === '' ? (
               <path
@@ -287,10 +300,10 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
 
       {/* 南海诸岛小插图：白底增强对比，十段线细多边形用引线色填充+描边 */}
       <rect
-        x={INSET.x}
-        y={INSET.y}
-        width={INSET.w}
-        height={INSET.h}
+        x={geom.inset.x}
+        y={geom.inset.y}
+        width={geom.inset.w}
+        height={geom.inset.h}
         rx={3}
         fill="#ffffff"
         stroke={theme.leaderLine}
@@ -298,7 +311,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         opacity={0.75}
       />
       <g clipPath={`url(#${insetClipId})`}>
-        <g transform={INSET.transform}>
+        <g transform={geom.inset.transform}>
           {features.map((f, i) =>
             f.name === '' ? (
               <path

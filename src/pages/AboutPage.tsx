@@ -4,6 +4,19 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.12.0',
+    date: '2026-07-23',
+    items: [
+      '新增省份名单卡片：每个省份的名单衬一个圆角底色卡片（可在字体设置中关闭背景、调节圆角），引线被卡片自然遮住，不再穿过其他同学的名单',
+      '新增「同校合并」：同一大学的多名同学姓名一人一行竖排，校徽与校名只在右侧显示一次，同校扎堆时画面更清爽',
+      '西南空白区利用：西藏、云南方向的名单块默认放入主图左下空白处，充分利用画布空间',
+      '标注区宽度按内容动态界定：人少时地图更大，常见长校名/地名不再换行；两列模式子列加宽',
+      '字号智能建议：字体设置新增「推荐设置」按钮，按人数与空间计算最美观的字号；上传毛笔字图片后，建议把字号调整为图片高度的 70% 左右；两列建议仅在内容超过地图高度 1.1 倍时才出现',
+      '建议弹窗换新：统一的白底圆角卡片风格，逐条列出具体调整参数，确认后生效',
+      '修复地图数据加载偶发失败导致标注不显示的问题：加载增加自动重试与控制台诊断',
+    ],
+  },
+  {
     version: 'v1.11.0',
     date: '2026-07-22',
     items: [
@@ -147,7 +160,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.11.0</dd>
+          <dd className="text-stone-700">v1.12.0</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a
@@ -219,7 +232,8 @@ export default function AboutPage() {
       <section className="space-y-3">
         <SectionTitle>更新日志</SectionTitle>
         <ol className="space-y-4">
-          {changelog.map((release) => (
+          {/* 只保留最近 5 个版本，更早的更新记录引导至 GitHub 提交历史 */}
+          {changelog.slice(0, 5).map((release) => (
             <li key={release.version}>
               <p className="flex items-baseline gap-2 text-sm">
                 <span className="font-semibold text-stone-700">{release.version}</span>
@@ -233,6 +247,18 @@ export default function AboutPage() {
             </li>
           ))}
         </ol>
+        <p className="text-xs text-stone-400">
+          更早的更新记录请移步{' '}
+          <a
+            href="https://github.com/RainyDreams/map-creator/commits"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline-offset-2 transition-colors hover:text-amber-700 hover:underline"
+          >
+            GitHub 提交历史
+          </a>{' '}
+          查看。
+        </p>
       </section>
 
       <section className="space-y-2">

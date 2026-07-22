@@ -183,6 +183,12 @@ function normalizeData(raw: unknown): MapData | null {
     },
     // v1.11 迁移：旧数据无 labelColumns 字段时默认每侧一列
     labelColumns: d.labelColumns === 2 ? 2 : 1,
+    // v1.12 迁移：同校合并默认关闭；省份卡片背景默认开启；圆角默认 10
+    mergeSameSchool: d.mergeSameSchool === true,
+    labelCardBg: d.labelCardBg !== false,
+    cardRadius: typeof d.cardRadius === 'number' && Number.isFinite(d.cardRadius)
+      ? Math.min(24, Math.max(0, Math.round(d.cardRadius)))
+      : 10,
     customOrderProvinces: Array.isArray(d.customOrderProvinces)
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
       : [],

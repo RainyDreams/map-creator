@@ -73,6 +73,12 @@ export interface MapData {
   labelSizes: LabelSizes
   /** 每侧标注列数：1（默认）或 2（人多时更宽松，文字列宽减半） */
   labelColumns: 1 | 2
+  /** 同校合并：同一大学的多名同学姓名一人一行竖排，右侧只显示一次 校徽 + 学校 · 城市 */
+  mergeSameSchool: boolean
+  /** 省份名单卡片背景：开启后每个省份块衬一个圆角底色卡片（引线被卡片遮住，不再穿过名单） */
+  labelCardBg: boolean
+  /** 省份卡片圆角（画布单位，0–24） */
+  cardRadius: number
   /**
    * 省内手动排序的省份列表：在录入弹窗中拖动调整过顺序的省份，
    * 该省在地图上保持手动顺序（不再按软科排名自动排序）
@@ -98,6 +104,9 @@ export const EMPTY_MAP_DATA: MapData = {
   subtitle: '',
   labelSizes: DEFAULT_LABEL_SIZES,
   labelColumns: 1,
+  mergeSameSchool: false,
+  labelCardBg: true,
+  cardRadius: 10,
   customOrderProvinces: [],
   calligraphy: {},
   badgeOverrides: {},
