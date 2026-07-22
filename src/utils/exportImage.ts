@@ -45,6 +45,16 @@ function sanitize(s: string): string {
   return s.trim().replace(/[\\/:*?"<>|\s]+/g, '-')
 }
 
+/**
+ * 导出流程调试日志：每一步输出耗时（相对上一步）。
+ * 导出"卡死"时打开控制台，最后一条 [导出] 日志停在哪一步，问题就在哪一步。
+ */
+function logStep(step: string, since: number): number {
+  const now = performance.now()
+  console.info(`[导出] ${step}（+${Math.round(now - since)}ms）`)
+  return now
+}
+
 /** 导出前确保画布字体已加载，否则 SVG/位图里会渲染成兜底字体 */
 async function ensureFontsLoaded(): Promise<void> {
   try {
@@ -79,6 +89,7 @@ async function withOffscreenClone<T>(
   node: HTMLElement,
   fn: (clone: HTMLElement) => Promise<T>,
 ): Promise<T> {
+  let t = performance.now()
   const holder = document.createElement('div')
   // 注意：不能用 visibility:hidden / opacity:0——会被 html-to-image 作为计算样式
   // 内联进序列化结果，导致导出整张空白。离屏定位本身已足够隐藏。
@@ -91,10 +102,13 @@ async function withOffscreenClone<T>(
   clone.style.margin = '0'
   holder.appendChild(clone)
   document.body.appendChild(holder)
+  t = logStep(`离屏克隆完成，排版宽度 ${baseW}px`, t)
   try {
     await ensureFontsLoaded()
+    t = logStep('画布字体就绪', t)
     // 双 rAF：确保克隆节点完成排版与字体应用
     await nextFrame()
+    logStep('离屏排版就绪', t)
     return await fn(clone)
   } finally {
     holder.remove()
@@ -104,8 +118,17 @@ async function withOffscreenClone<T>(
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('SVG 栅格化失败'))
+    // 超时兜底：SVG 巨大或内存紧张时 onload 可能永远不来，30s 后按失败处理，
+    // 让 ultra 流程回退位图导出而不是无限卡死
+    const timer = setTimeout(() => reject(new Error('SVG 图片加载超时（30s）')), 30000)
+    img.onload = () => {
+      clearTimeout(timer)
+      resolve(img)
+    }
+    img.onerror = () => {
+      clearTimeout(timer)
+      reject(new Error('SVG 栅格化失败'))
+    }
     img.src = src
   })
 }
@@ -115,11 +138,13 @@ async function renderUltra(
   node: HTMLElement,
   onProgress?: ExportProgressFn,
 ): Promise<{ dataUrl: string; width: number; height: number }> {
+  let t = performance.now()
   const w = node.offsetWidth
   const h = node.offsetHeight
   if (w === 0 || h === 0) throw new Error('画布尺寸为 0')
   onProgress?.(30, '正在序列化矢量图（内嵌字体）…')
   const svgUrl = await toSvg(node, { cacheBust: true, backgroundColor: BG })
+  t = logStep(`SVG 序列化完成（${Math.round(svgUrl.length / 1024)}KB）`, t)
   const targetW = Math.min(Math.max(ULTRA_MIN_W, Math.round(w * 2)), ULTRA_MAX_W)
   const scale = targetW / w
   let cw = targetW
@@ -131,6 +156,7 @@ async function renderUltra(
   }
   onProgress?.(62, `正在按 ${cw}×${ch} 超清栅格化…`)
   const img = await loadImage(svgUrl)
+  t = logStep(`SVG 载入完成，开始栅格化到 ${cw}×${ch}`, t)
   const canvas = document.createElement('canvas')
   canvas.width = cw
   canvas.height = ch
@@ -139,8 +165,11 @@ async function renderUltra(
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, cw, ch)
   ctx.drawImage(img, 0, 0, cw, ch)
+  t = logStep('canvas 绘制完成', t)
   onProgress?.(88, '正在编码 PNG…')
-  return { dataUrl: canvas.toDataURL('image/png'), width: cw, height: ch }
+  const dataUrl = canvas.toDataURL('image/png')
+  logStep(`PNG 编码完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
+  return { dataUrl, width: cw, height: ch }
 }
 
 /**
@@ -153,23 +182,31 @@ export async function renderNodeToPngDataUrl(
   quality: ExportQuality = 'ultra',
   onProgress?: ExportProgressFn,
 ): Promise<{ dataUrl: string } & ExportResult> {
+  const tStart = performance.now()
+  console.info(
+    `[导出] 开始导出：清晰度=${quality}，画布屏幕尺寸 ${node.offsetWidth}×${node.offsetHeight}`,
+  )
   onProgress?.(8, '正在准备离屏画布与字体…')
-  return withOffscreenClone(node, async (clone) => {
+  const result = await withOffscreenClone(node, async (clone) => {
     if (quality === 'ultra') {
       try {
         const r = await renderUltra(clone, onProgress)
         return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
       } catch (err) {
-        console.warn('SVG 矢量栅格化失败，回退 pixelRatio 4 位图导出', err)
+        console.warn('[导出] SVG 矢量栅格化失败，回退 pixelRatio 4 位图导出：', err)
         onProgress?.(40, '矢量栅格化失败，回退高清位图导出…')
+        let t = performance.now()
         const dataUrl = await toPng(clone, { pixelRatio: 4, cacheBust: true, backgroundColor: BG })
+        logStep(`位图回退导出完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
         const w = clone.offsetWidth * 4
         const h = clone.offsetHeight * 4
         return { dataUrl, width: w, height: h, quality, fellBack: true }
       }
     }
     onProgress?.(35, '正在渲染高清位图…')
+    let t = performance.now()
     const dataUrl = await toPng(clone, { pixelRatio: 2, cacheBust: true, backgroundColor: BG })
+    logStep(`位图渲染完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
     onProgress?.(88, '正在编码 PNG…')
     return {
       dataUrl,
@@ -179,6 +216,8 @@ export async function renderNodeToPngDataUrl(
       fellBack: false,
     }
   })
+  console.info(`[导出] 渲染全部完成，总耗时 ${Math.round(performance.now() - tStart)}ms`)
+  return result
 }
 
 /**
@@ -203,6 +242,7 @@ export async function exportNodeToPng(
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+  console.info(`[导出] 已触发浏览器下载：${filename}`)
   onProgress?.(100, '完成')
   return meta
 }

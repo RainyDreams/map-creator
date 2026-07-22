@@ -4,6 +4,14 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.9.5',
+    date: '2026-07-22',
+    items: [
+      '电脑端导出面同样提供黑底醒目「预览并导出为图片」按钮',
+      '导出全流程在控制台输出分步耗时日志，并新增 SVG 加载 30 秒超时兜底，排查与避免导出卡死',
+    ],
+  },
+  {
     version: 'v1.9.4',
     date: '2026-07-22',
     items: [
@@ -90,7 +98,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.9.4</dd>
+          <dd className="text-stone-700">v1.9.5</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

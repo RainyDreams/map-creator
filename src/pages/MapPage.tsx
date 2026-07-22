@@ -6,7 +6,7 @@ import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/u
 import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
 import { exportNodeToPng, renderNodeToPngDataUrl, type ExportQuality } from '@/utils/exportImage'
-import { consumeMapExportRequest } from '@/utils/exportBus'
+import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
@@ -323,14 +323,20 @@ export default function MapPage() {
     }
   }
 
-  // 录入页「预览并导出为图片」跳转过来：挂载后自动开始一次超清导出
+  // 录入页「预览并导出为图片」：
+  // - 移动端切 Tab 后本页重新挂载 → 挂载时消费一次性请求后自动导出
+  // - 桌面端本页常驻不重新挂载 → 监听事件，消费请求后直接导出
+  const handleExportRef = useRef(handleExport)
+  handleExportRef.current = handleExport
   useEffect(() => {
-    if (!consumeMapExportRequest()) return
-    // 略等首屏渲染与校徽预取启动，避免导出到未完成的画面
-    const timer = setTimeout(() => {
-      void handleExport('ultra')
-    }, 900)
-    return () => clearTimeout(timer)
+    const schedule = () => {
+      // 略等首屏渲染与校徽预取启动，避免导出到未完成的画面
+      setTimeout(() => void handleExportRef.current('ultra'), 900)
+    }
+    if (consumeMapExportRequest()) schedule() // 挂载前已有请求（移动端切 Tab 场景）
+    return onGotoMapExport(() => {
+      if (consumeMapExportRequest()) schedule() // 常驻时收到请求（桌面端场景）
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

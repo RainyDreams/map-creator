@@ -501,17 +501,17 @@ export default function DataToolbar() {
             <DialogDescription>把当前画布的内容导出到本机文件</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
-            {/* 移动端专属：黑底醒目按钮，点击后跳到地图 Tab 并自动导出 PNG */}
+            {/* 黑底醒目按钮：跳到地图画面并自动导出 PNG（移动端会切到地图 Tab） */}
             <button
               type="button"
               onClick={handlePreviewExport}
-              className="flex items-center gap-3 rounded-lg bg-stone-900 px-3.5 py-3 text-left text-white shadow-sm transition-colors hover:bg-stone-700 md:hidden"
+              className="flex items-center gap-3 rounded-lg bg-stone-900 px-3.5 py-3 text-left text-white shadow-sm transition-colors hover:bg-stone-700"
             >
               <ImageIcon className="h-5 w-5 shrink-0" />
               <span>
                 <span className="block text-sm font-semibold">预览并导出为图片</span>
                 <span className="block text-xs text-stone-300">
-                  跳转到地图页面，导出超清 PNG（微信中请长按图片保存）
+                  跳转到地图画面，导出超清 PNG（微信中请长按图片保存）
                 </span>
               </span>
             </button>
