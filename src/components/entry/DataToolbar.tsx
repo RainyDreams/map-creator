@@ -6,7 +6,7 @@
  * 无 props，由录入页直接 <DataToolbar /> 使用。
  */
 import { useRef, useState } from 'react'
-import { Download, FileJson, FileSpreadsheet, Upload } from 'lucide-react'
+import { Copy, Download, FileJson, FileSpreadsheet, Image as ImageIcon, Link2, Loader2, Share2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +22,8 @@ import { useMapData } from '@/store/MapDataContext'
 import { newId } from '@/types'
 import { downloadTemplate, exportWorkbook, parseWorkbook, type ParseResult } from '@/utils/excel'
 import { exportCanvasJson, parseCanvasJson, type CanvasJsonPayload } from '@/utils/exportData'
+import { createShareLink, type ShareBuildResult } from '@/utils/share'
+import { requestMapExport } from '@/utils/exportBus'
 
 interface PendingExcel {
   result: ParseResult
@@ -41,6 +43,9 @@ export default function DataToolbar() {
 
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareResult, setShareResult] = useState<ShareBuildResult | null>(null)
+  const [sharing, setSharing] = useState(false)
 
   const excelInputRef = useRef<HTMLInputElement>(null)
   const jsonInputRef = useRef<HTMLInputElement>(null)
@@ -60,6 +65,47 @@ export default function DataToolbar() {
     exportCanvasJson({ name: activeCanvasName, data, theme, fontSlots, badge })
     toast.success('已导出 JSON 画布文件', { description: '包含名单、主题、字体与班徽配置' })
     setExportOpen(false)
+  }
+
+  /** 移动端「预览并导出为图片」：关闭面板 → 切到地图 Tab → 自动开始导出 */
+  const handlePreviewExport = () => {
+    setExportOpen(false)
+    requestMapExport()
+  }
+
+  /* ---------------- 分享为链接 ---------------- */
+
+  const handleCreateShareLink = async () => {
+    if (sharing) return
+    setSharing(true)
+    setShareResult(null)
+    try {
+      const result = await createShareLink({
+        name: activeCanvasName,
+        data,
+        theme,
+        fontSlots,
+        badge,
+      })
+      setShareResult(result)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '分享链接生成失败，请稍后重试')
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  const handleCopyShareLink = async () => {
+    if (!shareResult) return
+    try {
+      await navigator.clipboard.writeText(shareResult.url)
+      toast.success('链接已复制')
+    } catch {
+      // 剪贴板 API 不可用时降级为手动复制：选中输入框内容
+      const input = document.getElementById('share-link-input') as HTMLInputElement | null
+      input?.select()
+      toast.info('请手动复制选中的链接')
+    }
   }
 
   /* ---------------- 导入 Excel ---------------- */
@@ -192,6 +238,19 @@ export default function DataToolbar() {
         >
           <Download className="size-4" />
           导出
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setShareResult(null)
+            setShareOpen(true)
+          }}
+          className="border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
+        >
+          <Share2 className="size-4" />
+          分享
         </Button>
       </div>
 
@@ -442,6 +501,20 @@ export default function DataToolbar() {
             <DialogDescription>把当前画布的内容导出到本机文件</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
+            {/* 移动端专属：黑底醒目按钮，点击后跳到地图 Tab 并自动导出 PNG */}
+            <button
+              type="button"
+              onClick={handlePreviewExport}
+              className="flex items-center gap-3 rounded-lg bg-stone-900 px-3.5 py-3 text-left text-white shadow-sm transition-colors hover:bg-stone-700 md:hidden"
+            >
+              <ImageIcon className="h-5 w-5 shrink-0" />
+              <span>
+                <span className="block text-sm font-semibold">预览并导出为图片</span>
+                <span className="block text-xs text-stone-300">
+                  跳转到地图页面，导出超清 PNG（微信中请长按图片保存）
+                </span>
+              </span>
+            </button>
             <button
               type="button"
               onClick={handleExportExcel}
@@ -474,6 +547,101 @@ export default function DataToolbar() {
               type="button"
               variant="ghost"
               onClick={() => setExportOpen(false)}
+              className="text-stone-500"
+            >
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== 分享为链接面板 ==================== */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>分享为链接</DialogTitle>
+            <DialogDescription>
+              生成一个 7 天有效的短链接，拿到链接的人打开即可查看并继续编辑这张画布
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {/* 重要告知：可编辑性 + 有效期 */}
+            <div className="space-y-1.5 rounded-lg border border-amber-200/70 bg-amber-50/70 px-3 py-2.5 text-xs leading-5 text-amber-800">
+              <p>
+                <strong>任何拿到这个链接的人，都可以查看并修改里面的内容</strong>
+                （修改只保存在各自设备上，互不影响，请勿发给不信任的人）。
+              </p>
+              <p>
+                链接有效期 <strong>7 天</strong>，到期后自动失效、数据即刻删除。
+              </p>
+              <p>
+                多端协同：在自己另一台设备上打开这个链接，即可继续编辑同一张画布。
+              </p>
+            </div>
+
+            {shareResult === null ? (
+              <Button
+                type="button"
+                onClick={handleCreateShareLink}
+                disabled={sharing}
+                className="w-full bg-stone-900 text-white hover:bg-stone-700"
+              >
+                {sharing ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Link2 className="size-4" />
+                )}
+                {sharing ? '正在生成链接…' : '生成分享链接'}
+              </Button>
+            ) : (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="share-link-input"
+                    readOnly
+                    value={shareResult.url}
+                    onFocus={(e) => e.target.select()}
+                    className="h-9 min-w-0 flex-1 rounded-md border border-stone-200 bg-stone-50 px-2.5 font-mono text-xs text-stone-700 outline-none"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCopyShareLink}
+                    className="shrink-0 bg-stone-900 text-white hover:bg-stone-700"
+                  >
+                    <Copy className="size-3.5" />
+                    复制
+                  </Button>
+                </div>
+                <p className="text-[11px] leading-4 text-stone-400">
+                  有效期至 {new Date(shareResult.expiresAt).toLocaleString('zh-CN')}
+                </p>
+                {shareResult.stripped.length > 0 && (
+                  <p className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-[11px] leading-4 text-stone-500">
+                    因容量限制，{shareResult.stripped.join('、')}不随链接分享；
+                    对方打开后如需这些内容，请在对应设备上重新上传。
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCreateShareLink}
+                  disabled={sharing}
+                  className="border-stone-200 text-xs text-stone-500 hover:bg-stone-50"
+                >
+                  {sharing ? '正在生成…' : '重新生成（旧链接仍有效至到期）'}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShareOpen(false)}
               className="text-stone-500"
             >
               关闭

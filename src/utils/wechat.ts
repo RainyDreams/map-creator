@@ -38,6 +38,13 @@ declare global {
   }
 }
 
+/** 当前是否运行在微信内置浏览器中 */
+export function isWeChatBrowser(): boolean {
+  return (
+    typeof navigator !== 'undefined' && /MicroMessenger/i.test(navigator.userAgent)
+  )
+}
+
 const JWEIXIN_URL = 'https://res.wx.qq.com/open/js/jweixin-1.3.2.js'
 
 interface SignatureResponse {

@@ -44,14 +44,20 @@ export default function PrivacyPage() {
           上述信息由您在自己的浏览器中录入、查看、修改和删除，我们无法访问、读取或恢复该等信息。
           通过 Excel 模板导入的名单文件由浏览器在本地解析，文件本身与解析结果均不会发送到网络。
         </p>
+        <p>
+          <strong className="text-stone-700">唯一的例外是您主动使用的「分享为链接」功能</strong>：
+          当您点击生成分享链接时，当前画布的名单与配置数据会被上传至本站服务器临时保存 7 天
+          （用于让收到链接的人打开该画布），到期后由系统自动删除。该上传仅在您主动点击时发生，
+          详见本政策第五条。
+        </p>
       </section>
 
       <section className="space-y-2">
         <SectionTitle>三、「名单数据不收集、不传输、不共享」声明</SectionTitle>
         <ul className="list-disc space-y-1 pl-5">
           <li><strong className="text-stone-700">不收集</strong>：不收集您的姓名、学校、联系方式等任何个人信息；不设账号体系，不要求注册或登录；</li>
-          <li><strong className="text-stone-700">不传输</strong>：不将您录入的名单数据、导出图片或 Excel 文件上传至任何服务器或第三方平台；</li>
-          <li><strong className="text-stone-700">不共享</strong>：不向任何第三方提供、出售或共享您的名单数据。</li>
+          <li><strong className="text-stone-700">不传输</strong>：不将您录入的名单数据、导出图片或 Excel 文件上传至任何服务器或第三方平台（您主动使用「分享为链接」功能的情形除外，见第五条）；</li>
+          <li><strong className="text-stone-700">不共享</strong>：不向任何第三方提供、出售或共享您的名单数据。分享链接的接收方仅能经由您主动发出的链接访问对应画布，该访问由您的分享行为直接引起。</li>
         </ul>
         <p>
           需要说明的是：本服务使用 Microsoft Clarity 进行匿名化的页面使用行为分析（见第四条），
@@ -87,7 +93,7 @@ export default function PrivacyPage() {
       </section>
 
       <section className="space-y-2">
-        <SectionTitle>五、服务器日志</SectionTitle>
+        <SectionTitle>五、服务器日志与「分享为链接」功能</SectionTitle>
         <p>
           本服务托管于 Cloudflare Pages。当您访问本服务时，Cloudflare 的边缘节点会按照其基础设施的
           通行做法生成标准访问日志（可能包含 IP 地址、访问时间、请求的 URL、浏览器 User-Agent 等），
@@ -96,6 +102,25 @@ export default function PrivacyPage() {
           此外，本服务 /api/ 路径下的辅助接口（地图数据、微信分享签名）仅处理其功能所必需的
           请求参数（如省份名称、当前页面 URL），不涉及您的名单数据。
         </p>
+        <p><strong className="text-stone-700">关于「分享为链接」功能的数据处理：</strong></p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            当您主动点击「分享为链接」并生成链接时，当前画布的名单与主题、字体等配置数据
+            会被上传并保存于 Cloudflare KV 存储中，同时生成一条含随机短标识的链接；
+          </li>
+          <li>
+            该等数据自生成之时起保存 <strong className="text-stone-700">7 天</strong>，
+            到期后由存储系统自动删除，不可恢复；除向您与链接接收方提供打开画布所必需的读取外，
+            我们不阅读、不分析、不用于任何其他目的；
+          </li>
+          <li>
+            任何持有该链接的人均可在有效期内打开画布副本并继续编辑（编辑结果保存在各自设备，
+            互不影响）。链接由您自行决定发送对象，请您谨慎分享，勿将其发给不信任的人；
+          </li>
+          <li>
+            您上传的大学毛笔字图片、自定义校徽图片与班徽图片不随链接上传或分享。
+          </li>
+        </ul>
       </section>
 
       <section className="space-y-2">

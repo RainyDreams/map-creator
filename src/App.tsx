@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Routes, Route } from 'react-router'
-import { MapDataProvider } from '@/store/MapDataContext'
+import { MapDataProvider, useMapData } from '@/store/MapDataContext'
 import { Toaster } from '@/components/ui/sonner'
+import { toast } from 'sonner'
 import EntryPage from '@/pages/EntryPage'
 import MapPage from '@/pages/MapPage'
 import AgreementPage from '@/pages/AgreementPage'
@@ -9,8 +10,11 @@ import PrivacyPage from '@/pages/PrivacyPage'
 import AboutPage from '@/pages/AboutPage'
 import SiteFooter from '@/components/layout/SiteFooter'
 import { ConsentDialog } from '@/components/ConsentDialog'
+import { WeChatGuideDialog } from '@/components/WeChatGuideDialog'
 import { ClipboardList, Info, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { onGotoMapExport } from '@/utils/exportBus'
+import { takeShareIdFromUrl, fetchSharedCanvas } from '@/utils/share'
 
 type TabKey = 'entry' | 'map' | 'about'
 
@@ -51,6 +55,44 @@ function Creator() {
   const [sidebarWidth, setSidebarWidth] = useState<number>(loadSidebarWidth)
   const [dragging, setDragging] = useState(false)
   const dragState = useRef<{ startX: number; startW: number } | null>(null)
+  const { importCanvas } = useMapData()
+
+  // 打开分享短链接：?share=<id> → 拉取画布数据导入为新画布
+  useEffect(() => {
+    const id = takeShareIdFromUrl()
+    if (!id) return
+    let cancelled = false
+    toast.loading('正在打开分享的画布…', { id: 'share-open' })
+    fetchSharedCanvas(id).then((payload) => {
+      if (cancelled) return
+      if (!payload) {
+        toast.error('分享链接不存在或已超过 7 天有效期', { id: 'share-open' })
+        return
+      }
+      const docId = importCanvas({
+        name: payload.name,
+        data: payload.data,
+        theme: payload.theme,
+        fontSlots: payload.fontSlots,
+        badge: null,
+      })
+      if (docId === null) {
+        toast.error('分享的画布数据不完整，无法打开', { id: 'share-open' })
+        return
+      }
+      toast.success(`已打开分享的画布「${payload.name || '未命名画布'}」`, {
+        id: 'share-open',
+        description: '你的修改只保存在这台设备上，想同步给其他设备可再生成新的分享链接',
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 录入页「预览并导出为图片」：切到地图 Tab（MapPage 挂载后自动开始导出）
+  useEffect(() => onGotoMapExport(() => setTab('map')), [])
 
   useEffect(() => {
     try {
@@ -231,6 +273,7 @@ export default function App() {
         <Route path="/about" element={<AboutPage />} />
       </Routes>
       <ConsentDialog />
+      <WeChatGuideDialog />
       <Toaster position="top-center" richColors />
     </MapDataProvider>
   )

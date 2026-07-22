@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Loader2 } from 'lucide-react'
+import { Download, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
 import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
-import { exportNodeToPng, type ExportQuality } from '@/utils/exportImage'
+import { exportNodeToPng, renderNodeToPngDataUrl, type ExportQuality } from '@/utils/exportImage'
+import { consumeMapExportRequest } from '@/utils/exportBus'
+import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
@@ -99,12 +101,53 @@ function ExportProgressDialog({ progress }: { progress: ExportProgress }) {
   )
 }
 
+/** 微信环境导出完成后的保存弹窗：微信不支持 a[download]，图片直接展示，引导长按保存 */
+function WeChatSaveDialog({
+  dataUrl,
+  onClose,
+}: {
+  dataUrl: string
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]">
+      <div
+        role="dialog"
+        aria-label="保存图片"
+        className="flex max-h-[90dvh] w-full max-w-sm flex-col rounded-xl border border-stone-200 bg-white shadow-2xl"
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-stone-100 px-4 py-3">
+          <h2 className="text-sm font-semibold text-stone-700">图片已生成</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="关闭"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <img src={dataUrl} alt="蹭饭图导出结果" className="mx-auto w-full rounded-md" />
+        </div>
+        <p className="shrink-0 border-t border-stone-100 px-4 py-3 text-center text-xs leading-5 text-stone-500">
+          微信中无法直接下载图片
+          <br />
+          <strong className="text-stone-700">请长按上方图片 → 保存到相册</strong>
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function MapPage() {
   const { data, theme, fontSlots, customFonts, badge } = useMapData()
   const canvasRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [progress, setProgress] = useState<ExportProgress | null>(null)
+  /** 微信环境下导出完成的图片 dataURL（弹窗引导长按保存） */
+  const [wechatImage, setWechatImage] = useState<string | null>(null)
   /** 进度锚点（真实阶段 + 到达时刻）与展示值（向锚点平滑爬行）分离，长耗时阶段也有前进感 */
   const anchorRef = useRef<{ pct: number; stage: string; at: number }>({ pct: 0, stage: '', at: 0 })
   /** 导出开始时刻（估算剩余时间用） */
@@ -255,15 +298,22 @@ export default function MapPage() {
     setProgress({ pct: 4, stage: '正在启动导出…', etaSeconds: null })
     // 等一拍：让 footer 的生成时间在克隆前刷新到当前时刻
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    const onProgress = (pct: number, stage: string) => {
+      anchorRef.current = { pct, stage, at: Date.now() }
+      setProgress((prev) =>
+        prev === null
+          ? prev
+          : { ...prev, pct: Math.max(prev.pct, Math.min(pct, anchorRef.current.pct)), stage },
+      )
+    }
     try {
-      await exportNodeToPng(node, data.title, quality, (pct, stage) => {
-        anchorRef.current = { pct, stage, at: Date.now() }
-        setProgress((prev) =>
-          prev === null
-            ? prev
-            : { ...prev, pct: Math.max(prev.pct, Math.min(pct, anchorRef.current.pct)), stage },
-        )
-      })
+      if (isWeChatBrowser()) {
+        // 微信不支持 a[download]：渲染出 dataURL，弹窗引导用户长按保存
+        const r = await renderNodeToPngDataUrl(node, quality, onProgress)
+        setWechatImage(r.dataUrl)
+      } else {
+        await exportNodeToPng(node, data.title, quality, onProgress)
+      }
     } catch (err) {
       console.error('导出 PNG 失败', err)
       setExportError('导出失败，请重试')
@@ -272,6 +322,17 @@ export default function MapPage() {
       setProgress(null)
     }
   }
+
+  // 录入页「预览并导出为图片」跳转过来：挂载后自动开始一次超清导出
+  useEffect(() => {
+    if (!consumeMapExportRequest()) return
+    // 略等首屏渲染与校徽预取启动，避免导出到未完成的画面
+    const timer = setTimeout(() => {
+      void handleExport('ultra')
+    }, 900)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="flex h-full flex-col">
@@ -426,6 +487,11 @@ export default function MapPage() {
 
       {/* 导出进度模态框 */}
       {exporting !== null && progress !== null && <ExportProgressDialog progress={progress} />}
+
+      {/* 微信环境：图片生成后引导长按保存 */}
+      {wechatImage !== null && (
+        <WeChatSaveDialog dataUrl={wechatImage} onClose={() => setWechatImage(null)} />
+      )}
     </div>
   )
 }

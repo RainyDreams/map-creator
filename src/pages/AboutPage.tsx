@@ -4,6 +4,15 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.9.3',
+    date: '2026-07-22',
+    items: [
+      '新增「分享为链接」：生成 7 天有效的短链接，拿到链接的人可打开并继续编辑画布，支持多端协同',
+      '移动端导出面新增黑底醒目「预览并导出为图片」按钮，一键跳转地图页并自动导出',
+      '微信环境下导出图片改为弹窗内长按保存，并在首次打开时给出「用浏览器打开」的非强制引导',
+    ],
+  },
+  {
     version: 'v1.9.2',
     date: '2026-07-22',
     items: [
@@ -31,7 +40,7 @@ const features = [
   '画布主题一键切换（含卡通、水墨等风格），支持上传校徽/班徽与自定义字体',
   '多画布管理：可新建、复制、重命名多张蹭饭图，随时切换编辑',
   '一键导出超清蹭饭图图片（≥4000px 宽，与页面所见一致），方便班级群分享',
-  '数据可导出为 JSON / Excel 备份或迁移',
+  '数据可导出为 JSON / Excel 备份或迁移，也可生成 7 天有效的分享链接（拿到链接即可查看并继续编辑）',
   '数据自动保存在本机浏览器，刷新不丢失',
 ]
 
@@ -76,7 +85,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.9.2</dd>
+          <dd className="text-stone-700">v1.9.3</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a
@@ -140,7 +149,8 @@ export default function AboutPage() {
           界面采用 Tailwind CSS 与 shadcn/ui 组件库，路由使用 React Router 7，
           Excel 导入导出基于 SheetJS（xlsx）在浏览器本地完成，图片导出基于 html-to-image。
           名单数据仅存储于浏览器 localStorage；站点部署于 Cloudflare Pages，
-          辅以少量 Pages Functions 接口提供地图辅助数据与可选的微信分享签名。
+          辅以少量 Pages Functions 接口提供地图辅助数据、可选的微信分享签名，
+          以及「分享为链接」的短链接存取（Cloudflare KV，7 天到期自动删除）。
         </p>
       </section>
 
