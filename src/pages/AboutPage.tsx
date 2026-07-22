@@ -4,6 +4,13 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.10.2',
+    date: '2026-07-22',
+    items: [
+      '修复「导入 → 导入 Excel」数据预览表无法纵向滚动、内容被截断溢出的问题：预览区改为原生滚动容器，表头滚动时吸附置顶',
+    ],
+  },
+  {
     version: 'v1.10.1',
     date: '2026-07-22',
     items: [
@@ -122,7 +129,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.10.1</dd>
+          <dd className="text-stone-700">v1.10.2</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

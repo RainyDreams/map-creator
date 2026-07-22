@@ -341,13 +341,13 @@ export default function DataToolbar() {
 
                     {/* 数据预览：即将导入的学生（前 10 行）与老师（前 5 行） */}
                     {r.students.length > 0 && (
-                      <ScrollArea className="max-h-44 rounded-md border border-stone-200">
+                      <div className="max-h-44 overflow-y-auto rounded-md border border-stone-200">
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="border-b border-stone-200 bg-stone-50 text-stone-500">
-                              <th className="px-2.5 py-1.5 text-left font-medium">姓名</th>
-                              <th className="px-2.5 py-1.5 text-left font-medium">大学</th>
-                              <th className="px-2.5 py-1.5 text-left font-medium">城市</th>
+                              <th className="sticky top-0 bg-stone-50 px-2.5 py-1.5 text-left font-medium">姓名</th>
+                              <th className="sticky top-0 bg-stone-50 px-2.5 py-1.5 text-left font-medium">大学</th>
+                              <th className="sticky top-0 bg-stone-50 px-2.5 py-1.5 text-left font-medium">城市</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -365,7 +365,7 @@ export default function DataToolbar() {
                             … 共 {r.students.length} 名学生，仅预览前 10 行
                           </p>
                         )}
-                      </ScrollArea>
+                      </div>
                     )}
                     {r.teachers.length > 0 && (
                       <p className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
