@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useMapData } from '@/store/MapDataContext'
 import { slotFontFamily } from '@/utils/fonts'
 import { schoolBadgeUrl } from '@/utils/universities'
@@ -24,6 +25,25 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
   const personFont = slotFontFamily('person', fontSlots, customFonts)
   const placeFont = slotFontFamily('place', fontSlots, customFonts)
 
+  /**
+   * 文字真实宽度测量（canvas measureText + 实际字体栈）。
+   * 右对齐列的校徽/姓名定位必须精确——按 em 估算会把「 · 」等窄字符算宽，
+   * 导致校徽与校名之间出现明显间隙。字体未就绪等异常时回退 em 估算。
+   */
+  const measureCtx = useMemo(() => document.createElement('canvas').getContext('2d'), [])
+  const measureW = (text: string, px: number, family: string): number => {
+    if (measureCtx) {
+      try {
+        measureCtx.font = `${px}px ${family}`
+        const w = measureCtx.measureText(text).width
+        if (w > 0) return w
+      } catch {
+        // 回退估算
+      }
+    }
+    return textEms(text) * px
+  }
+
   /** 渲染一个学生行（可能占多行），返回占用行数 */
   function renderStudent(b: LabelBlock, ln: StudentLineParts, rowOffset: number, key: string) {
     const badgeSize = b.placeSize * BADGE_RATIO
@@ -32,7 +52,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
     const gap = ln.badge && !placeOnOwnLines ? BADGE_GAP : 0
     const badgeSlot = ln.badge ? badgeSize + gap : 0
     const badgeRow = placeOnOwnLines ? 1 : 0
-    const personW = textEms(ln.person) * b.personSize
+    const personW = measureW(ln.person, b.personSize, personFont)
 
     const rows: React.ReactNode[] = []
     // 姓名（仅首行）
@@ -53,7 +73,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       )
     } else {
       // 右对齐：姓名右端与校徽之间留 BADGE_GAP，校徽右缘顶到校名（无间隙）
-      const placeW0 = placeOnOwnLines ? 0 : textEms(ln.placeLines[0]) * b.placeSize
+      const placeW0 = placeOnOwnLines ? 0 : measureW(ln.placeLines[0], b.placeSize, placeFont)
       rows.push(
         <text
           key={`${key}-p`}
@@ -76,7 +96,7 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
       if (b.textAnchor === 'start') {
         badgeX = b.anchorX + (placeOnOwnLines ? 0 : personW + gap)
       } else {
-        const placeW = textEms(ln.placeLines[badgeRow] ?? '') * b.placeSize
+        const placeW = measureW(ln.placeLines[badgeRow] ?? '', b.placeSize, placeFont)
         badgeX = b.anchorX - placeW - badgeSize
       }
       rows.push(

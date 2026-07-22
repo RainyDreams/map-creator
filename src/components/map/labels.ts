@@ -113,10 +113,14 @@ export const BADGE_RATIO = 1.05
 /** 姓名与校徽之间的间隙（校徽与校名之间保持无间隙） */
 export const BADGE_GAP = 3
 
-/** 估算文本宽度（em）：中文/全角字符≈1em，ASCII≈0.55em */
+/** 估算文本宽度（em）：中文/全角字符≈1em，ASCII≈0.56em，空格/间隔号按窄字符计（用于换行估算，偏保守） */
 export function textEms(s: string): number {
   let w = 0
-  for (const ch of s) w += ch.charCodeAt(0) > 0xff ? 1 : 0.55
+  for (const ch of s) {
+    if (ch === ' ') w += 0.32
+    else if (ch === '·' || ch === '•') w += 0.4
+    else w += ch.charCodeAt(0) > 0xff ? 1 : 0.56
+  }
   return w
 }
 
