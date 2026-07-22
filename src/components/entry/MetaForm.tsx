@@ -13,8 +13,12 @@ import {
 import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
 import { FontSelect } from '@/components/entry/FontSelect'
+import { SizeSelect } from '@/components/entry/SizeSelect'
 import { cn } from '@/lib/utils'
 import type { MapData } from '@/types'
+
+/** 标题字号档位（px，以 1400px 宽画布为基准） */
+const TITLE_SIZE_OPTIONS = [20, 24, 28, 30, 32, 36, 40, 44, 48, 52, 56] as const
 
 /** 图片压缩为 128px 内的 PNG dataURL（localStorage 友好） */
 function fileToBadgeDataUrl(file: File): Promise<string> {
@@ -88,48 +92,51 @@ export default function MetaForm() {
           </p>
         </div>
 
-        {/* 标题字体 + 数字字体（标题设置集中在此） */}
-        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-stone-600 md:text-sm">标题字体</Label>
-            <div className="flex items-center">
-              <FontSelect
-                value={fontSlots.title}
-                onChange={(id) => setFontSlot('title', id)}
-                ariaLabel="标题字体"
-              />
-            </div>
-          </div>
+        {/* 标题字体：按字符类型分 数字 / 英文 / 中文 三个槽位 */}
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-stone-600 md:text-sm">数字字体</Label>
             <div className="flex items-center">
               <FontSelect
-                value={fontSlots.year}
-                onChange={(id) => setFontSlot('year', id)}
-                ariaLabel="标题中的数字字体"
+                value={fontSlots.digit}
+                onChange={(id) => setFontSlot('digit', id)}
+                ariaLabel="数字字体"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-stone-600 md:text-sm">英文字体</Label>
+            <div className="flex items-center">
+              <FontSelect
+                value={fontSlots.latin}
+                onChange={(id) => setFontSlot('latin', id)}
+                ariaLabel="英文字体"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-stone-600 md:text-sm">中文字体</Label>
+            <div className="flex items-center">
+              <FontSelect
+                value={fontSlots.han}
+                onChange={(id) => setFontSlot('han', id)}
+                ariaLabel="中文字体"
               />
             </div>
           </div>
         </div>
 
-        {/* 标题字号 */}
+        {/* 标题字号（px 下拉，与标注字号同一控件） */}
         <div className="space-y-1.5">
-          <Label htmlFor="map-title-size" className="text-xs text-stone-600 md:text-sm">
-            标题字号
-            <span className="ml-2 font-normal text-stone-400">{data.titleSize}px</span>
-          </Label>
-          <input
-            id="map-title-size"
-            type="range"
-            min={20}
-            max={56}
-            step={1}
-            value={data.titleSize}
-            onChange={(e) =>
-              setData((prev) => ({ ...prev, titleSize: Number(e.target.value) }))
-            }
-            className="h-2 w-full cursor-pointer accent-stone-700"
-          />
+          <Label className="text-xs text-stone-600 md:text-sm">标题字号</Label>
+          <div className="flex items-center">
+            <SizeSelect
+              value={data.titleSize}
+              options={TITLE_SIZE_OPTIONS}
+              onChange={(px) => setData((prev) => ({ ...prev, titleSize: px }))}
+              ariaLabel="标题字号"
+            />
+          </div>
         </div>
 
         <div className="space-y-1.5">

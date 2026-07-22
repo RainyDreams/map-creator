@@ -9,7 +9,7 @@ import type { TeacherEntry } from '@/types'
 export function TeachersBlock({ teachers }: { teachers: TeacherEntry[] }) {
   const { data, theme, fontSlots, customFonts } = useMapData()
   if (!data.showTeachers || teachers.length === 0) return null
-  const titleFont = slotFontFamily('title', fontSlots, customFonts)
+  const titleFont = slotFontFamily('han', fontSlots, customFonts)
   const personFont = slotFontFamily('person', fontSlots, customFonts)
   const placeFont = slotFontFamily('place', fontSlots, customFonts)
   return (

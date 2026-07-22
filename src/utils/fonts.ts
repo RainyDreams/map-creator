@@ -1,15 +1,16 @@
 /**
  * 画布分模块字体系统：
- * - 5 个字体槽位（年份数字/标题/省份名/姓名/地点大学），各自独立选择
+ * - 6 个字体槽位：标题按字符类型分 数字/英文/中文 三槽位，地图标注分 省份名/姓名/地点大学 三槽位
  * - 预设字体均为免费可商用的子集化 woff2（fonts.css 注册）
  * - 用户可上传自己的字体（dataURL 持久化，经 FontFace API 动态注册）
  */
 
-export type FontSlot = 'year' | 'title' | 'province' | 'person' | 'place'
+export type FontSlot = 'digit' | 'latin' | 'han' | 'province' | 'person' | 'place'
 
 export const FONT_SLOT_LABELS: Record<FontSlot, string> = {
-  year: '标题中的数字',
-  title: '标题/蹭饭图大字',
+  digit: '数字',
+  latin: '英文',
+  han: '中文',
   province: '省份名',
   person: '姓名',
   place: '城市/大学',
@@ -57,10 +58,11 @@ export const PRESET_FONTS: FontDef[] = [
   },
 ]
 
-/** 默认槽位分配（与现有视觉一致） */
+/** 默认槽位分配（与现有视觉一致）：数字用数黑体，英文/中文沿用毛笔体 */
 export const DEFAULT_FONT_SLOTS: Record<FontSlot, string> = {
-  year: 'shuheiti',
-  title: 'mashanzheng',
+  digit: 'shuheiti',
+  latin: 'mashanzheng',
+  han: 'mashanzheng',
   province: 'mashanzheng',
   person: 'default',
   place: 'default',

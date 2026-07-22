@@ -113,8 +113,13 @@ function normalizeData(raw: unknown): MapData | null {
   }
   // v1.5 迁移：「蹭饭图」独立大字（bigTextStyle）已取消；旧数据该字段直接忽略
   const ls = (d.labelSizes ?? {}) as Partial<MapData['labelSizes']>
-  const pct = (v: unknown): number =>
-    typeof v === 'number' && v >= 60 && v <= 160 ? Math.round(v) : 100
+  // v1.6 迁移：字号由百分比改为 px。旧值 60–160 视为百分比，按基准（省份16px/其余13px）换算
+  const px = (v: unknown, base: number, min: number, max: number): number => {
+    if (typeof v !== 'number') return base
+    if (v >= 60 && v <= 160) return Math.round((base * v) / 100) // 旧百分比
+    if (v >= min && v <= max) return Math.round(v) // 新 px
+    return base
+  }
   return {
     title,
     titleSize:
@@ -128,9 +133,9 @@ function normalizeData(raw: unknown): MapData | null {
       d.titleAlign === 'center' ? 'center' : d.titleAlign === 'right' ? 'right' : 'left',
     subtitle: typeof d.subtitle === 'string' ? d.subtitle : '',
     labelSizes: {
-      province: pct(ls.province),
-      person: pct(ls.person),
-      place: pct(ls.place),
+      province: px(ls.province, 16, 10, 28),
+      person: px(ls.person, 13, 9, 22),
+      place: px(ls.place, 13, 9, 22),
     },
     customOrderProvinces: Array.isArray(d.customOrderProvinces)
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
@@ -148,8 +153,19 @@ function normalizeTheme(raw: unknown): ThemeConfig {
 }
 
 function normalizeFontSlots(raw: unknown): Record<FontSlot, string> {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULT_FONT_SLOTS }
-  return { ...DEFAULT_FONT_SLOTS, ...(raw as Record<FontSlot, string>) }
+  const slots = { ...DEFAULT_FONT_SLOTS }
+  if (!raw || typeof raw !== 'object') return slots
+  const r = raw as Record<string, string>
+  // v1.6 迁移：旧槽位 year→digit（数字）、title→han+latin（中文/英文沿用原标题字体）
+  if (typeof r.year === 'string' && typeof r.digit !== 'string') slots.digit = r.year
+  if (typeof r.title === 'string') {
+    if (typeof r.han !== 'string') slots.han = r.title
+    if (typeof r.latin !== 'string') slots.latin = r.title
+  }
+  for (const slot of ['digit', 'latin', 'han', 'province', 'person', 'place'] as const) {
+    if (typeof r[slot] === 'string') slots[slot] = r[slot]
+  }
+  return slots
 }
 
 function normalizeCustomFonts(raw: unknown): CustomFont[] {

@@ -39,6 +39,21 @@ function entryToInfo(name: string, raw: RawEntry): UniInfo {
 
 const NULL_INFO: UniInfo = { n: null, c: null, p: null, r: null, b: null }
 
+/**
+ * 校徽兜底：命中条目本身没有校徽时（如"中国石油大学"总校条目），
+ * 在数据集中找与其相关的、有校徽的最长键（如"中国石油大学（北京）"）补上 slug。
+ */
+function fillBadge(info: UniInfo, base: string): UniInfo {
+  if (info.b != null || base === '') return info
+  let best: string | null = null
+  for (const k of NAMES) {
+    if ((base.includes(k) || k.includes(base)) && DATA[k][3]) {
+      if (best === null || k.length > best.length) best = k
+    }
+  }
+  return best ? { ...info, b: DATA[best][3] ?? info.b } : info
+}
+
 function lookup(query: string): UniInfo {
   const name = query.trim()
   if (!name) return NULL_INFO
@@ -48,11 +63,11 @@ function lookup(query: string): UniInfo {
   const base = name.replace(/[（(].*$/, '').trim()
 
   const exact = DATA[name]
-  if (exact) return entryToInfo(name, exact)
+  if (exact) return fillBadge(entryToInfo(name, exact), base)
 
   const baseHit = DATA[base]
   if (baseHit) {
-    const info = entryToInfo(base, baseHit)
+    const info = fillBadge(entryToInfo(base, baseHit), base)
     if (campusMatch) {
       const campus = campusMatch[1].trim()
       if (CITY_TO_PROVINCE[campus] || CITY_TO_PROVINCE[`${campus}市`]) {
@@ -72,7 +87,7 @@ function lookup(query: string): UniInfo {
     }
   }
   if (best) {
-    const info = entryToInfo(best, DATA[best])
+    const info = fillBadge(entryToInfo(best, DATA[best]), base)
     if (campusMatch) {
       const campus = campusMatch[1].trim()
       if (CITY_TO_PROVINCE[campus] || CITY_TO_PROVINCE[`${campus}市`]) {

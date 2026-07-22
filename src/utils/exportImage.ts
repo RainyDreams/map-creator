@@ -20,6 +20,9 @@ import { toPng, toSvg } from 'html-to-image'
 
 export type ExportQuality = 'standard' | 'ultra'
 
+/** 导出进度回调：pct 为 0–100 的阶段锚点，stage 为当前阶段说明 */
+export type ExportProgressFn = (pct: number, stage: string) => void
+
 export interface ExportResult {
   width: number
   height: number
@@ -110,10 +113,12 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 /** ultra：SVG 序列化 → 按目标宽度矢量栅格化，返回 PNG dataURL 与实际尺寸 */
 async function renderUltra(
   node: HTMLElement,
+  onProgress?: ExportProgressFn,
 ): Promise<{ dataUrl: string; width: number; height: number }> {
   const w = node.offsetWidth
   const h = node.offsetHeight
   if (w === 0 || h === 0) throw new Error('画布尺寸为 0')
+  onProgress?.(30, '正在序列化矢量图（内嵌字体）…')
   const svgUrl = await toSvg(node, { cacheBust: true, backgroundColor: BG })
   const targetW = Math.min(Math.max(ULTRA_MIN_W, Math.round(w * 2)), ULTRA_MAX_W)
   const scale = targetW / w
@@ -124,6 +129,7 @@ async function renderUltra(
     ch = MAX_SIDE
     cw = Math.round(w * (MAX_SIDE / h))
   }
+  onProgress?.(62, `正在按 ${cw}×${ch} 超清栅格化…`)
   const img = await loadImage(svgUrl)
   const canvas = document.createElement('canvas')
   canvas.width = cw
@@ -133,6 +139,7 @@ async function renderUltra(
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, cw, ch)
   ctx.drawImage(img, 0, 0, cw, ch)
+  onProgress?.(88, '正在编码 PNG…')
   return { dataUrl: canvas.toDataURL('image/png'), width: cw, height: ch }
 }
 
@@ -144,21 +151,26 @@ async function renderUltra(
 export async function renderNodeToPngDataUrl(
   node: HTMLElement,
   quality: ExportQuality = 'ultra',
+  onProgress?: ExportProgressFn,
 ): Promise<{ dataUrl: string } & ExportResult> {
+  onProgress?.(8, '正在准备离屏画布与字体…')
   return withOffscreenClone(node, async (clone) => {
     if (quality === 'ultra') {
       try {
-        const r = await renderUltra(clone)
+        const r = await renderUltra(clone, onProgress)
         return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
       } catch (err) {
         console.warn('SVG 矢量栅格化失败，回退 pixelRatio 4 位图导出', err)
+        onProgress?.(40, '矢量栅格化失败，回退高清位图导出…')
         const dataUrl = await toPng(clone, { pixelRatio: 4, cacheBust: true, backgroundColor: BG })
         const w = clone.offsetWidth * 4
         const h = clone.offsetHeight * 4
         return { dataUrl, width: w, height: h, quality, fellBack: true }
       }
     }
+    onProgress?.(35, '正在渲染高清位图…')
     const dataUrl = await toPng(clone, { pixelRatio: 2, cacheBust: true, backgroundColor: BG })
+    onProgress?.(88, '正在编码 PNG…')
     return {
       dataUrl,
       width: clone.offsetWidth * 2,
@@ -173,13 +185,16 @@ export async function renderNodeToPngDataUrl(
  * @param node 画布根元素
  * @param title 大标题（用于文件名，可空）
  * @param quality 清晰度档位，默认 ultra（≥4000px 宽）
+ * @param onProgress 进度回调（阶段锚点 + 说明文案）
  */
 export async function exportNodeToPng(
   node: HTMLElement,
   title: string,
   quality: ExportQuality = 'ultra',
+  onProgress?: ExportProgressFn,
 ): Promise<ExportResult> {
-  const { dataUrl, ...meta } = await renderNodeToPngDataUrl(node, quality)
+  const { dataUrl, ...meta } = await renderNodeToPngDataUrl(node, quality, onProgress)
+  onProgress?.(96, '正在保存文件…')
   const base = sanitize(title) || '蹭饭图'
   const filename = `${base}${quality === 'ultra' ? '-超清' : ''}.png`
   const a = document.createElement('a')
@@ -188,5 +203,6 @@ export async function exportNodeToPng(
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+  onProgress?.(100, '完成')
   return meta
 }

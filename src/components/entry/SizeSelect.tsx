@@ -4,22 +4,21 @@ import { useMapData } from '@/store/MapDataContext'
 import { cn } from '@/lib/utils'
 
 interface SizeSelectProps {
-  /** 当前字号百分比（100 = 基准） */
+  /** 当前字号（px，以 1400px 宽虚拟画布为基准） */
   value: number
-  onChange: (pct: number) => void
+  onChange: (px: number) => void
+  /** 可选字号档位（px） */
+  options: readonly number[]
   ariaLabel?: string
 }
 
-/** 字号档位（相对基准值的百分比） */
-const OPTIONS = [80, 90, 100, 110, 120, 130] as const
-
 /**
- * 字号选择下拉（自绘，非原生 select / 非原生滑块）：
+ * 字号选择下拉（自绘，非原生 select / 非原生滑块），单位为 px：
  * - 紧凑宽度，嵌在字体选择右侧
  * - 展开方向感知屏幕位置：下方空间不足时向上展开（与城市选择器一致的策略）
  * - 边框 / 阴影 / 高亮色跟随当前画布主题（theme.accent）
  */
-export function SizeSelect({ value, onChange, ariaLabel }: SizeSelectProps) {
+export function SizeSelect({ value, onChange, options, ariaLabel }: SizeSelectProps) {
   const { theme } = useMapData()
   const [open, setOpen] = useState(false)
   const [dropUp, setDropUp] = useState(false)
@@ -42,11 +41,11 @@ export function SizeSelect({ value, onChange, ariaLabel }: SizeSelectProps) {
     }
   }, [open])
 
-  /** 展开前测量：菜单高约 6 项 × 32px ≈ 200px，下方放不下且上方更宽敞则向上展开 */
+  /** 展开前测量：菜单高约 8 项 × 32px ≈ 260px，下方放不下且上方更宽敞则向上展开 */
   const toggle = () => {
     if (!open && rootRef.current) {
       const rect = rootRef.current.getBoundingClientRect()
-      const menuH = 210
+      const menuH = Math.min(options.length * 34 + 12, 280)
       const below = window.innerHeight - rect.bottom
       const above = rect.top
       setDropUp(below < menuH && above > below)
@@ -55,12 +54,12 @@ export function SizeSelect({ value, onChange, ariaLabel }: SizeSelectProps) {
   }
 
   return (
-    <div ref={rootRef} className="relative w-16 shrink-0 md:w-[4.5rem]">
+    <div ref={rootRef} className="relative w-[4.7rem] shrink-0 md:w-[5.2rem]">
       <button
         type="button"
         aria-label={ariaLabel}
         aria-expanded={open}
-        title="字号"
+        title="字号（px，以 1400px 宽画布为基准）"
         onClick={toggle}
         className={cn(
           'flex h-8 w-full items-center justify-between gap-0.5 rounded-md border bg-white px-1.5 text-[11px] text-stone-600 tabular-nums transition-shadow md:h-9 md:text-xs',
@@ -71,7 +70,7 @@ export function SizeSelect({ value, onChange, ariaLabel }: SizeSelectProps) {
           boxShadow: open ? `0 0 0 3px ${theme.accent}22, 0 4px 14px ${theme.accent}18` : undefined,
         }}
       >
-        {value}%
+        {value}px
         <ChevronDown
           className={cn('h-3 w-3 shrink-0 text-stone-400 transition-transform', open && 'rotate-180')}
         />
@@ -81,21 +80,21 @@ export function SizeSelect({ value, onChange, ariaLabel }: SizeSelectProps) {
         <ul
           role="listbox"
           className={cn(
-            'absolute z-50 w-full overflow-auto rounded-lg border bg-white py-1 shadow-xl',
+            'absolute z-50 max-h-72 w-full overflow-auto rounded-lg border bg-white py-1 shadow-xl',
             dropUp ? 'bottom-full mb-1' : 'top-full mt-1',
           )}
           style={{ borderColor: `${theme.accent}55`, boxShadow: `0 10px 32px ${theme.accent}26` }}
         >
-          {OPTIONS.map((pct) => {
-            const active = pct === value
+          {options.map((px) => {
+            const active = px === value
             return (
-              <li key={pct}>
+              <li key={px}>
                 <button
                   type="button"
                   role="option"
                   aria-selected={active}
                   onClick={() => {
-                    onChange(pct)
+                    onChange(px)
                     setOpen(false)
                   }}
                   className={cn(
@@ -108,7 +107,7 @@ export function SizeSelect({ value, onChange, ariaLabel }: SizeSelectProps) {
                       : undefined
                   }
                 >
-                  {pct}%
+                  {px}px
                   {active && <Check className="h-3 w-3 shrink-0" />}
                 </button>
               </li>

@@ -13,9 +13,15 @@ import { FontSelect } from '@/components/entry/FontSelect'
 import { SizeSelect } from '@/components/entry/SizeSelect'
 import { newId } from '@/types'
 
-// 标题相关的两个槽位（标题大字 / 标题中的数字）已上移到「班级信息」标题控制区，
+// 标题相关的三个槽位（数字/英文/中文）已上移到「班级信息」标题控制区，
 // 本面板只保留地图标注相关的三个槽位
 const SLOTS = ['province', 'person', 'place'] as const
+/** 各标注槽位的字号档位（px，以 1400px 宽画布为基准） */
+const SIZE_OPTIONS: Record<(typeof SLOTS)[number], readonly number[]> = {
+  province: [12, 14, 16, 18, 20, 22, 24, 26],
+  person: [10, 11, 12, 13, 14, 15, 16, 18, 20],
+  place: [10, 11, 12, 13, 14, 15, 16, 18, 20],
+}
 
 /**
  * 字体设置面板：地图标注类槽位（省份名/姓名/城市大学）独立选字体（预设 + 用户上传），
@@ -98,10 +104,11 @@ export function FontPanel() {
             />
             <SizeSelect
               value={data.labelSizes[slot]}
-              onChange={(pct) =>
+              options={SIZE_OPTIONS[slot]}
+              onChange={(px) =>
                 setData((prev) => ({
                   ...prev,
-                  labelSizes: { ...prev.labelSizes, [slot]: pct },
+                  labelSizes: { ...prev.labelSizes, [slot]: px },
                 }))
               }
               ariaLabel={`${FONT_SLOT_LABELS[slot]}字号`}

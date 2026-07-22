@@ -16,7 +16,7 @@ export interface TeacherEntry {
 }
 
 /**
- * 地图标注三个模块的字号（相对基准值的百分比，100 = 基准）。
+ * 地图标注三个模块的字号（px，以 1400px 宽虚拟画布为基准）。
  * province 省份名 / person 姓名 / place 城市·大学。
  */
 export interface LabelSizes {
@@ -25,7 +25,7 @@ export interface LabelSizes {
   place: number
 }
 
-export const DEFAULT_LABEL_SIZES: LabelSizes = { province: 100, person: 100, place: 100 }
+export const DEFAULT_LABEL_SIZES: LabelSizes = { province: 16, person: 13, place: 13 }
 
 /** 蹭饭图全部数据 */
 export interface MapData {
@@ -41,7 +41,7 @@ export interface MapData {
   titleAlign: 'left' | 'center' | 'right'
   /** 英文副标题（可选，显示在标题下方） */
   subtitle: string
-  /** 地图标注三个模块的字号（百分比） */
+  /** 地图标注三个模块的字号（px，画布基准） */
   labelSizes: LabelSizes
   /**
    * 省内手动排序的省份列表：在录入弹窗中拖动调整过顺序的省份，
