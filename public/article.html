@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>公众号推文 · 蹭饭图生成器（复制专用页）</title>
+</head>
+<body style="margin:0;padding:24px 12px;background:#f5f4f1;">
+
+<!-- 复制按钮（不在选区范围内，不会被复制） -->
+<div style="max-width:677px;margin:0 auto 16px;text-align:center;">
+  <button id="copyBtn" style="padding:10px 28px;font-size:15px;border:none;border-radius:8px;background:#1f2937;color:#fff;cursor:pointer;">一键复制全文（再到公众号编辑器里粘贴）</button>
+  <p style="font-size:12px;color:#8a857c;margin:8px 0 0;">若按钮失效：手动从下方标题处拖选到文末，Ctrl+C 复制后粘贴到公众号编辑器。</p>
+</div>
+
+<!-- ==================== 推文正文开始（此容器内的内容会被复制） ==================== -->
+<section id="article" style="max-width:677px;margin:0 auto;background:#ffffff;padding:32px 20px;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;color:#3f3a33;font-size:16px;line-height:1.85;letter-spacing:0.02em;">
+
+  <!-- 标题 -->
+  <h1 style="font-size:22px;line-height:1.4;font-weight:700;color:#2b2620;margin:0 0 6px;">毕业后，去哪儿蹭饭？我们做了一个「蹭饭图生成器」</h1>
+  <p style="font-size:13px;color:#a39e94;margin:0 0 28px;">零本 · 2026 年 7 月</p>
+
+  <!-- 引言 -->
+  <blockquote style="margin:0 0 24px;padding:12px 16px;border-left:3px solid #d8cfc0;background:#faf8f4;color:#6b6357;font-size:15px;">
+    海内存知己，天涯若比邻。
+  </blockquote>
+
+  <p style="margin:0 0 16px;">今天，我们正式推出「蹭饭图生成器」——一个把全班去向画在中国地图上的小工具。输入姓名、大学和城市，一张属于你们班的蹭饭图即刻生成：谁去了哪座城市、哪所高校，一目了然。</p>
+
+  <p style="margin:0 0 16px;">高考录取结果正陆续公布。每张录取通知书背后，都是一次即将开始的远行。三年同窗散落天涯之前，值得留下一张像样的「作战地图」——以后走到哪座城市，翻开这张图，就知道该敲谁的门、蹭谁的饭。</p>
+
+  <p style="margin:0 0 24px;">即日起，可通过 <strong style="color:#2b6cb0;">map.linkbrain.top</strong> 免费使用：无需注册，打开即用，数据只保存在你自己的浏览器里。</p>
+
+  <img src="https://map.linkbrain.top/article/map-result.png" alt="一张生成好的蹭饭图示例" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">一张 26 人的蹭饭图示例：15 个省份、26 座城市，一图收藏</p>
+
+  <!-- 分节 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 一张图，装下全班</p>
+  <p style="margin:0 0 24px;">排版引擎按 50 人规模设计。同学按省份分组，标注列依据地理方位自动排布：北方省份在上、南方在下，西部在左、东部在右；引线以贝塞尔曲线连接定位点，尽量不交叉。校名再长也不截断、不缩字号，而是自动换行——每个人的信息都完整呈现。</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 落到城市，而不只是省份</p>
+  <p style="margin:0 0 24px;">定位精确到市级。全国所有地级及以上城市的坐标按需从服务端查询，不必一次性加载全部数据。同省的多名同学，会分别落在各自的城市——北京是「清华 · 北京」，石河子是「石河子大学 · 石河子」。</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 每个人，都值得好好排版</p>
+  <p style="margin:0 0 24px;">省份、姓名、城市/大学三个模块的字体与字号均可独立设置，内置阿里妈妈数黑体、马善政毛笔体、思源黑体等多款免费商用字体，也支持上传班级自己的字体。校徽自动匹配，覆盖 800 余所高校；省内同学默认按软科排名排序，也可按省份分组后自由拖拽调整。主题配色有多套预设，还支持逐色自定义、上传校徽或班徽。</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 高清导出，为打印而生</p>
+  <p style="margin:0 0 24px;">一键导出超清 PNG（不低于 4000px 宽）。即使你的电脑屏幕分辨率不高，导出的图依然高清，适合打印、装裱，也经得起班级群里放大细看。名单可同时导出 Excel 与 JSON 备份；多画布管理让每一张图独立保存、随时回来修改。</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 录入，三种姿势</p>
+  <p style="margin:0 0 24px;">手动逐条录入；下载 Excel 模板批量上传；手机端随时补充名单。移动端适合录入，但我们强烈建议到电脑端生成图片——大屏排版，所见即所得。</p>
+
+  <img src="https://map.linkbrain.top/article/editor-desktop.png" alt="电脑端编辑器：左侧录入，右侧地图实时预览" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 24px;">电脑端编辑器：左侧录入，右侧地图实时联动预览</p>
+
+  <img src="https://map.linkbrain.top/article/mobile-entry.png" alt="手机端录入界面" style="width:61.8%;display:block;margin:0 auto 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">手机端：录入 / 地图 / 关于三个 Tab，随时补充名单</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#2b2620;">■ 合规与版权</p>
+  <p style="margin:0 0 24px;">地图轮廓数据来自阿里云 DataV.GeoAtlas（高德开放平台），图中完整呈现九段线与南海诸岛小插图，并标注审图号。网站已完成 ICP 备案与公安联网备案，《用户协议》《隐私政策》在页脚可查。软件与生成的图片仅供同学间非营利使用。</p>
+
+  <p style="margin:0 0 16px;">蹭饭图生成器由赤峰二中 2026 届 zxy 开发。这只是开始：更多字体、更多主题、更全的校徽库，都在路上。</p>
+
+  <p style="margin:0 0 24px;">三年同窗，一图收藏。祝各位前程似锦——记得常回家蹭饭。</p>
+
+  <!-- 结尾入口 -->
+  <section style="margin:0 0 8px;padding:16px;background:#faf8f4;border-radius:8px;text-align:center;">
+    <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#2b2620;">立即生成你们班的蹭饭图</p>
+    <p style="margin:0;font-size:15px;color:#2b6cb0;font-weight:700;">map.linkbrain.top</p>
+    <p style="margin:8px 0 0;font-size:12px;color:#a39e94;">点击公众号名片关注《零本》，回复「蹭饭图」获取直达链接</p>
+  </section>
+
+</section>
+<!-- ==================== 推文正文结束 ==================== -->
+
+<script>
+document.getElementById('copyBtn').addEventListener('click', function () {
+  var el = document.getElementById('article')
+  var range = document.createRange()
+  range.selectNode(el)
+  var sel = window.getSelection()
+  sel.removeAllRanges()
+  sel.addRange(range)
+  try {
+    document.execCommand('copy')
+    this.textContent = '已复制 ✓ 去公众号编辑器粘贴吧'
+  } catch (e) {
+    this.textContent = '已全选，请按 Ctrl+C 复制'
+  }
+})
+</script>
+</body>
+</html>
