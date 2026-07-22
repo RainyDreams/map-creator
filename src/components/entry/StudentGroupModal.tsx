@@ -323,6 +323,7 @@ export function StudentGroupModal() {
                     draggingId === s.id ? 'opacity-50' : ''
                   }`}
                 >
+                  {/* 第一行：手柄 + 序号 + 姓名 + 大学 + 毛笔字/删除 */}
                   <div className="flex items-center gap-1.5">
                   <span
                     draggable
@@ -352,16 +353,15 @@ export function StudentGroupModal() {
                   <Input
                     value={s.university}
                     onChange={(e) => updateRow(s.id, { university: e.target.value })}
+                    onBlur={() => {
+                      if (s.city.trim() === '') {
+                        const inferred = inferCityFromUniversity(s.university)
+                        if (inferred) updateRow(s.id, { city: inferred })
+                      }
+                    }}
                     placeholder="大学"
                     aria-label="大学"
                     className="h-7 min-w-0 flex-1 border-stone-200 bg-white text-xs focus-visible:ring-stone-300"
-                  />
-                  <Input
-                    value={s.city}
-                    onChange={(e) => updateRow(s.id, { city: e.target.value })}
-                    placeholder="城市"
-                    aria-label="城市"
-                    className="h-7 w-20 shrink-0 border-stone-200 bg-white text-xs focus-visible:ring-stone-300"
                   />
                   <button
                     type="button"
@@ -391,6 +391,15 @@ export function StudentGroupModal() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
+                  </div>
+
+                  {/* 第二行：省 / 市级联下拉（单独一行，接口不可用时降级为手动输入） */}
+                  <div className="mt-1.5 grid grid-cols-2 gap-1.5 pl-[52px]">
+                    <CityPicker
+                      value={s.city}
+                      onChange={(city) => updateRow(s.id, { city })}
+                      ariaLabel={`${s.name || `第 ${index + 1} 行`}的城市`}
+                    />
                   </div>
 
                   {/* 毛笔字图片编辑面板：透明底横版 PNG，同校学生共用；上传后地图上替代大学文字 */}
