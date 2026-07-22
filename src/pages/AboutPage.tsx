@@ -4,6 +4,13 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.9.4',
+    date: '2026-07-22',
+    items: [
+      '移动端录入页页脚不再显示备案信息，ICP 与公安备案号统一移至「关于」页面展示',
+    ],
+  },
+  {
     version: 'v1.9.3',
     date: '2026-07-22',
     items: [
@@ -17,7 +24,6 @@ const changelog = [
     date: '2026-07-22',
     items: [
       '「关于」页面新增《零本》品牌标识与更新日志',
-      '公众号介绍文章改为本地编译产物，图片改用相对路径，不再随站点部署',
     ],
   },
   {
@@ -25,7 +31,6 @@ const changelog = [
     date: '2026-07-22',
     items: [
       '修复大标题中全角括号左右字体不一致的问题',
-      '公众号介绍文章配图全部以高清重截并更换文件名，避免旧图缓存',
     ],
   },
 ]
@@ -85,7 +90,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.9.3</dd>
+          <dd className="text-stone-700">v1.9.4</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a
@@ -171,6 +176,29 @@ export default function AboutPage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      <section className="space-y-2">
+        <SectionTitle>备案信息</SectionTitle>
+        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-stone-500 underline-offset-2 transition-colors hover:text-amber-700 hover:underline"
+          >
+            京ICP备2026037786号-1
+          </a>
+          <a
+            href="https://beian.mps.gov.cn/#/query/webSearch?code=15040202200109"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-stone-500 underline-offset-2 transition-colors hover:text-amber-700 hover:underline"
+          >
+            <img src="/images/beian-icon.png" alt="" className="h-3.5 w-3.5" />
+            蒙公网安备15040202200109号
+          </a>
+        </p>
       </section>
 
       <section className="space-y-2">
