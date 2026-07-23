@@ -9,6 +9,7 @@ import { exportNodeToPng, renderNodeToPngDataUrl, ExportCancelledError, type Exp
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
+import { APP_VERSION } from '@/version'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { OverseasBlock } from '@/components/map/OverseasBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
@@ -574,7 +575,7 @@ export default function MapPage() {
             )}
 
             {/* 底部来源条：画布的一部分，随导出一起进 PNG。
-                左侧生成时间，中央生成信息（字距正常、极小字、克制不喧宾夺主）；字体固定思源黑体 */}
+                左侧生成时间，中央生成信息（字距正常、极小字、克制不喧宾夺主），右侧软件版本号；字体固定思源黑体 */}
             <div
               ref={footerRef}
               className="relative flex items-center border-t px-4 py-1.5 text-[10px] text-stone-400"
@@ -588,6 +589,7 @@ export default function MapPage() {
               <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap">
                 本图片由 map.linkbrain.top 生成 © {new Date().getFullYear()} 零本
               </span>
+              <span className="ml-auto tabular-nums">v{APP_VERSION}</span>
             </div>
           </div>
         </div>

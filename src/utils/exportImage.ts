@@ -54,7 +54,22 @@ export interface ExportResult {
   fellBack: boolean
 }
 
-const BG = '#faf0d7'
+/** 兜底背景色（暖米黄，与默认主题一致），节点背景透明时才会用到 */
+const BG_FALLBACK = '#faf0d7'
+/**
+ * 从被导出节点读取实际背景色（跟随当前主题）。
+ * 节点自身透明则向上找最近的非透明祖先；全透明才用兜底色。
+ * 修复：导出图背景曾被写死成暖米黄，换主题后「预览与导出背景不一致」。
+ */
+function resolveNodeBg(node: HTMLElement): string {
+  let el: HTMLElement | null = node
+  while (el) {
+    const c = getComputedStyle(el).backgroundColor
+    if (c && c !== 'transparent' && c !== 'rgba(0, 0, 0, 0)') return c
+    el = el.parentElement
+  }
+  return BG_FALLBACK
+}
 /** 屏幕画布宽度小于该值时，离屏克隆按此宽度排版（避免极小屏导出布局过窄） */
 const EXPORT_MIN_W = 800
 /** 超清档目标宽度（px），不足 4000 一律拉到此宽度 */
@@ -184,6 +199,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 async function renderUltra(
   node: HTMLElement,
   hti: typeof import('html-to-image'),
+  bg: string,
   onProgress?: ExportProgressFn,
   signal?: AbortSignal,
 ): Promise<{ dataUrl: string; width: number; height: number }> {
@@ -196,7 +212,7 @@ async function renderUltra(
   // 注意：不要开 cacheBust——它会给字体/图片 URL 追加随机参数，绕过浏览器 HTTP 缓存，
   // 每次导出重新下载 ~10MB 字体子集，是导出慢的主要原因；同源资源用浏览器缓存即可。
   // 60s 超时兜底：资源紧张时 toSvg 可能永不 resolve，超时回退位图导出而非无限卡住
-  const svgUrl = await withTimeout(toSvg(node, { backgroundColor: BG }), 60000, 'SVG 序列化')
+  const svgUrl = await withTimeout(toSvg(node, { backgroundColor: bg }), 60000, 'SVG 序列化')
   throwIfAborted(signal)
   t = logStep(`SVG 序列化完成（${Math.round(svgUrl.length / 1024)}KB）`, t)
   const targetW = Math.min(Math.max(ULTRA_MIN_W, Math.round(w * 2)), ULTRA_MAX_W)
@@ -217,7 +233,7 @@ async function renderUltra(
   canvas.height = ch
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('无法创建 2D 画布')
-  ctx.fillStyle = BG
+  ctx.fillStyle = bg
   ctx.fillRect(0, 0, cw, ch)
   ctx.drawImage(img, 0, 0, cw, ch)
   t = logStep('canvas 绘制完成', t)
@@ -249,11 +265,12 @@ export async function renderNodeToPngDataUrl(
   const { toPng } = hti
   throwIfAborted(signal)
   onProgress?.(8, '正在准备离屏画布与字体…')
+  const bg = resolveNodeBg(node)
   const result = await withOffscreenClone(node, async (clone) => {
     throwIfAborted(signal)
     if (quality === 'ultra') {
       try {
-        const r = await renderUltra(clone, hti, onProgress, signal)
+        const r = await renderUltra(clone, hti, bg, onProgress, signal)
         return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
       } catch (err) {
         // 用户取消不属于失败，直接向上抛，不回退位图重跑一遍
@@ -261,7 +278,7 @@ export async function renderNodeToPngDataUrl(
         console.warn('[导出] SVG 矢量栅格化失败，回退 pixelRatio 4 位图导出：', err)
         onProgress?.(40, '矢量栅格化失败，回退高清位图导出…')
         let t = performance.now()
-        const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 4, backgroundColor: BG }), 90000, '位图回退渲染')
+        const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 4, backgroundColor: bg }), 90000, '位图回退渲染')
         throwIfAborted(signal)
         logStep(`位图回退导出完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
         const w = clone.offsetWidth * 4
@@ -271,7 +288,7 @@ export async function renderNodeToPngDataUrl(
     }
     onProgress?.(35, '正在渲染高清位图…')
     let t = performance.now()
-    const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 2, backgroundColor: BG }), 60000, '位图渲染')
+    const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 2, backgroundColor: bg }), 60000, '位图渲染')
     throwIfAborted(signal)
     logStep(`位图渲染完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
     onProgress?.(88, '正在编码 PNG…')
