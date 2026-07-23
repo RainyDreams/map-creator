@@ -164,7 +164,8 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
     let dx = d.baseDx + (loc.x - d.startX)
     let dy = d.baseDy + (loc.y - d.startY)
 
-    // 对齐吸附（5px 误差）：同一列卡片的顶/中/底对齐时显示辅助线并自动吸附
+    // 对齐吸附 + 辅助线预览：GUIDE_PX 内显示辅助线引导，SNAP_PX 内吸附到位
+    const GUIDE_PX = 16
     const block = allBlocks.find((b) => b.province === prov)
     let guideX: number | undefined
     let guideY: number | undefined
@@ -172,40 +173,40 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
       const peers = (left.some((b) => b.province === prov) ? left : right).filter(
         (b) => b.province !== prov,
       )
-      // X 吸附：接近列标准位置（dx≈0）时吸附回列，显示垂直辅助线
-      if (Math.abs(dx) <= SNAP_PX) {
+      // X 吸附/预览：接近列标准位置时显示垂直辅助线，很近时吸附回列
+      const dxDist = Math.abs(dx)
+      if (dxDist <= SNAP_PX) {
         dx = 0
         guideX = block.cardX
+      } else if (dxDist <= GUIDE_PX) {
+        guideX = block.cardX
       }
-      // Y 吸附：对齐型（顶/中/底对齐）+ 接触型（贴邻）加 SNAP_GAP 间隙，避免卡片紧贴
+      // Y 吸附/预览：遍历同列卡片，找最近的吸附目标
       const dTop = block.cardY + dy
       const dCen = block.centerY + dy
       const dBot = block.cardY + block.cardH + dy
+      let nearest: { target: number; edge: number; dist: number } | null = null
       for (const o of peers) {
         const oo = offsetOf(o.province)
         const oTop = o.cardY + oo.dy
         const oCen = o.centerY + oo.dy
         const oBot = o.cardY + o.cardH + oo.dy
-        // (拖动卡片边, 吸附目标) 对：对齐型 + 紧贴型(0间隙) + 间隔型(SNAP_GAP间隙，与自动布局 BASE_GAP 一致)
-        const pairs: Array<[number, number]> = [
-          [dTop, oTop], // 对齐顶边
-          [dCen, oCen], // 对齐中心
-          [dBot, oBot], // 对齐底边
-          [dTop, oBot], // 紧贴下方（无间隙）
-          [dBot, oTop], // 紧贴上方（无间隙）
-          [dTop, oBot + SNAP_GAP], // 贴在下方 + 间隔（同自动布局间隙）
-          [dBot, oTop - SNAP_GAP], // 贴在上方 - 间隔
-        ]
-        let snapped = false
-        for (const [ed, t] of pairs) {
-          if (Math.abs(ed - t) <= SNAP_PX) {
-            dy += t - ed
-            guideY = t
-            snapped = true
-            break
+        // 目标：对齐(顶/中/底) + 紧贴(0间隙) + 留间隙(SNAP_GAP)
+        const ts = [oTop, oCen, oBot, oBot + SNAP_GAP, oTop - SNAP_GAP]
+        for (const ed of [dTop, dCen, dBot]) {
+          for (const t of ts) {
+            const dist = Math.abs(ed - t)
+            if (dist <= GUIDE_PX && (!nearest || dist < nearest.dist)) {
+              nearest = { target: t, edge: ed, dist }
+            }
           }
         }
-        if (snapped) break
+      }
+      if (nearest) {
+        guideY = nearest.target
+        if (nearest.dist <= SNAP_PX) {
+          dy += nearest.target - nearest.edge
+        }
       }
     }
 
@@ -615,7 +616,8 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
               x2={guides.x}
               y2={guideBounds.maxY + 24}
               stroke={theme.accent}
-              strokeWidth={1.2}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
               strokeDasharray="4 3"
               opacity={0.85}
             />
@@ -627,7 +629,8 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
               x2={guideBounds.maxX + 24}
               y2={guides.y}
               stroke={theme.accent}
-              strokeWidth={1.2}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
               strokeDasharray="4 3"
               opacity={0.85}
             />
