@@ -6,7 +6,7 @@ import type { TeacherEntry } from '@/types'
 /** 画布按 1500px 设计：px 字号 ÷ 15 = cqw，使 HTML 覆盖层与 SVG 标注同比例缩放 */
 const cqw = (px: number): string => `${(px / 15).toFixed(3)}cqw`
 
-/** 拖动限幅（画布设计 px）：±300，避免老师块被拖离主体太远 */
+/** 横向拖动限幅（画布设计 px）：±300（横向不扩画布，避免块被拖出容器） */
 const DRAG_LIMIT = 300
 /** 块底部距画布 flow 内容底部的默认边距（屏幕 px，对应原 bottom-12） */
 const BOTTOM_GAP = 48
@@ -18,7 +18,8 @@ const BOTTOM_GAP = 48
  * 字号/内边距用 cqw 随画布宽度缩放，避免窄画布（尤其移动端）上相对学生标注过大。
  *
  * 可自由拖动（v1.16）：电脑端直接按住拖动，移动端先点选中（虚线框）再拖动；
- * 偏移持久化在 data.teachersOffset（画布设计 px），限幅 ±300；
+ * 偏移持久化在 data.teachersOffset（画布设计 px）；横向限幅 ±300，
+ * 纵向动态限幅——向上不超出画布顶、向下 +1200（v1.21.1，原固定 ±300 会误夹）；
  * 在「省份卡片位置 → 重置位置」中可一并复位。
  *
  * 画布联动（v1.16.1）：定位改为相对 flow 内容顶部的实测 top（bottom 锚定 + translate 会双重计数）。
@@ -155,7 +156,21 @@ export function TeachersBlock({
         const dxMin = Math.max(-DRAG_LIMIT, -(24 - 8) * k)
         const dxMax = Math.min(DRAG_LIMIT, (d.canvasW - 24 - d.blockW - 8) * k)
         const dx = Math.round(Math.min(dxMax, Math.max(dxMin, cur.dx)))
-        const dy = Math.min(DRAG_LIMIT, Math.max(-DRAG_LIMIT, Math.round(cur.dy)))
+        // 纵向不再用固定 ±300：名单长、块已上拖入地图区时固定限幅会误夹，
+        // 表现为「向上拖不动、松手弹回原位」。改为动态边界——
+        // 上限（向下拖）：+1200 设计 px 宽裕值（画布随之下扩）；
+        // 下限（向上拖）：块顶不超出画布顶 8px，按当前实测布局换算。
+        // topPx = baseScreen + min(0, (dy+reserve)·k2) ≥ 8 → dy ≥ (8-baseScreen)/k2 − reserve
+        const k2 = d.canvasW / 1500
+        const footerH = footerRef.current?.offsetHeight ?? 0
+        const baseScreen =
+          (flowRef.current?.offsetHeight ?? 0) +
+          footerH -
+          BOTTOM_GAP -
+          (rootRef.current?.offsetHeight ?? 0)
+        const dyMin = Math.round(Math.min(0, (8 - baseScreen) / k2 - (reserveDesign ?? 0)))
+        const dyMax = 1200
+        const dy = Math.min(dyMax, Math.max(dyMin, Math.round(cur.dy)))
         setData((prev) => ({ ...prev, teachersOffset: { dx, dy } }))
       }
       return null

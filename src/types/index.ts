@@ -97,7 +97,8 @@ export interface MapData {
   provinceOffsets: Record<string, { dx: number; dy: number }>
   /**
    * 老师名单块手动拖动偏移（画布设计 px，画布按 1500px 宽设计）：
-   * v1.16 起老师块可自由拖动；限幅 ±300，避免拖离主体太远
+   * v1.16 起老师块可自由拖动；v1.21.1 起纵向动态限幅（上不超画布顶、下 +1200），
+   * 存储层限幅 ±4000 仅防损坏数据
    */
   teachersOffset: { dx: number; dy: number }
   /**

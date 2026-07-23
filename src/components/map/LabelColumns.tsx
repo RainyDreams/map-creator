@@ -172,9 +172,12 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
     let guideX: number | undefined
     let guideY: number | undefined
     if (block) {
-      const peers = (left.some((b) => b.province === prov) ? left : right).filter(
+      // X 吸附只看同侧列（左列卡片不会去对齐右列的左右缘）
+      const sidePeers = (left.some((b) => b.province === prov) ? left : right).filter(
         (b) => b.province !== prov,
       )
+      // Y 吸附看左右两列的全部卡片：顶/中/底横排对齐常常需要跨列参照
+      const allPeers = allBlocks.filter((b) => b.province !== prov)
       // X 吸附/预览：被拖卡片的 左缘/垂直中线/右缘 对到同侧卡片的 左/中/右缘，
       // 以及「回到列标准位置」（dx=0）；GUIDE_PX 内出垂直辅助线，SNAP_PX 内吸附
       const dL = block.cardX + dx
@@ -192,7 +195,7 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
       considerX(block.cardX)
       considerX(block.cardX + block.cardW / 2)
       considerX(block.cardX + block.cardW)
-      for (const o of peers) {
+      for (const o of sidePeers) {
         const oo = offsetOf(o.province)
         considerX(o.cardX + oo.dx)
         considerX(o.cardX + o.cardW / 2 + oo.dx)
@@ -205,12 +208,12 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
           dx += nearestX.target - nearestX.edge
         }
       }
-      // Y 吸附/预览：遍历同列卡片，找最近的吸附目标
+      // Y 吸附/预览：遍历两侧全部卡片，找最近的吸附目标
       const dTop = block.cardY + dy
       const dCen = block.centerY + dy
       const dBot = block.cardY + block.cardH + dy
       let nearest: { target: number; edge: number; dist: number } | null = null
-      for (const o of peers) {
+      for (const o of allPeers) {
         const oo = offsetOf(o.province)
         const oTop = o.cardY + oo.dy
         const oCen = o.centerY + oo.dy
