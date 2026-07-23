@@ -366,6 +366,8 @@ export default function MapPage() {
   async function handleExport(quality: ExportQuality) {
     const node = canvasRef.current
     if (!node || exporting) return
+    // 导出前清除卡片/老师块的选中态（虚线选择框不进导出图）
+    node.dispatchEvent(new CustomEvent('cf-clear-selection'))
     setExporting(quality)
     setExportError(null)
     exportStartRef.current = Date.now()
@@ -482,6 +484,11 @@ export default function MapPage() {
             data-testid="map-canvas"
             className="cf-map-canvas relative overflow-hidden rounded-xl border shadow-sm select-none"
             onDragStart={(e) => e.preventDefault()}
+            onPointerDown={() => {
+              // 点击画布空白处清除卡片/老师块选中态（虚线选择框消失）；
+              // 点卡片/老师块时它们各自 stopPropagation，不会触发此清除
+              canvasRef.current?.dispatchEvent(new CustomEvent('cf-clear-selection'))
+            }}
             style={{
               background: theme.canvasBg,
               borderColor: `color-mix(in srgb, ${theme.leaderLine} 45%, transparent)`,

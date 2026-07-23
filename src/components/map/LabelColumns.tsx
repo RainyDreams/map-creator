@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMapData } from '@/store/MapDataContext'
 import { slotFontFamily } from '@/utils/fonts'
 import { schoolBadgeUrl } from '@/utils/universities'
@@ -67,6 +67,15 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
     () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
     [],
   )
+
+  /** 监听画布级「清除选中」事件（点空白处 / 导出前派发）：虚线框消失 */
+  useEffect(() => {
+    const canvas = rootRef.current?.ownerSVGElement?.closest('[data-testid="map-canvas"]')
+    if (!canvas) return
+    const handler = () => setSelectedProv(null)
+    canvas.addEventListener('cf-clear-selection', handler)
+    return () => canvas.removeEventListener('cf-clear-selection', handler)
+  }, [])
 
   const allBlocks = [...left, ...right]
   /** 对齐吸附阈值（viewBox 单位 ≈ 设计 px；画布按 1500px 设计时即 5px） */
@@ -484,7 +493,6 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
     // user-select:none + draggable 禁用：画布上所有文字不可选中、不可触发浏览器原生拖动，防误触
     <g
       ref={rootRef}
-      onPointerDown={() => setSelectedProv(null)}
       style={{ userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
     >
       {/* 卡片羽化滤镜：用户可调模糊半径（0 = 不启用，避免滤镜开销） */}

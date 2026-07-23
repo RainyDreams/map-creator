@@ -67,6 +67,15 @@ export function TeachersBlock({
     [],
   )
 
+  /** 监听画布级「清除选中」事件（点空白处 / 导出前派发）：虚线选中框消失 */
+  useEffect(() => {
+    const canvas = rootRef.current?.closest('[data-testid="map-canvas"]')
+    if (!canvas) return
+    const handler = () => setSelected(false)
+    canvas.addEventListener('cf-clear-selection', handler)
+    return () => canvas.removeEventListener('cf-clear-selection', handler)
+  }, [])
+
   const off = dragDelta ?? data.teachersOffset
 
   // top = flow内容高 + footer高 - 48px 边距 - 块高 + 纵向偏移（屏幕 px）；
