@@ -6,7 +6,7 @@
  * 无 props，由录入页直接 <DataToolbar /> 使用。
  */
 import { useRef, useState } from 'react'
-import { Copy, Download, FileJson, FileSpreadsheet, Image as ImageIcon, Link2, Share2, Upload } from 'lucide-react'
+import { Copy, Download, FileArchive, FileJson, FileSpreadsheet, Image as ImageIcon, Link2, Share2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -33,6 +33,14 @@ async function loadExcel(): Promise<typeof import('@/utils/excel')> {
   return mod
 }
 
+/** zip 备份模块懒加载（fflate 引擎首屏不下载，首次导入/导出 ZIP 时才加载） */
+async function loadZip(): Promise<typeof import('@/utils/exportZip')> {
+  const t = performance.now()
+  const mod = await import('@/utils/exportZip')
+  console.info(`[ZIP] 备份模块加载完成（+${Math.round(performance.now() - t)}ms）`)
+  return mod
+}
+
 interface PendingExcel {
   result: ParseResult
   fileName: string
@@ -45,17 +53,24 @@ interface PendingJson {
   teacherCount: number
 }
 
+interface PendingZip {
+  result: import('@/utils/exportZip').ImportedCanvasZip
+  fileName: string
+}
+
 export default function DataToolbar() {
   const {
     data,
     theme,
     fontSlots,
     badge,
+    customFonts,
     activeCanvasName,
     activeShare,
     importStudents,
     setData,
     importCanvas,
+    addCustomFont,
   } = useMapData()
 
   const [importOpen, setImportOpen] = useState(false)
@@ -95,11 +110,15 @@ export default function DataToolbar() {
 
   const excelInputRef = useRef<HTMLInputElement>(null)
   const jsonInputRef = useRef<HTMLInputElement>(null)
+  const zipInputRef = useRef<HTMLInputElement>(null)
   const [pendingExcel, setPendingExcel] = useState<PendingExcel | null>(null)
   const [pendingJson, setPendingJson] = useState<PendingJson | null>(null)
+  const [pendingZip, setPendingZip] = useState<PendingZip | null>(null)
   const [parsing, setParsing] = useState(false)
   /** Excel 引擎首次加载中的繁忙标记（下载模板 / 导出 Excel 共用，按钮显示加载动画） */
   const [excelBusy, setExcelBusy] = useState(false)
+  /** ZIP 导出中的繁忙标记（首次需加载 fflate 引擎） */
+  const [zipBusy, setZipBusy] = useState(false)
 
   /* ---------------- 导出 ---------------- */
 
@@ -136,6 +155,23 @@ export default function DataToolbar() {
     setExportOpen(false)
   }
 
+  /** 导出 ZIP 全量备份：名单 + 主题 + 字体槽位 + 卡片位置 + 班徽 + 毛笔字/自定义校徽图片 + 自定义字体 */
+  const handleExportZip = async () => {
+    setZipBusy(true)
+    try {
+      const { exportFullCanvasZip } = await loadZip()
+      exportFullCanvasZip({ name: activeCanvasName, data, theme, fontSlots, badge, customFonts })
+      toast.success('已导出 ZIP 全量备份', {
+        description: '画布的全部内容与上传资源已打包，可通过「导入 ZIP」完整恢复',
+      })
+      setExportOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '导出失败，请重试')
+    } finally {
+      setZipBusy(false)
+    }
+  }
+
   /** 移动端「预览并导出为图片」：关闭面板 → 切到地图 Tab → 自动开始导出 */
   const handlePreviewExport = () => {
     setExportOpen(false)
@@ -165,6 +201,7 @@ export default function DataToolbar() {
     if (!file) return
     setParsing(true)
     setPendingJson(null)
+    setPendingZip(null)
     try {
       const { parseWorkbook } = await loadExcel()
       const result = await parseWorkbook(file)
@@ -215,6 +252,7 @@ export default function DataToolbar() {
     e.target.value = ''
     if (!file) return
     setPendingExcel(null)
+    setPendingZip(null)
     try {
       const text = await file.text()
       const payload = parseCanvasJson(text)
@@ -250,6 +288,54 @@ export default function DataToolbar() {
     setImportOpen(false)
   }
 
+  /* ---------------- 导入 ZIP（全量备份） ---------------- */
+
+  const handleZipChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setParsing(true)
+    setPendingExcel(null)
+    setPendingJson(null)
+    try {
+      const { importCanvasZip } = await loadZip()
+      const result = await importCanvasZip(file)
+      if (result.stats.students === 0 && result.stats.teachers === 0) {
+        toast.error('备份文件中没有名单数据', { description: '请确认这是本工具导出的 ZIP 备份' })
+        return
+      }
+      setPendingZip({ result, fileName: file.name })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ZIP 文件读取失败，请重试')
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  const applyZipImport = () => {
+    if (!pendingZip) return
+    const { result } = pendingZip
+    const id = importCanvas(result.payload)
+    if (id === null) {
+      toast.error('画布数据不完整，无法导入')
+      return
+    }
+    // 备份中的自定义字体注册到全局字体库（同 id 自动去重）
+    result.customFonts.forEach((f) => addCustomFont(f))
+    const extras: string[] = []
+    if (result.stats.calligraphy > 0) extras.push(`毛笔字 ${result.stats.calligraphy} 张`)
+    if (result.stats.badges > 0) extras.push(`自定义校徽 ${result.stats.badges} 张`)
+    if (result.stats.hasBadge) extras.push('班徽')
+    if (result.stats.fonts > 0) extras.push(`自定义字体 ${result.stats.fonts} 个`)
+    toast.success(`已作为新画布导入「${result.payload.name || '未命名画布'}」`, {
+      description:
+        `${result.stats.students} 名学生、主题/字体/卡片位置已还原` +
+        (extras.length > 0 ? `，含${extras.join('、')}` : ''),
+    })
+    setPendingZip(null)
+    setImportOpen(false)
+  }
+
   const r = pendingExcel?.result
 
   return (
@@ -262,6 +348,7 @@ export default function DataToolbar() {
           onClick={() => {
             setPendingExcel(null)
             setPendingJson(null)
+            setPendingZip(null)
             setImportOpen(true)
           }}
           className="border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
@@ -306,6 +393,13 @@ export default function DataToolbar() {
         className="hidden"
         onChange={handleJsonChange}
       />
+      <input
+        ref={zipInputRef}
+        type="file"
+        accept=".zip,application/zip"
+        className="hidden"
+        onChange={handleZipChange}
+      />
 
       {/* ==================== 导入面板 ==================== */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
@@ -313,7 +407,7 @@ export default function DataToolbar() {
           <DialogHeader>
             <DialogTitle>导入</DialogTitle>
             <DialogDescription>
-              支持 Excel 名单与 JSON 整幅画布两种方式；Excel 导入前可先预览数据
+              支持 Excel 名单、JSON 画布与 ZIP 全量备份三种方式；导入前均可先预览
             </DialogDescription>
           </DialogHeader>
 
@@ -527,6 +621,85 @@ export default function DataToolbar() {
                 </div>
               )}
             </section>
+
+            {/* ④ 导入 ZIP（全量备份） */}
+            <section className="space-y-2">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-stone-700">
+                <FileArchive className="h-4 w-4 text-stone-400" />
+                导入 ZIP
+              </h3>
+              {pendingZip === null ? (
+                <button
+                  type="button"
+                  disabled={parsing}
+                  onClick={() => zipInputRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-stone-300 px-3 py-4 text-xs text-stone-500 transition-colors hover:bg-stone-50 hover:text-stone-700 disabled:opacity-50 md:text-sm"
+                >
+                  <Upload className="h-4 w-4" />
+                  {parsing ? '正在解析…' : '选择本工具导出的 .zip 全量备份文件'}
+                </button>
+              ) : (
+                <div className="space-y-3 rounded-lg border border-stone-200 p-3">
+                  <p className="text-xs text-stone-500">来自「{pendingZip.fileName}」：</p>
+                  <div className="rounded-md bg-stone-50 px-3 py-2 text-xs leading-6 text-stone-600">
+                    <div>
+                      画布名：
+                      <span className="font-medium text-stone-800">
+                        {pendingZip.result.payload.name || '（未命名）'}
+                      </span>
+                    </div>
+                    <div>
+                      名单：{pendingZip.result.stats.students} 名学生
+                      {pendingZip.result.stats.teachers > 0
+                        ? `、${pendingZip.result.stats.teachers} 名老师`
+                        : ''}
+                      ，含主题 / 字体 / 卡片位置配置
+                    </div>
+                    {(pendingZip.result.stats.calligraphy > 0 ||
+                      pendingZip.result.stats.badges > 0 ||
+                      pendingZip.result.stats.hasBadge ||
+                      pendingZip.result.stats.fonts > 0) && (
+                      <div>
+                        资源：
+                        {[
+                          pendingZip.result.stats.calligraphy > 0 &&
+                            `毛笔字 ${pendingZip.result.stats.calligraphy} 张`,
+                          pendingZip.result.stats.badges > 0 &&
+                            `自定义校徽 ${pendingZip.result.stats.badges} 张`,
+                          pendingZip.result.stats.hasBadge && '班徽',
+                          pendingZip.result.stats.fonts > 0 &&
+                            `自定义字体 ${pendingZip.result.stats.fonts} 个`,
+                        ]
+                          .filter(Boolean)
+                          .join('、')}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[11px] leading-4 text-stone-400">
+                    将作为<strong>新画布</strong>导入并自动切换，不会覆盖你现有的任何画布。
+                  </p>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPendingZip(null)}
+                      className="text-stone-500"
+                    >
+                      重新选择
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={applyZipImport}
+                      className="bg-stone-900 text-white hover:bg-stone-700"
+                    >
+                      作为新画布导入
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
           </div>
         </DialogContent>
       </Dialog>
@@ -579,6 +752,22 @@ export default function DataToolbar() {
                 <span className="block text-sm font-medium text-stone-800">导出 JSON</span>
                 <span className="block text-xs text-stone-500">
                   整幅画布（名单 + 主题 + 字体 + 班徽），用于备份或迁移
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled={zipBusy}
+              onClick={handleExportZip}
+              className="flex items-center gap-3 rounded-lg border border-stone-200 px-3.5 py-3 text-left transition-colors hover:bg-stone-50 disabled:opacity-50"
+            >
+              <FileArchive className="h-5 w-5 shrink-0 text-stone-400" />
+              <span>
+                <span className="block text-sm font-medium text-stone-800">
+                  {zipBusy ? '正在打包…' : '导出 ZIP（全量备份）'}
+                </span>
+                <span className="block text-xs text-stone-500">
+                  画布的全部内容：配置、卡片位置、班徽、毛笔字与自定义校徽图片、自定义字体，可通过导入 ZIP 完整恢复
                 </span>
               </span>
             </button>

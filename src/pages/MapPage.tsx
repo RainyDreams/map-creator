@@ -6,7 +6,6 @@ import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/u
 import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
 import { exportNodeToPng, renderNodeToPngDataUrl, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
-import { exportToZip } from '@/utils/exportZip'
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
@@ -74,108 +73,13 @@ const PROGRESS_FILLERS = [
   '就快完成了，再等一下下…',
 ] as const
 
-/** 导出选项模态框：选择导出格式和清晰度 */
-function ExportOptionsDialog({
-  onExportPng,
-  onExportZip,
-  onClose,
-  exporting,
-}: {
-  onExportPng: (quality: ExportQuality) => void
-  onExportZip: () => void
-  onClose: () => void
-  exporting: ExportQuality | null
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
-      <div
-        role="dialog"
-        aria-label="导出选项"
-        className="w-96 rounded-xl border border-stone-200 bg-white p-6 shadow-2xl"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-stone-800">导出蹭饭图</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {/* PNG 导出选项 */}
-          <div className="rounded-lg border border-stone-200 p-4">
-            <h3 className="mb-2 text-sm font-medium text-stone-700">PNG 图片</h3>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  onExportPng('standard')
-                  onClose()
-                }}
-                disabled={exporting !== null}
-                className="flex-1"
-              >
-                普通（2x）
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  onExportPng('ultra')
-                  onClose()
-                }}
-                disabled={exporting !== null}
-                className="flex-1 bg-stone-900 text-white hover:bg-stone-700"
-              >
-                超清（≥4000px）
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-stone-400">
-              导出单张高清图片，适合分享到班级群
-            </p>
-          </div>
-
-          {/* ZIP 全量导出选项 */}
-          <div className="rounded-lg border border-stone-200 p-4">
-            <h3 className="mb-2 text-sm font-medium text-stone-700">全量备份</h3>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                onExportZip()
-                onClose()
-              }}
-              disabled={exporting !== null}
-              className="w-full"
-            >
-              导出 ZIP 压缩包
-            </Button>
-            <p className="mt-2 text-xs text-stone-400">
-              包含地图图片、配置数据、毛笔字图片、自定义校徽等所有资源，适合备份和迁移
-            </p>
-          </div>
-        </div>
-
-        <p className="mt-4 text-center text-xs text-stone-400">
-          导出过程可能需要几秒钟，请耐心等待
-        </p>
-      </div>
-    </div>
-  )
-}
-
 /** 导出进度模态框：居中原点卡片 + 百分比进度条 + 预计剩余时间 + 红色取消按钮，风格与全站一致 */
 function ExportProgressDialog({
   progress,
   onCancel,
-  isZipExport = false,
 }: {
   progress: ExportProgress
   onCancel: () => void
-  isZipExport?: boolean
 }) {
   const pct = Math.min(100, Math.max(0, Math.round(progress.pct)))
   return (
@@ -187,9 +91,7 @@ function ExportProgressDialog({
       >
         <div className="mb-3 flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin text-stone-500" />
-          <h2 className="text-sm font-semibold text-stone-700">
-            {isZipExport ? '正在全量导出 ZIP' : '正在导出 PNG'}
-          </h2>
+          <h2 className="text-sm font-semibold text-stone-700">正在导出 PNG</h2>
           <span className="ml-auto text-sm font-medium text-stone-500 tabular-nums">{pct}%</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-stone-100">
@@ -264,10 +166,6 @@ export default function MapPage() {
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [progress, setProgress] = useState<ExportProgress | null>(null)
-  /** 是否是全量 zip 导出（用于进度框标题） */
-  const [isZipExport, setIsZipExport] = useState(false)
-  /** 显示导出选项模态框 */
-  const [showExportOptions, setShowExportOptions] = useState(false)
   /** 微信环境下导出完成的图片 dataURL（弹窗引导长按保存） */
   const [wechatImage, setWechatImage] = useState<string | null>(null)
   /** 进度锚点（真实阶段 + 到达时刻）与展示值（向锚点平滑爬行）分离，长耗时阶段也有前进感 */
@@ -475,7 +373,6 @@ export default function MapPage() {
     node.dispatchEvent(new CustomEvent('cf-clear-selection'))
     setExporting(quality)
     setExportError(null)
-    setIsZipExport(false)
     exportStartRef.current = Date.now()
     etaRef.current = null
     anchorRef.current = { pct: 4, stage: '正在启动导出…', at: Date.now() }
@@ -521,52 +418,6 @@ export default function MapPage() {
     exportAbortRef.current?.abort()
   }
 
-  /** 全量导出为 zip 文件（包含地图图片 + 配置数据 + 所有自定义图片） */
-  async function handleExportZip() {
-    const node = canvasRef.current
-    if (!node || exporting) return
-
-    // 导出前清除选中态
-    node.dispatchEvent(new CustomEvent('cf-clear-selection'))
-    setExporting('ultra') // 复用 ultra 状态，但实际是 zip 导出
-    setExportError(null)
-    setIsZipExport(true)
-    exportStartRef.current = Date.now()
-    etaRef.current = null
-    anchorRef.current = { pct: 2, stage: '正在启动全量导出…', at: Date.now() }
-    setProgress({ pct: 2, stage: '正在启动全量导出…', etaSeconds: null })
-
-    const abort = new AbortController()
-    exportAbortRef.current = abort
-
-    // 等一拍，让 footer 时间刷新
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-
-    const onProgress = (pct: number, stage: string) => {
-      anchorRef.current = { pct, stage, at: Date.now() }
-      setProgress((prev) =>
-        prev === null
-          ? prev
-          : { ...prev, pct: Math.max(prev.pct, Math.min(pct, anchorRef.current.pct)), stage },
-      )
-    }
-
-    try {
-      await exportToZip(node, data, data.title, 'ultra', onProgress, abort.signal)
-    } catch (err) {
-      if (err instanceof ExportCancelledError || (err instanceof Error && err.message.includes('取消'))) {
-        console.info('[全量导出] 用户取消了导出')
-      } else {
-        console.error('全量导出失败', err)
-        setExportError('全量导出失败，请重试')
-      }
-    } finally {
-      exportAbortRef.current = null
-      setExporting(null)
-      setProgress(null)
-    }
-  }
-
   // 录入页「预览并导出为图片」：
   // - 移动端切 Tab 后本页重新挂载 → 挂载时消费一次性请求后自动导出
   // - 桌面端本页常驻不重新挂载 → 监听事件，消费请求后直接导出
@@ -597,10 +448,10 @@ export default function MapPage() {
         <div className="flex shrink-0 items-center gap-2">
           <Button
             size="sm"
-            onClick={() => setShowExportOptions(true)}
+            onClick={() => void handleExport('ultra')}
             disabled={exporting !== null}
             className="bg-stone-900 text-white hover:bg-stone-700"
-            title="导出蹭饭图"
+            title="导出超清 PNG 图片"
           >
             {exporting !== null ? (
               <Loader2 className="animate-spin" />
@@ -786,22 +637,11 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* 导出选项模态框 */}
-      {showExportOptions && (
-        <ExportOptionsDialog
-          onExportPng={handleExport}
-          onExportZip={handleExportZip}
-          onClose={() => setShowExportOptions(false)}
-          exporting={exporting}
-        />
-      )}
-
       {/* 导出进度模态框 */}
       {exporting !== null && progress !== null && (
         <ExportProgressDialog
           progress={progress}
           onCancel={handleCancelExport}
-          isZipExport={isZipExport}
         />
       )}
 
