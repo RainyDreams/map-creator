@@ -29,10 +29,13 @@ export function TeachersBlock({
   teachers,
   flowRef,
   footerRef,
+  onLiveDy,
 }: {
   teachers: TeacherEntry[]
   flowRef: React.RefObject<HTMLDivElement | null>
   footerRef: React.RefObject<HTMLDivElement | null>
+  /** 拖动中实时上报纵向偏移（设计 px，未落库）；拖动结束传 null——MapPage 据此让画布高度与拖动同步伸缩 */
+  onLiveDy?: (dy: number | null) => void
 }) {
   const { data, setData, theme, fontSlots, customFonts } = useMapData()
   /** 移动端「先点选中」状态（选中后才可拖） */
@@ -112,16 +115,20 @@ export function TeachersBlock({
   const onPointerMove = (e: React.PointerEvent) => {
     const d = dragRef.current
     if (!d || d.pointerId !== e.pointerId) return
-    setDragDelta({
+    const next = {
       dx: d.baseDx + (e.clientX - d.startX) * d.scale,
       dy: d.baseDy + (e.clientY - d.startY) * d.scale,
-    })
+    }
+    setDragDelta(next)
+    // 实时上报：画布高度随拖动同步伸缩（到达边界才扩充、往回缩立即缩小）
+    onLiveDy?.(next.dy)
   }
 
   const finishDrag = (e: React.PointerEvent) => {
     const d = dragRef.current
     if (!d || d.pointerId !== e.pointerId) return
     dragRef.current = null
+    onLiveDy?.(null)
     setDragDelta((cur) => {
       if (cur) {
         // 横向限幅在容器内：左界 left-6(24px) 留 8px，右界留 8px，均换算为设计 px

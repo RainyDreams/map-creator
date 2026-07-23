@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, memo } from 'react'
 import { Download, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
@@ -50,6 +50,10 @@ function formatNow(): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
+
+/** 老师块拖动时画布高度逐帧变化会触发 MapPage 重渲染；ChinaMap 的 props 在此过程中
+    全部稳定（memoized），用 memo 拦住整棵 SVG 子树的无效重渲染 */
+const MemoChinaMap = memo(ChinaMap)
 
 interface ExportProgress {
   pct: number
@@ -176,6 +180,8 @@ export default function MapPage() {
   const footerRef = useRef<HTMLDivElement>(null)
   /** 画布渲染宽度（屏幕 px）：老师块向下拖出时换算画布加高量 */
   const [canvasW, setCanvasW] = useState(0)
+  /** 老师块拖动中的实时偏移（设计 px）：画布高度与拖动同步伸缩，不等落库 */
+  const [liveTeacherDy, setLiveTeacherDy] = useState<number | null>(null)
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
@@ -327,11 +333,14 @@ export default function MapPage() {
     (overseas.length > 0 ? Math.round(80 + overseas.length * 22) : 0) +
     (unlocated.length > 0 ? 130 : 0)
 
-  /** 老师块向下拖时画布同步加高（拖回则缩回）：加高量 = 纵向拖移量（屏幕 px），
-      使块底与画布底部的距离恒为 48px 边距，既不压 footer 也不被裁掉 */
+  /** 老师块画布联动（与省份卡片同语义：到达边界才扩充，往回缩立即缩小）：
+      块底原本距画布底 48px、页脚约 28px，向下拖的前 12px（屏幕）不扩画布；
+      继续下拖则画布 1:1 加高（块底始终留 页脚+8px 呼吸），往回拖立即缩回。
+      用拖动中的实时偏移（liveTeacherDy），未落库前画布也跟着动 */
+  const effTeacherDy = liveTeacherDy ?? data.teachersOffset.dy
   const teacherSpacerH =
-    data.showTeachers && data.teachers.length > 0 && canvasW > 0 && data.teachersOffset.dy > 0
-      ? Math.round((data.teachersOffset.dy * canvasW) / 1500)
+    data.showTeachers && data.teachers.length > 0 && canvasW > 0 && effTeacherDy > 0
+      ? Math.max(0, Math.round((effTeacherDy * canvasW) / 1500) - 12)
       : 0
 
   /* 排版建议已去弹窗化：推荐值以行内标注形式出现在「字体设置 / 列数设置」旁（见 FontPanel）。 */
@@ -524,7 +533,7 @@ export default function MapPage() {
             )}
 
             {/* 地图主体（含标注列与引线）；左右下角覆盖层换算为画布预留高度，避免压字 */}
-            <ChinaMap
+            <MemoChinaMap
               groups={groups}
               reserveLeftBottom={reserveLeftBottom}
               reserveRightBottom={reserveRightBottom}
@@ -547,7 +556,7 @@ export default function MapPage() {
               </p>
             )}
 
-            <TeachersBlock teachers={data.teachers} flowRef={flowRef} footerRef={footerRef} />
+            <TeachersBlock teachers={data.teachers} flowRef={flowRef} footerRef={footerRef} onLiveDy={setLiveTeacherDy} />
 
             {/* 右下角堆叠区：海外/境外名单在上、未定位提示在下 */}
             {(overseas.length > 0 || unlocated.length > 0) && (

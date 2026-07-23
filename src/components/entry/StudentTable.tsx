@@ -27,10 +27,13 @@ function needsLocationHint(s: StudentEntry): boolean {
 
 /**
  * 学生名单（只读展示，PC 与移动端一致）：
+ * - 外面只展示前 5 位（避免长名单把录入页拉得很长）；
+ *   完整名单在点击后弹出的「按省份分组」录入面板中查看；
  * - 此处只展示信息，不可编辑、不可排序；
- * - 全部编辑（增删改、省份/城市选择、组内排序、毛笔字图片）
- *   都在点击后弹出的「按省份分组」录入面板中进行。
+ * - 全部编辑（增删改、省份/城市选择、组内排序、毛笔字图片）都在录入面板中进行。
  */
+/** 外部预览行数：只显示前几位，其余在录入面板中查看 */
+const PREVIEW_COUNT = 5
 export default function StudentTable() {
   const { data } = useMapData()
   const students = data.students
@@ -38,7 +41,10 @@ export default function StudentTable() {
   /** 点击某行时，面板打开后滚动定位并高亮该学生 */
   const [focusId, setFocusId] = useState<string | null>(null)
 
-  const filledCount = students.filter((s) => !isRowEmpty(s)).length
+  const filled = students.filter((s) => !isRowEmpty(s))
+  const filledCount = filled.length
+  const preview = filled.slice(0, PREVIEW_COUNT)
+  const hiddenCount = filledCount - preview.length
 
   return (
     <Card className="gap-4 rounded-xl border-stone-200 bg-white py-4 shadow-sm md:gap-6 md:py-6">
@@ -63,9 +69,8 @@ export default function StudentTable() {
           </p>
         )}
 
-        {/* 只读行：点击任意一行打开录入面板 */}
-        {students.map((s, index) => {
-          if (isRowEmpty(s)) return null
+        {/* 只读行（仅前 5 位预览）：点击任意一行打开录入面板 */}
+        {preview.map((s, index) => {
           const warn = needsLocationHint(s)
           return (
             <button
@@ -97,6 +102,20 @@ export default function StudentTable() {
           )
         })}
 
+        {/* 超出预览的其余同学：引导到录入面板查看完整名单 */}
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              setFocusId(null)
+              setModalOpen(true)
+            }}
+            className="w-full rounded-lg border border-dashed border-stone-300 bg-stone-50/60 px-3 py-2 text-center text-xs text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-700 md:text-sm"
+          >
+            还有 {hiddenCount} 人 · 打开录入面板查看全部 {filledCount} 人
+          </button>
+        )}
+
         <Button
           type="button"
           variant="outline"
@@ -110,7 +129,7 @@ export default function StudentTable() {
           {students.length === 0 ? '打开录入面板，添加同学' : '编辑名单 / 添加同学'}
         </Button>
         <p className="text-center text-xs text-stone-400">
-          名单为只读展示；编辑、排序与省份/城市选择均在录入面板中进行
+          仅预览前 {PREVIEW_COUNT} 位；完整名单的查看、编辑、排序均在录入面板中进行
         </p>
       </CardContent>
 
