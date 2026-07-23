@@ -52,6 +52,9 @@ function formatNow(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+/** 画布按 1500px 设计：px 字号 ÷ 15 = cqw，使 footer 字体随画布宽度同比例缩放（与老师/海外块一致） */
+const cqw = (px: number): string => `${(px / 15).toFixed(3)}cqw`
+
 /** 老师块拖动时画布高度逐帧变化会触发 MapPage 重渲染；ChinaMap 的 props 在此过程中
     全部稳定（memoized），用 memo 拦住整棵 SVG 子树的无效重渲染 */
 const MemoChinaMap = memo(ChinaMap)
@@ -575,19 +578,38 @@ export default function MapPage() {
             )}
 
             {/* 底部来源条：画布的一部分，随导出一起进 PNG。
-                左侧生成时间，中央生成信息（字距正常、极小字、克制不喧宾夺主），右侧软件版本号；字体固定思源黑体 */}
+                左侧生成时间，中央生成信息（map.linkbrain.top 以黑色圆角 pill 突出显示），右侧软件版本号；
+                字体/内边距用 cqw 随画布宽度缩放，地图变大时 footer 字体相应放大，保持视觉协调 */}
             <div
               ref={footerRef}
-              className="relative flex items-center border-t px-4 py-1.5 text-[10px] text-stone-400"
+              className="relative flex items-center border-t text-stone-400"
               style={{
                 backgroundColor: theme.footerBg,
                 borderColor: `color-mix(in srgb, ${theme.leaderLine} 40%, transparent)`,
                 fontFamily: '"NotoSansSC","PingFang SC","Microsoft YaHei",sans-serif',
+                fontSize: cqw(10),
+                padding: `${cqw(6)} ${cqw(16)}`,
               }}
             >
               <span className="tabular-nums">生成于 {formatNow()}</span>
-              <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap">
-                本图片由 map.linkbrain.top 生成 © {new Date().getFullYear()} 零本
+              <span className="absolute left-1/2 flex -translate-x-1/2 items-center whitespace-nowrap">
+                本图片由
+                <span
+                  style={{
+                    backgroundColor: '#000',
+                    color: '#fff',
+                    borderRadius: cqw(4),
+                    padding: `${cqw(1)} ${cqw(6)}`,
+                    margin: `0 ${cqw(4)}`,
+                    fontWeight: 600,
+                    letterSpacing: '0.01em',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.18)',
+                  }}
+                >
+                  map.linkbrain.top
+                </span>
+                生成 © {new Date().getFullYear()} 零本
               </span>
               <span className="ml-auto tabular-nums">v{APP_VERSION}</span>
             </div>

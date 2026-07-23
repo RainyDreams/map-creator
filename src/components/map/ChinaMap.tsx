@@ -204,6 +204,9 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
 
   /* 画布自动扩大：把「持久化偏移 + 拖动中实时偏移」后的卡片包围盒纳入 viewBox。
      向上拖出界的卡片不再被 SVG 视口裁剪（此前表现为被标题区盖住）。
+     横向不扩画布：地图左右两侧的间隙允许不一致（由内容动态界定），但卡片左右拖动
+     不再撑宽 viewBox——否则会在画布左/右出现大面积空白。卡片横向限幅在 LabelColumns
+     内完成（不超出 [0, designW]），避免被视口裁剪。纵向仍可扩画布（向上拖的卡片不被标题盖住）。
      注意：此 Hook 必须位于 !geoReady 条件早退之前，否则 Hook 数量随渲染变化会崩溃 */
   const vb = useMemo(() => {
     const PAD = 10
@@ -220,9 +223,8 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
             ? (data.provinceOffsets[b.province] ?? null)
             : null
       if (!off) continue
-      minX = Math.min(minX, b.cardX + off.dx - PAD)
+      // 仅纵向扩画布；横向锁定 [0, designW]，不产生左右空白
       minY = Math.min(minY, b.cardY + off.dy - PAD)
-      maxX = Math.max(maxX, b.cardX + b.cardW + off.dx + PAD)
       maxY = Math.max(maxY, b.cardY + b.cardH + off.dy + PAD)
     }
     return {
@@ -393,6 +395,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       <LabelColumns
         left={layout.left}
         right={layout.right}
+        designW={geom.designW}
         onLiveDrag={setLiveDrag}
         zRanks={zRanks}
         onCardActivate={activateCard}

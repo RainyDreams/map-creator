@@ -18,6 +18,8 @@ import {
 export interface LabelColumnsProps {
   left: LabelBlock[]
   right: LabelBlock[]
+  /** 画布设计宽度（viewBox 单位）：用于卡片拖动横向限幅，避免卡片被 SVG 视口裁剪 */
+  designW?: number
   /** 拖动实时偏移上报（null = 拖动结束）：驱动上层画布 viewBox 自动扩大 */
   onLiveDrag?: (drag: { province: string; dx: number; dy: number } | null) => void
   /** 卡片 z 序（省份 → 层级序号，越大越靠上）：点击/拖动卡片时自动上移，避免被其他卡片盖住 */
@@ -40,7 +42,7 @@ export interface LabelColumnsProps {
  * 偏移量持久化在 data.provinceOffsets（viewBox 单位），块在列中的占位不变，
  * 卡片/文字/引线端点一起平移；拖回原位（偏移≈0）时自动清除记录。
  */
-export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }: LabelColumnsProps) {
+export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardActivate }: LabelColumnsProps) {
   const { theme, fontSlots, customFonts, data, setData } = useMapData()
   const provinceFont = slotFontFamily('province', fontSlots, customFonts)
   const personFont = slotFontFamily('person', fontSlots, customFonts)
@@ -66,13 +68,44 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
     [],
   )
 
+  const allBlocks = [...left, ...right]
+  /** 对齐吸附阈值（viewBox 单位 ≈ 设计 px；画布按 1500px 设计时即 5px） */
+  const SNAP_PX = 5
+  /** 拖动时激活的辅助对齐线（x = 垂直线位置，y = 水平线位置；仅吸附时显示） */
+  const [guides, setGuides] = useState<{ x?: number; y?: number } | null>(null)
+  /** 辅助线绘制范围：所有卡片包围盒的边界，辅助线只在该范围内绘制 */
+  const guideBounds = useMemo(() => {
+    if (allBlocks.length === 0) return null
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    for (const b of allBlocks) {
+      minX = Math.min(minX, b.cardX)
+      maxX = Math.max(maxX, b.cardX + b.cardW)
+      minY = Math.min(minY, b.cardY)
+      maxY = Math.max(maxY, b.cardY + b.cardH)
+    }
+    return { minX, maxX, minY, maxY }
+  }, [left, right])
+
+  /** 卡片横向限幅：偏移后卡片完整留在画布 [0, designW] 内，避免被 SVG 视口裁剪。
+      与 ChinaMap 的「横向不扩 viewBox」配合——既不产生左右空白，也不丢卡片 */
+  const clampDx = (b: LabelBlock, dx: number): number => {
+    if (!designW) return dx
+    return Math.max(-b.cardX, Math.min(designW - b.cardX - b.cardW, dx))
+  }
+
   /** 某省份当前生效的偏移：拖动中用实时值，否则用持久化值；
       一列/两列（自动布局）下偏移不生效——且切换过去时已被重置（见 FontPanel），
-      这里的 gating 只是分享链接/导入数据等非常规路径的兜底 */
+      这里的 gating 只是分享链接/导入数据等非常规路径的兜底。
+      持久化偏移同样做横向限幅，兼容历史数据（可能存在超出边界的旧偏移） */
   const offsetOf = (prov: string): { dx: number; dy: number } => {
     if (dragState && dragState.province === prov) return { dx: dragState.dx, dy: dragState.dy }
     if (!data.customPosition) return { dx: 0, dy: 0 }
-    return data.provinceOffsets[prov] ?? { dx: 0, dy: 0 }
+    const raw = data.provinceOffsets[prov] ?? { dx: 0, dy: 0 }
+    const b = allBlocks.find((x) => x.province === prov)
+    return b ? { dx: clampDx(b, raw.dx), dy: raw.dy } : raw
   }
 
   /** 屏幕坐标 → SVG viewBox 坐标 */
@@ -116,11 +149,50 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
     if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
     const loc = toSvgPoint(e)
     if (!loc) return
-    const next = {
-      province: prov,
-      dx: d.baseDx + (loc.x - d.startX),
-      dy: d.baseDy + (loc.y - d.startY),
+    let dx = d.baseDx + (loc.x - d.startX)
+    let dy = d.baseDy + (loc.y - d.startY)
+
+    // 对齐吸附（5px 误差）：同一列卡片的顶/中/底对齐时显示辅助线并自动吸附
+    const block = allBlocks.find((b) => b.province === prov)
+    let guideX: number | undefined
+    let guideY: number | undefined
+    if (block) {
+      const peers = (left.some((b) => b.province === prov) ? left : right).filter(
+        (b) => b.province !== prov,
+      )
+      // X 吸附：接近列标准位置（dx≈0）时吸附回列，显示垂直辅助线
+      if (Math.abs(dx) <= SNAP_PX) {
+        dx = 0
+        guideX = block.cardX
+      }
+      // Y 吸附：顶/中/底对齐同列其他卡片的顶/中/底（含其当前偏移）
+      const dTop = block.cardY + dy
+      const dCen = block.centerY + dy
+      const dBot = block.cardY + block.cardH + dy
+      for (const o of peers) {
+        const oo = offsetOf(o.province)
+        const targets = [o.cardY + oo.dy, o.centerY + oo.dy, o.cardY + o.cardH + oo.dy]
+        let snapped = false
+        for (const t of targets) {
+          for (const ed of [dTop, dCen, dBot]) {
+            if (Math.abs(ed - t) <= SNAP_PX) {
+              dy += t - ed
+              guideY = t
+              snapped = true
+              break
+            }
+          }
+          if (snapped) break
+        }
+        if (snapped) break
+      }
     }
+
+    // 横向限幅：卡片不超出画布边界（与 ChinaMap 横向不扩 viewBox 配合，避免被裁剪）
+    if (block) dx = clampDx(block, dx)
+
+    setGuides(guideX !== undefined || guideY !== undefined ? { x: guideX, y: guideY } : null)
+    const next = { province: prov, dx, dy }
     setDragState(next)
     // 上报实时偏移：画布 viewBox 随拖动自动扩大，卡片出界不被裁剪/不被标题盖住
     onLiveDrag?.(next)
@@ -131,9 +203,13 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
     if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
     dragRef.current = null
     onLiveDrag?.(null)
+    setGuides(null)
     setDragState((cur) => {
       if (cur && cur.province === prov) {
-        const dx = Math.min(600, Math.max(-600, Math.round(cur.dx)))
+        const b = allBlocks.find((x) => x.province === prov)
+        // 横向限幅在 ±600 与画布边界双重约束内
+        let dx = Math.min(600, Math.max(-600, Math.round(cur.dx)))
+        if (b) dx = clampDx(b, dx)
         const dy = Math.min(600, Math.max(-600, Math.round(cur.dy)))
         setData((prev) => {
           // 从自动布局拖动切入自定义时，丢弃历史偏移（可能与当前布局不符），
@@ -387,7 +463,6 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
   const cardOpacity = data.cardOpacity
   const cardBlur = data.cardBlur
 
-  const allBlocks = [...left, ...right]
   /** 第二遍渲染按 z 序稳定排序：被点击/拖动过的省份序号更大、绘制更靠后（压在上层）。
       SVG 没有 z-index，绘制顺序即层级顺序 */
   const sortedBlocks = zRanks
@@ -510,6 +585,35 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
           </g>
         )
       })}
+      {/* 对齐辅助线：拖动吸附时显示，绘制在卡片上层；垂直线（X 对齐到列）、水平线（Y 对齐到同列卡片边） */}
+      {guides && guideBounds && (
+        <g pointerEvents="none">
+          {guides.x !== undefined && (
+            <line
+              x1={guides.x}
+              y1={guideBounds.minY - 24}
+              x2={guides.x}
+              y2={guideBounds.maxY + 24}
+              stroke={theme.accent}
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              opacity={0.7}
+            />
+          )}
+          {guides.y !== undefined && (
+            <line
+              x1={guideBounds.minX - 24}
+              y1={guides.y}
+              x2={guideBounds.maxX + 24}
+              y2={guides.y}
+              stroke={theme.accent}
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              opacity={0.7}
+            />
+          )}
+        </g>
+      )}
     </g>
   )
 }
