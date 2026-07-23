@@ -579,7 +579,8 @@ export default function MapPage() {
 
             {/* 底部来源条：画布的一部分，随导出一起进 PNG。
                 左侧生成时间，中央生成信息（map.linkbrain.top 以黑色圆角 pill 突出显示），右侧软件版本号；
-                字体/内边距用 cqw 随画布宽度缩放，地图变大时 footer 字体相应放大，保持视觉协调 */}
+                字体/内边距用 cqw 随画布宽度缩放，地图变大时 footer 字体相应放大，保持视觉协调。
+                基准 13px（与学生名一致）：图片特别大时 footer 不会显得过小 */}
             <div
               ref={footerRef}
               className="relative flex items-center border-t text-stone-400"
@@ -587,8 +588,8 @@ export default function MapPage() {
                 backgroundColor: theme.footerBg,
                 borderColor: `color-mix(in srgb, ${theme.leaderLine} 40%, transparent)`,
                 fontFamily: '"NotoSansSC","PingFang SC","Microsoft YaHei",sans-serif',
-                fontSize: cqw(10),
-                padding: `${cqw(6)} ${cqw(16)}`,
+                fontSize: cqw(13),
+                padding: `${cqw(7)} ${cqw(16)}`,
               }}
             >
               <span className="tabular-nums">生成于 {formatNow()}</span>
@@ -598,9 +599,9 @@ export default function MapPage() {
                   style={{
                     backgroundColor: '#000',
                     color: '#fff',
-                    borderRadius: cqw(4),
-                    padding: `${cqw(1)} ${cqw(6)}`,
-                    margin: `0 ${cqw(4)}`,
+                    borderRadius: cqw(5),
+                    padding: `${cqw(2)} ${cqw(8)}`,
+                    margin: `0 ${cqw(5)}`,
                     fontWeight: 600,
                     letterSpacing: '0.01em',
                     whiteSpace: 'nowrap',
