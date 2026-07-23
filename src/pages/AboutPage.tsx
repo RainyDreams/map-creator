@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.17.9',
+    date: '2026-07-23',
+    items: [
+      '画布左右留白收紧：SIDE_PAD_CARD 36→16、SIDE_PAD 24→10、EMPTY_SIDE_W 48→24，标注列与地图之间的无效空白大幅减少，canvas 更紧凑',
+    ],
+  },
+  {
     version: 'v1.17.8',
     date: '2026-07-23',
     items: [
@@ -30,13 +37,6 @@ const changelog = [
     date: '2026-07-23',
     items: [
       '卡片拖拽吸附阈值 3px→6px：上下方向的紧贴与留间隙吸附均可可靠触发（3px 过紧难以手动命中）',
-    ],
-  },
-  {
-    version: 'v1.17.4',
-    date: '2026-07-23',
-    items: [
-      '卡片拖拽吸附支持紧贴与留间隙两种模式：紧贴（0 间隙）与留间隔（20px，同自动布局间隙）均可吸附；吸附阈值调小到 3px，只在距离很近时触发，两种模式互不干扰',
     ],
   },
 ]

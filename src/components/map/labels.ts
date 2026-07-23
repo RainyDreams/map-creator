@@ -159,12 +159,12 @@ const COL2_MAX_TEXT_W = 420
 const COL2_GAP = 12
 /** 两列模式子列间距（开启卡片背景时：卡片内边距需要更大间隙，避免相邻卡片贴上） */
 const COL2_GAP_CARD = 26
-/** 每侧除文字外的固定留白：锚点距地图 16 + 画布边缘 8 */
-const SIDE_PAD = 24
-/** 开启卡片背景时的每侧固定留白：锚点距地图 16 + 卡片内边距 10 + 画布边缘 10 */
-const SIDE_PAD_CARD = 36
+/** 每侧除文字外的固定留白：锚点距地图 8 + 画布边缘 2 */
+const SIDE_PAD = 10
+/** 开启卡片背景时的每侧固定留白：锚点距地图 8 + 卡片内边距 6 + 画布边缘 2 */
+const SIDE_PAD_CARD = 16
 /** 一侧完全没有标注块时保留的窄边距 */
-const EMPTY_SIDE_W = 48
+const EMPTY_SIDE_W = 24
 
 /** 校徽占位：图标边长 = 地点字号 × 1.05；校徽与校名无间隙，与姓名间留 3px 呼吸 */
 export const BADGE_RATIO = 1.05
