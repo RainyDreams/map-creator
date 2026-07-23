@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.17.6',
+    date: '2026-07-23',
+    items: [
+      '卡片拖拽留间隙吸附调近距离：SNAP_GAP 20→12（更直觉易命中），辅助线不透明度 0.7→0.85、线宽 1→1.2 更醒目',
+    ],
+  },
+  {
     version: 'v1.17.5',
     date: '2026-07-23',
     items: [
@@ -31,14 +38,6 @@ const changelog = [
     date: '2026-07-23',
     items: [
       '卡片拖拽吸附优化：相邻卡片接触型吸附（顶贴底/底贴顶）默认留 20px 呼吸间隙，不再紧贴；对齐型吸附（顶顶/中中/底底）保持无间隙精确对齐',
-    ],
-  },
-  {
-    version: 'v1.17.1',
-    date: '2026-07-23',
-    items: [
-      '画布 footer 字号基准调大：cqw(10)→cqw(13)（与学生名一致），图片特别大时 footer 不再显得过小；pill 内边距与圆角同步调大',
-      '修复：导出图片时 footer 中央信息 span 后方出现多余空格——改为 inline-flex + w-fit + text-center，宽度严格贴合内容、文本居中，导出与预览一致',
     ],
   },
 ]
