@@ -71,6 +71,8 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
   const allBlocks = [...left, ...right]
   /** 对齐吸附阈值（viewBox 单位 ≈ 设计 px；画布按 1500px 设计时即 5px） */
   const SNAP_PX = 5
+  /** 相邻卡片呼吸间隙（与 labels.ts BASE_GAP 一致）：接触型吸附时留缝，避免卡片紧贴 */
+  const SNAP_GAP = 20
   /** 拖动时激活的辅助对齐线（x = 垂直线位置，y = 水平线位置；仅吸附时显示） */
   const [guides, setGuides] = useState<{ x?: number; y?: number } | null>(null)
   /** 辅助线绘制范围：所有卡片包围盒的边界，辅助线只在该范围内绘制 */
@@ -165,24 +167,31 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
         dx = 0
         guideX = block.cardX
       }
-      // Y 吸附：顶/中/底对齐同列其他卡片的顶/中/底（含其当前偏移）
+      // Y 吸附：对齐型（顶/中/底对齐）+ 接触型（贴邻）加 SNAP_GAP 间隙，避免卡片紧贴
       const dTop = block.cardY + dy
       const dCen = block.centerY + dy
       const dBot = block.cardY + block.cardH + dy
       for (const o of peers) {
         const oo = offsetOf(o.province)
-        const targets = [o.cardY + oo.dy, o.centerY + oo.dy, o.cardY + o.cardH + oo.dy]
+        const oTop = o.cardY + oo.dy
+        const oCen = o.centerY + oo.dy
+        const oBot = o.cardY + o.cardH + oo.dy
+        // (拖动卡片边, 吸附目标) 对：对齐型无间隙，接触型加 GAP 呼吸缝
+        const pairs: Array<[number, number]> = [
+          [dTop, oTop], // 对齐顶边
+          [dCen, oCen], // 对齐中心
+          [dBot, oBot], // 对齐底边
+          [dTop, oBot + SNAP_GAP], // 贴在下方 + 间隙
+          [dBot, oTop - SNAP_GAP], // 贴在上方 - 间隙
+        ]
         let snapped = false
-        for (const t of targets) {
-          for (const ed of [dTop, dCen, dBot]) {
-            if (Math.abs(ed - t) <= SNAP_PX) {
-              dy += t - ed
-              guideY = t
-              snapped = true
-              break
-            }
+        for (const [ed, t] of pairs) {
+          if (Math.abs(ed - t) <= SNAP_PX) {
+            dy += t - ed
+            guideY = t
+            snapped = true
+            break
           }
-          if (snapped) break
         }
         if (snapped) break
       }
