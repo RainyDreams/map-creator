@@ -2,24 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 马善政毛笔体（已子集化为 woff2）：用于蹭饭图大字、年份、标题等装饰文字。
-   字体文件放 public/fonts（稳定 URL、可被 preload 并行预载、CDN 长缓存） */
+/* 马善政毛笔体（子集化 woff2，按 unicode-range 分 3 片）：用于蹭饭图大字、年份、标题等装饰文字。
+   字体文件放 public/fonts（稳定 URL、CDN 长缓存）；分片后浏览器只下载页面用到的字符区间 */
 @font-face {
   font-family: 'MaShanZheng';
-  src: url('/fonts/MaShanZheng-subset.woff2') format('woff2');
+  src: url('/fonts/MaShanZheng-subset-latin.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
+}
+@font-face {
+  font-family: 'MaShanZheng';
+  src: url('/fonts/MaShanZheng-subset-cjk-a.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-7FFF;
+}
+@font-face {
+  font-family: 'MaShanZheng';
+  src: url('/fonts/MaShanZheng-subset-cjk-b.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+8000-9FFF;
 }
 
-/* 思源黑体（GB2312 全集 + 生僻姓氏子集）：全局界面默认字体；
+/* 思源黑体（GB2312 全集 + 生僻姓氏子集，按 unicode-range 分 3 片）：全局界面默认字体；
    子集未覆盖的罕见字符自动回退系统黑体 */
 @font-face {
   font-family: 'NotoSansSC';
-  src: url('/fonts/NotoSansSC-subset.woff2') format('woff2');
+  src: url('/fonts/NotoSansSC-subset-latin.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
+}
+@font-face {
+  font-family: 'NotoSansSC';
+  src: url('/fonts/NotoSansSC-subset-cjk-a.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-7FFF;
+}
+@font-face {
+  font-family: 'NotoSansSC';
+  src: url('/fonts/NotoSansSC-subset-cjk-b.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+8000-9FFF;
 }
 
 @layer base {

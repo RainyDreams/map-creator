@@ -1,14 +1,15 @@
 /*
  * 画布字体注册（均为免费可商用字体的子集化 woff2）：
- * - AlimamaShuHeiTi：阿里妈妈数黑体，仅 ASCII，专供年份数字
+ * - AlimamaShuHeiTi：阿里妈妈数黑体，仅 ASCII（8.6KB 不切分），专供年份数字
  * - MaShanZheng：马善政毛笔体（SIL OFL），标题/省份名
  * - NotoSansSC：思源黑体（SIL OFL），干净正文
  * - ZCOOLXiaoWei：站酷小薇体（免费可商用），宋体感标题
  * - ZCOOLQingKeHuangYou：站酷高端黑（免费可商用），粗展示
  *
- * 字体文件统一放 public/fonts：稳定 URL（不带构建哈希），
- * 可在 index.html 用 <link rel="preload"> 并行预载，并走 CDN 长缓存；
- * font-display: swap 保证渐进式渲染（先用兜底字体显示，字体到达后无感替换）。
+ * 字体文件统一放 public/fonts（稳定 URL、CDN 长缓存）；
+ * 每个家族按 unicode-range 分 3 片（latin / cjk-a U+4E00-7FFF / cjk-b U+8000-9FFF），
+ * 浏览器只下载页面实际用到的字符区间，没用到生僻字就不拉 cjk-b 分片；
+ * font-display: swap 保证渐进式渲染。
  */
 @font-face {
   font-family: 'AlimamaShuHeiTi';
@@ -20,24 +21,75 @@
 
 @font-face {
   font-family: 'NotoSansSC';
-  src: url('/fonts/NotoSansSC-subset.woff2') format('woff2');
+  src: url('/fonts/NotoSansSC-subset-latin.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
+}
+@font-face {
+  font-family: 'NotoSansSC';
+  src: url('/fonts/NotoSansSC-subset-cjk-a.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-7FFF;
+}
+@font-face {
+  font-family: 'NotoSansSC';
+  src: url('/fonts/NotoSansSC-subset-cjk-b.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+8000-9FFF;
 }
 
 @font-face {
   font-family: 'ZCOOLXiaoWei';
-  src: url('/fonts/ZCOOLXiaoWei-subset.woff2') format('woff2');
+  src: url('/fonts/ZCOOLXiaoWei-subset-latin.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
+}
+@font-face {
+  font-family: 'ZCOOLXiaoWei';
+  src: url('/fonts/ZCOOLXiaoWei-subset-cjk-a.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-7FFF;
+}
+@font-face {
+  font-family: 'ZCOOLXiaoWei';
+  src: url('/fonts/ZCOOLXiaoWei-subset-cjk-b.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+8000-9FFF;
 }
 
 @font-face {
   font-family: 'ZCOOLQingKeHuangYou';
-  src: url('/fonts/ZCOOLQingKeHuangYou-subset.woff2') format('woff2');
+  src: url('/fonts/ZCOOLQingKeHuangYou-subset-latin.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
+}
+@font-face {
+  font-family: 'ZCOOLQingKeHuangYou';
+  src: url('/fonts/ZCOOLQingKeHuangYou-subset-cjk-a.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-7FFF;
+}
+@font-face {
+  font-family: 'ZCOOLQingKeHuangYou';
+  src: url('/fonts/ZCOOLQingKeHuangYou-subset-cjk-b.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+8000-9FFF;
 }

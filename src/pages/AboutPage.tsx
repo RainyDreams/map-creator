@@ -4,6 +4,20 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.16.0',
+    date: '2026-07-23',
+    items: [
+      '老师名单块可自由拖动：电脑端直接按住拖动，移动端先点选中再拖；限幅不离开画布主体，「重置位置/自动排布」可一并复位',
+      '自定义位置新增「自动排布」按钮：一键清除全部手动偏移，回到整齐的自动布局',
+      '引线更聪明：连接线接在卡片上离省份最近的那个位置（上/下/左/右缘自适应），不再固定接左/右缘',
+      '导出下载修复：改用 Blob 下载，彻底解决大图在浏览器下载管理器卡 0 B/s（需重启浏览器）的问题；SVG 序列化与位图渲染增加超时兜底',
+      '「在其他设备上继续此工作」链接有效期 1 天：一天内打开可把画布导入为自己的新画布，过期链接有明确提示',
+      '字体按需下载再省流量：每个字体按字符区间分片（拉丁/常用汉字区/次常用区），浏览器只下载页面用到的区间；未选用的备选字体完全不下载',
+      '推荐字号更克制：空间富余时推荐值收敛在 16–19px，不再推荐过大字号',
+      '版权信息更新为「赤峰二中2026届&海南大学人工智能2026级张同学」',
+    ],
+  },
+  {
     version: 'v1.15.0',
     date: '2026-07-23',
     items: [
@@ -54,17 +68,6 @@ const changelog = [
       '修复地图数据加载偶发失败导致标注不显示的问题：加载增加自动重试与控制台诊断',
     ],
   },
-  {
-    version: 'v1.11.0',
-    date: '2026-07-22',
-    items: [
-      '新增加载骨架屏：页面打开与地图轮廓加载期间展示与主界面同风格的呼吸占位，不再白屏闪烁',
-      '新增「每侧两列」标注布局：同学较多时可在「字体设置」中把每侧标注从一列切换为两列，画面更宽松',
-      '新增排版自适应推荐：人数较多、当前字号放不下时，自动计算最美观的列数与字号方案并弹提示，经你同意后一键应用',
-      '城市查询接口支持批量合并：多个省份的城市数据合并为一个请求发出，减少网络请求与服务器调用次数',
-      '分享弹窗改版：主选项为「导出为图片」（发班级群的最佳方式），「分享为链接」降级为小选项；链接分享功能暂时关闭（实现代码保留，后续视资源情况开放）',
-    ],
-  },
 ]
 
 const features = [
@@ -111,7 +114,7 @@ export default function AboutPage() {
           <dt className="text-stone-400">软件名称</dt>
           <dd className="text-stone-700">蹭饭图生成器</dd>
           <dt className="text-stone-400">开发者</dt>
-          <dd className="text-stone-700">赤峰二中2026届zxy</dd>
+          <dd className="text-stone-700">赤峰二中2026届&海南大学人工智能2026级张同学</dd>
           <dt className="text-stone-400">公众号</dt>
           <dd className="text-stone-700">《零本》</dd>
           <dt className="text-stone-400">联系方式</dt>
@@ -124,7 +127,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.15.0</dd>
+          <dd className="text-stone-700">v1.16.0</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

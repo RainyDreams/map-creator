@@ -69,6 +69,33 @@ export function ShareImportLanding({
   const name = typeof payload.name === 'string' && payload.name !== '' ? payload.name : '未命名画布'
   const preview = useMemo(() => extractPreview(payload.data), [payload.data])
 
+  // 链接已超过 1 天有效期：只展示过期提示，不提供导入
+  if (payload.expired === true) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-100">
+        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-8 md:py-12">
+          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm md:p-7">
+            <p className="text-xs text-stone-400">蹭饭图分享链接</p>
+            <h1 className="mt-1 text-xl font-bold text-stone-900">链接已过期</h1>
+            <p className="mt-3 text-sm leading-6 text-stone-500">
+              分享链接的有效期为 1 天，这条链接已超过有效期，无法再继续导入。
+              请联系分享者重新生成一条新链接。
+            </p>
+            <div className="mt-5">
+              <Button
+                type="button"
+                onClick={onClose}
+                className="h-11 w-full bg-stone-900 text-sm font-semibold text-white hover:bg-stone-700"
+              >
+                返回蹭饭图生成器
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const handleImport = () => {
     const id = importCanvas({
       name: payload.name,

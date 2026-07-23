@@ -20,7 +20,14 @@ export interface ShareLinkPayload {
   data?: unknown
   theme?: unknown
   fontSlots?: unknown
+  /** 生成时刻（毫秒时间戳）：链接有效期 1 天 */
+  ts?: number
+  /** 读取端标记：链接已超过有效期（此时不携带画布数据） */
+  expired?: boolean
 }
+
+/** 分享链接有效期：1 天（24 小时）。过期后打开链接会看到过期提示，无法再导入 */
+export const SHARE_LINK_TTL_MS = 24 * 60 * 60 * 1000
 
 /** 超过该长度判定为过长（微信/部分浏览器对超长 URL 处理不稳定） */
 const MAX_URL_CHARS = 7000
@@ -56,6 +63,7 @@ export function buildShareUrl(canvas: {
   const payload = {
     f: 'cenfan-map-link',
     v: 1,
+    ts: Date.now(),
     name: canvas.name,
     data,
     theme: canvas.theme,
@@ -82,6 +90,11 @@ export function takeSharePayloadFromHash(): ShareLinkPayload | null {
     const json = strFromU8(inflateSync(base64UrlToU8(packed)))
     const parsed = JSON.parse(json) as ShareLinkPayload & { f?: string }
     if (parsed.f !== 'cenfan-map-link') return null
+    // 有效期 1 天：过期链接返回过期标记（不携带数据），由落地页展示过期提示
+    const ts = typeof parsed.ts === 'number' ? parsed.ts : 0
+    if (ts === 0 || Date.now() - ts > SHARE_LINK_TTL_MS) {
+      return { expired: true }
+    }
     return parsed
   } catch (err) {
     console.error('分享链接解析失败', err)

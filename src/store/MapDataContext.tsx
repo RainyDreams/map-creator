@@ -209,6 +209,13 @@ function normalizeData(raw: unknown): MapData | null {
         ? Math.min(10, Math.max(0, Math.round(d.cardBlur)))
         : 0,
     provinceOffsets: normalizeProvinceOffsets(d.provinceOffsets),
+    // v1.16 迁移：旧数据无 teachersOffset 字段时回退原位；限幅 ±300（不要离主体太远）
+    teachersOffset: (() => {
+      const t = d.teachersOffset as { dx?: unknown; dy?: unknown } | undefined
+      const clamp = (v: unknown) =>
+        typeof v === 'number' && Number.isFinite(v) ? Math.min(300, Math.max(-300, Math.round(v))) : 0
+      return { dx: clamp(t?.dx), dy: clamp(t?.dy) }
+    })(),
     customOrderProvinces: Array.isArray(d.customOrderProvinces)
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
       : [],

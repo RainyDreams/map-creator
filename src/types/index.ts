@@ -96,6 +96,11 @@ export interface MapData {
    */
   provinceOffsets: Record<string, { dx: number; dy: number }>
   /**
+   * 老师名单块手动拖动偏移（画布设计 px，画布按 1500px 宽设计）：
+   * v1.16 起老师块可自由拖动；限幅 ±300，避免拖离主体太远
+   */
+  teachersOffset: { dx: number; dy: number }
+  /**
    * 省内手动排序的省份列表：在录入弹窗中拖动调整过顺序的省份，
    * 该省在地图上保持手动顺序（不再按软科排名自动排序）
    */
@@ -128,6 +133,7 @@ export const EMPTY_MAP_DATA: MapData = {
   cardOpacity: 0.92,
   cardBlur: 0,
   provinceOffsets: {},
+  teachersOffset: { dx: 0, dy: 0 },
   customOrderProvinces: [],
   calligraphy: {},
   badgeOverrides: {},

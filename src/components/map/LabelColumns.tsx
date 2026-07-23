@@ -408,11 +408,12 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
         </defs>
       )}
       {/* 第一遍：全部引线（压在卡片与文字下层——开启卡片背景时，引线被其他省份卡片
-          自然遮住，视觉上不再穿过别人的名单）；引线端点随省份块拖动偏移同步平移 */}
+          自然遮住，视觉上不再穿过别人的名单）；引线端点 = 卡片包围盒上离省份质心最近的点
+          （质心在卡片左侧接左缘、上方接上缘……不一定是左/右缘），随拖动偏移同步平移 */}
       {allBlocks.map((b) => {
         const off = offsetOf(b.province)
-        const ex = b.edgeX + off.dx
-        const ey = b.centerY + off.dy
+        const ex = Math.min(Math.max(b.centroidX, b.cardX + off.dx), b.cardX + off.dx + b.cardW)
+        const ey = Math.min(Math.max(b.centroidY, b.cardY + off.dy), b.cardY + off.dy + b.cardH)
         const midX = (b.centroidX + ex) / 2
         const midY = (b.centroidY + ey) / 2
         return (

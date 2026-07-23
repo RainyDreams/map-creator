@@ -45,7 +45,7 @@ export default function AgreementPage() {
           </li>
           <li>
             <strong className="text-stone-700">「开发者」或「我们」</strong>：指本软件的开发与维护者
-            赤峰二中2026届zxy。
+            赤峰二中2026届&海南大学人工智能2026级张同学。
           </li>
           <li>
             <strong className="text-stone-700">「名单数据」</strong>：指用户通过手动录入、Excel 模板导入或其他方式

@@ -665,7 +665,7 @@ export default function DataToolbar() {
                   在其他设备上继续此工作
                 </span>
                 <span className="block text-xs text-stone-500">
-                  生成一个链接，在另一台手机/电脑上打开即可接着编辑这张画布
+                  生成一个链接（有效期 1 天），在另一台手机/电脑上打开即可接着编辑这张画布
                 </span>
               </span>
             </button>
@@ -691,7 +691,7 @@ export default function DataToolbar() {
                   </Button>
                 </div>
                 <p className="text-[11px] leading-4 text-stone-400">
-                  打开链接的人会先看到名单预览，再决定加载到自己的新画布。
+                  链接有效期 1 天，一天内打开可将这张画布导入到自己的画布中。
                   链接内容是生成这一刻的画布快照，之后你的修改不会同步，需重新生成。
                   {hashShare.stripped.length > 0 &&
                     `（${hashShare.stripped.join('、')}不随链接传输）`}

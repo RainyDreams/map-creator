@@ -69,6 +69,30 @@ function sanitize(s: string): string {
 }
 
 /**
+ * dataURL → Blob。
+ * 大体积 data: URL 触发 Chrome 下载时会在下载管理器里概率性卡死（进度满格但 0 B/s
+ * 不落盘，重启浏览器才好）——这是 Chrome 对超长 data: URL 的已知问题。
+ * 改用 Blob + URL.createObjectURL 下载，稳定且更省内存。
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(',')
+  const mime = dataUrl.slice(5, comma).split(';')[0] || 'image/png'
+  const bin = atob(dataUrl.slice(comma + 1))
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new Blob([bytes], { type: mime })
+}
+
+/** Promise 超时包装：html-to-image 在浏览器资源紧张时可能永不 resolve，
+    超时后按失败处理让 ultra 流程回退位图导出，而不是无限卡住 */
+function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what}超时（${ms / 1000}s）`)), ms)),
+  ])
+}
+
+/**
  * 导出流程调试日志：每一步输出耗时（相对上一步）。
  * 导出"卡死"时打开控制台，最后一条 [导出] 日志停在哪一步，问题就在哪一步。
  */
@@ -170,8 +194,9 @@ async function renderUltra(
   if (w === 0 || h === 0) throw new Error('画布尺寸为 0')
   onProgress?.(30, '正在序列化矢量图（内嵌字体）…')
   // 注意：不要开 cacheBust——它会给字体/图片 URL 追加随机参数，绕过浏览器 HTTP 缓存，
-  // 每次导出重新下载 ~10MB 字体子集，是导出慢的主要原因；同源资源用浏览器缓存即可
-  const svgUrl = await toSvg(node, { backgroundColor: BG })
+  // 每次导出重新下载 ~10MB 字体子集，是导出慢的主要原因；同源资源用浏览器缓存即可。
+  // 60s 超时兜底：资源紧张时 toSvg 可能永不 resolve，超时回退位图导出而非无限卡住
+  const svgUrl = await withTimeout(toSvg(node, { backgroundColor: BG }), 60000, 'SVG 序列化')
   throwIfAborted(signal)
   t = logStep(`SVG 序列化完成（${Math.round(svgUrl.length / 1024)}KB）`, t)
   const targetW = Math.min(Math.max(ULTRA_MIN_W, Math.round(w * 2)), ULTRA_MAX_W)
@@ -236,7 +261,7 @@ export async function renderNodeToPngDataUrl(
         console.warn('[导出] SVG 矢量栅格化失败，回退 pixelRatio 4 位图导出：', err)
         onProgress?.(40, '矢量栅格化失败，回退高清位图导出…')
         let t = performance.now()
-        const dataUrl = await toPng(clone, { pixelRatio: 4, backgroundColor: BG })
+        const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 4, backgroundColor: BG }), 90000, '位图回退渲染')
         throwIfAborted(signal)
         logStep(`位图回退导出完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
         const w = clone.offsetWidth * 4
@@ -246,7 +271,7 @@ export async function renderNodeToPngDataUrl(
     }
     onProgress?.(35, '正在渲染高清位图…')
     let t = performance.now()
-    const dataUrl = await toPng(clone, { pixelRatio: 2, backgroundColor: BG })
+    const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 2, backgroundColor: BG }), 60000, '位图渲染')
     throwIfAborted(signal)
     logStep(`位图渲染完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
     onProgress?.(88, '正在编码 PNG…')
@@ -279,12 +304,19 @@ export async function exportNodeToPng(
   onProgress?.(96, '正在保存文件…')
   const base = sanitize(title) || '蹭饭图'
   const filename = `${base}${quality === 'ultra' ? '-超清' : ''}.png`
-  const a = document.createElement('a')
-  a.download = filename
-  a.href = dataUrl
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  // Blob URL 下载：大体积 data: URL 会在 Chrome 下载管理器卡 0 B/s（重启浏览器才好）
+  const blobUrl = URL.createObjectURL(dataUrlToBlob(dataUrl))
+  try {
+    const a = document.createElement('a')
+    a.download = filename
+    a.href = blobUrl
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } finally {
+    // 延迟回收：给浏览器留出开始下载的时间
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+  }
   console.info(`[导出] 已触发浏览器下载：${filename}`)
   onProgress?.(100, '完成')
   return meta

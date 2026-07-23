@@ -12,22 +12,15 @@
       name="keywords"
       content="蹭饭图,蹭饭图生成器,毕业蹭饭图,班级蹭饭图,同学去向地图,毕业去向统计,中国地图标注,蹭饭地图,毕业季,大学录取去向"
     />
-    <meta name="author" content="赤峰二中2026届zxy" />
+    <meta name="author" content="赤峰二中2026届&海南大学人工智能2026级张同学" />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#fffbeb" />
     <link rel="canonical" href="https://map.linkbrain.top/" />
     <link rel="icon" type="image/png" href="/icon.png" />
-    <!-- 地图轮廓数据预载：独立静态资源（不打进 JS bundle），CDN 缓存 -->
     <link rel="preload" href="/data/china.json" as="fetch" crossorigin />
-    <!-- 画布字体并行预载：@font-face 默认惰性下载（用到才拉），
-         preload 让 5 个子集字体在解析 HTML 时即并行下载，配合 font-display: swap 渐进渲染 -->
-    <link rel="preload" href="/fonts/NotoSansSC-subset.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/MaShanZheng-subset.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/NotoSansSC-subset-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/NotoSansSC-subset-cjk-a.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/AlimamaShuHeiTi-Bold-subset.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/ZCOOLXiaoWei-subset.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/ZCOOLQingKeHuangYou-subset.woff2" as="font" type="font/woff2" crossorigin />
-
-    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="蹭饭图生成器" />
     <meta property="og:locale" content="zh_CN" />
@@ -41,15 +34,12 @@
     <meta property="og:image:width" content="600" />
     <meta property="og:image:height" content="500" />
     <meta property="og:image:alt" content="蹭饭图生成器 - 中国地图标注同学毕业去向" />
-    <!-- 微信等内置浏览器抓取用 -->
     <meta itemprop="name" content="蹭饭图生成器 - 毕业班蹭饭图在线制作" />
     <meta
       itemprop="description"
       content="录入同学老师的毕业去向，一键在中国地图上生成班级蹭饭图并导出图片。免费工具，数据仅存本机浏览器。"
     />
     <meta itemprop="image" content="https://map.linkbrain.top/og-cover.png" />
-
-    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="蹭饭图生成器 - 毕业班蹭饭图在线制作" />
     <meta
@@ -57,8 +47,6 @@
       content="录入同学老师的毕业去向，一键在中国地图上生成班级蹭饭图并导出图片。免费工具，数据仅存本机浏览器。"
     />
     <meta name="twitter:image" content="https://map.linkbrain.top/og-cover.png" />
-
-    <!-- 结构化数据 -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -80,17 +68,15 @@
         },
         "author": {
           "@type": "Person",
-          "name": "赤峰二中2026届zxy"
+          "name": "赤峰二中2026届&海南大学人工智能2026级张同学"
         }
       }
     </script>
   </head>
   <body>
-    <!-- 微信内置浏览器分享缩略图：无 JS-SDK 时微信会抓取页面中第一张足够大的图片 -->
     <div style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
       <img src="/og-cover.png" alt="" width="600" height="500" />
     </div>
-    <!-- 首屏骨架屏：React 挂载前展示，挂载后自动被替换；色调与主界面（stone 系）一致 -->
     <style>
       @keyframes cf-shimmer {
         0% { background-position: -200px 0; }

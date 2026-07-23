@@ -299,18 +299,47 @@ export function FontPanel() {
             ))}
           </div>
         </div>
-        {/* 位置重置：拖乱了一键回到自动布局（清除全部手动偏移并退出自定义位置模式） */}
-        {Object.keys(data.provinceOffsets).length > 0 && (
+        {/* 自定义位置模式下：一键回到自动排布（清除全部手动偏移与老师块偏移，退出自定义模式） */}
+        {data.customPosition && (
           <div className="mt-1.5 flex justify-end">
             <button
               type="button"
               onClick={() =>
-                setData((prev) => ({ ...prev, provinceOffsets: {}, customPosition: false }))
+                setData((prev) => ({
+                  ...prev,
+                  provinceOffsets: {},
+                  teachersOffset: { dx: 0, dy: 0 },
+                  customPosition: false,
+                }))
               }
-              title="清除所有省份卡片的手动位置，恢复自动布局"
+              title="清除所有手动位置（省份卡片 + 老师名单块），恢复自动排布"
+              className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
+            >
+              自动排布
+            </button>
+          </div>
+        )}
+        {/* 位置重置：自动布局模式下仍存有手动偏移时，可一键清除 */}
+        {!data.customPosition &&
+          (Object.keys(data.provinceOffsets).length > 0 ||
+            data.teachersOffset.dx !== 0 ||
+            data.teachersOffset.dy !== 0) && (
+          <div className="mt-1.5 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                setData((prev) => ({
+                  ...prev,
+                  provinceOffsets: {},
+                  teachersOffset: { dx: 0, dy: 0 },
+                  customPosition: false,
+                }))
+              }
+              title="清除所有省份卡片与老师名单块的手动位置，恢复自动布局"
               className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] whitespace-nowrap text-stone-500 transition-colors hover:bg-stone-50 hover:text-stone-700"
             >
-              重置位置（已手动调整 {Object.keys(data.provinceOffsets).length} 个省）
+              重置位置（已手动调整 {Object.keys(data.provinceOffsets).length} 个省
+              {(data.teachersOffset.dx !== 0 || data.teachersOffset.dy !== 0) && ' + 老师块'}）
             </button>
           </div>
         )}

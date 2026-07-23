@@ -20,7 +20,7 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <SectionTitle>一、信息处理者身份与联系方式</SectionTitle>
         <p>
-          本政策的个人信息处理者为「蹭饭图生成器」的开发者：<strong className="text-stone-700">赤峰二中2026届zxy</strong>
+          本政策的个人信息处理者为「蹭饭图生成器」的开发者：<strong className="text-stone-700">赤峰二中2026届&海南大学人工智能2026级张同学</strong>
           （个人开发者，下同「我们」）。
         </p>
         <p>

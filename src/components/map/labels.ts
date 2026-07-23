@@ -956,6 +956,12 @@ export function recommendFontSizes(
     person: clampFit(Math.max(Math.round(sizes.person * factor), calliMin), FIT_RANGE.person),
     place: clampFit(Math.max(Math.round(sizes.place * factor), calliMin), FIT_RANGE.place),
   }
+  // 放大建议收敛上限 19px：空间富余时也不推荐过大字号（16–19px 观感最佳）
+  if (factor >= 1) {
+    rec.province = Math.min(rec.province, 19)
+    rec.person = Math.min(rec.person, 19)
+    rec.place = Math.min(rec.place, 19)
+  }
   if (rec.province === sizes.province && rec.person === sizes.person && rec.place === sizes.place) {
     return null
   }
