@@ -210,7 +210,11 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
      · 卡片向地图靠拢（内缩），画布边界跟着向里缩，不留大片空白；
      · 左、右边界各自贴合本侧内容，不要求以地图中心对称；
      · 画布边界与最外侧卡片之间始终保留 EDGE 的呼吸距离。
-     纵向：上缘随拖出的卡片扩大（不被标题盖住），下缘保持 svgHeight（含老师/海外块预留）。
+     纵向：上缘随拖出的卡片扩大（不被标题盖住）；
+     下缘贴合「实际内容」——地图本体（含南海插图）与卡片的实际渲染位置（含拖动偏移）取最大，
+     再叠加底部覆盖层（老师/海外/未定位块）的预留。
+     不以 layout.svgHeight 为下限：自定义位置模式下自动布局列底已不代表真实卡片位置，
+     卡片上拖后 svgHeight 会把大段空白留在画布底部（v1.21.2 修复）。
      注意：此 Hook 必须位于 !geoReady 条件早退之前，否则 Hook 数量随渲染变化会崩溃 */
   const vb = useMemo(() => {
     const PAD = 10
@@ -224,7 +228,8 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     let minX = geom.x0
     let maxX = geom.x1
     let minY = 0
-    let maxY = layout.svgHeight
+    // 下缘基准 = 地图本体底（TOP + mapH + BOTTOM），逐卡片取实际渲染底（含偏移）上移/下移
+    let maxY = TOP + geom.mapH + BOTTOM
     for (const b of blocks) {
       const off =
         liveDrag && liveDrag.province === b.province
@@ -237,8 +242,11 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       minX = Math.min(minX, b.cardX + dx)
       maxX = Math.max(maxX, b.cardX + b.cardW + dx)
       minY = Math.min(minY, b.cardY + dy - PAD)
-      maxY = Math.max(maxY, b.cardY + b.cardH + dy + PAD)
+      maxY = Math.max(maxY, b.cardY + b.cardH + dy + BOTTOM)
     }
+    // 底部覆盖层预留（老师/海外/未定位块）叠在实际内容底之下：
+    // 老师块未上拖时 reserve>0，画布加出它占的那一块；上拖耗尽后 reserve=0，底部自然收紧
+    maxY += Math.max(reserveLeftBottom ?? 0, reserveRightBottom ?? 0)
     minX -= EDGE
     maxX += EDGE
     return {
@@ -247,7 +255,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       w: Math.ceil(maxX - Math.floor(minX)),
       h: Math.ceil(maxY - Math.floor(minY)),
     }
-  }, [layout, liveDrag, data.provinceOffsets, data.customPosition, geom.designW, geom.x0, geom.x1])
+  }, [layout, liveDrag, data.provinceOffsets, data.customPosition, geom.designW, geom.x0, geom.x1, geom.mapH, reserveLeftBottom, reserveRightBottom])
 
   /** 视口宽度上报：footer 字号随「画布屏幕宽 / 视口宽」等比缩放（地图变大时版权条也适当变大） */
   const onViewBoxWRef = useRef(onViewBoxW)
