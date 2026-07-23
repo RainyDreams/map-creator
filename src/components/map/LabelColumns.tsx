@@ -81,8 +81,8 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
   /** 对齐吸附阈值（viewBox 单位 ≈ 设计 px）：6px——"很近"但可实操命中，
       紧贴与留间隙目标相距 SNAP_GAP，6×2=12 ≤ SNAP_GAP 互不干扰 */
   const SNAP_PX = 6
-  /** 相邻卡片留间隙吸附的间隙大小（viewBox 单位）：12 = 可见间隙但不过大，比自动布局卡片间盒间隙(4)更大更直觉 */
-  const SNAP_GAP = 12
+  /** 相邻卡片留间隙吸附的间隙大小（viewBox 单位）：8 = 小间隙，接近自动布局卡片间距 */
+  const SNAP_GAP = 8
   /** 拖动时激活的辅助对齐线（x = 垂直线位置，y = 水平线位置；仅吸附时显示） */
   const [guides, setGuides] = useState<{ x?: number; y?: number } | null>(null)
   /** 辅助线绘制范围：所有卡片包围盒的边界，辅助线只在该范围内绘制 */
