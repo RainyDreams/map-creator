@@ -78,9 +78,9 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
   }, [])
 
   const allBlocks = [...left, ...right]
-  /** 对齐吸附阈值（viewBox 单位 ≈ 设计 px）：调小到 3，只在距离很近时才吸附，
-      让"紧贴"与"留间隙"两种目标各自独立触发、不互相干扰 */
-  const SNAP_PX = 3
+  /** 对齐吸附阈值（viewBox 单位 ≈ 设计 px）：6px——"很近"但可实操命中，
+      紧贴与留间隙目标相距 20px，6×2=12 < 20 互不干扰 */
+  const SNAP_PX = 6
   /** 相邻卡片呼吸间隙（与 labels.ts BASE_GAP 一致）：接触型吸附时留缝，避免卡片紧贴 */
   const SNAP_GAP = 20
   /** 拖动时激活的辅助对齐线（x = 垂直线位置，y = 水平线位置；仅吸附时显示） */
