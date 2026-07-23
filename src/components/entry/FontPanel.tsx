@@ -245,8 +245,8 @@ export function FontPanel() {
         </div>
       </div>
 
-      {/* 省份卡片位置：一列/两列为自动布局（忽略拖动偏移），自定义位置应用手动摆放；
-          直接拖动卡片会自动切到自定义位置；推荐值以行内标注给出 */}
+      {/* 省份卡片位置：一列/两列为自动布局——切换到它们会重置全部自定义位置（省份卡片 + 老师块）；
+          自定义从当前所见状态开始（历史偏移不恢复）；直接拖动卡片也会从当前状态切入自定义 */}
       <div className="mt-3 border-t border-stone-100 pt-2.5">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-xs text-stone-500">
@@ -255,7 +255,7 @@ export function FontPanel() {
             {fitRec?.twoColumns === true && data.labelColumns === 1 && (
               <button
                 type="button"
-                onClick={() => setData((prev) => ({ ...prev, labelColumns: 2, customPosition: false }))}
+                onClick={() => setData((prev) => ({ ...prev, labelColumns: 2, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 } }))}
                 title="内容较高，推荐切换为每侧两列（点击应用）"
                 className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
               >
@@ -265,7 +265,7 @@ export function FontPanel() {
             {fitRec?.oneColumn === true && data.labelColumns === 2 && (
               <button
                 type="button"
-                onClick={() => setData((prev) => ({ ...prev, labelColumns: 1, customPosition: false }))}
+                onClick={() => setData((prev) => ({ ...prev, labelColumns: 1, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 } }))}
                 title="一列也放得下，切回一列更简洁（点击应用）"
                 className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
               >
@@ -286,8 +286,20 @@ export function FontPanel() {
                 type="button"
                 role="radio"
                 aria-checked={opt.active}
-                onClick={() => setData((prev) => ({ ...prev, ...opt.apply }))}
-                title={opt.key === 'custom' ? '使用手动拖动的位置（在地图上按住省份卡片即可拖动）' : undefined}
+                onClick={() =>
+                  setData((prev) => ({
+                    ...prev,
+                    ...opt.apply,
+                    // 位置语义（v1.16.3）：一切自定义都从「当前所见状态」开始——
+                    // · 切到一列/两列：重置全部自定义位置（省份卡片 + 老师块），回到纯净自动布局；
+                    // · 切到自定义：清掉历史省份偏移，卡片停在当前自动布局的位置上，画面不跳。
+                    // 老师块在「自定义」分支不清——它始终生效，当前位置就是它的「当前状态」
+                    ...(opt.key === 'custom'
+                      ? { provinceOffsets: {} }
+                      : { provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 } }),
+                  }))
+                }
+                title={opt.key === 'custom' ? '从当前布局开始手动摆放（在地图上按住省份卡片即可拖动）' : undefined}
                 className={
                   opt.active
                     ? 'bg-stone-900 px-2.5 py-1 text-[11px] text-white'

@@ -67,7 +67,8 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
   )
 
   /** 某省份当前生效的偏移：拖动中用实时值，否则用持久化值；
-      自定义位置模式关闭时（一列/两列自动布局）偏移不生效，但数据保留 */
+      一列/两列（自动布局）下偏移不生效——且切换过去时已被重置（见 FontPanel），
+      这里的 gating 只是分享链接/导入数据等非常规路径的兜底 */
   const offsetOf = (prov: string): { dx: number; dy: number } => {
     if (dragState && dragState.province === prov) return { dx: dragState.dx, dy: dragState.dy }
     if (!data.customPosition) return { dx: 0, dy: 0 }
@@ -135,7 +136,10 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
         const dx = Math.min(600, Math.max(-600, Math.round(cur.dx)))
         const dy = Math.min(600, Math.max(-600, Math.round(cur.dy)))
         setData((prev) => {
-          const next = { ...prev.provinceOffsets }
+          // 从自动布局拖动切入自定义时，丢弃历史偏移（可能与当前布局不符），
+          // 只保留本次拖动卡片的偏移——每次自定义都从当前所见状态开始；
+          // 已处于自定义模式时保留其他卡片的偏移（那才是「当前状态」）
+          const next = prev.customPosition ? { ...prev.provinceOffsets } : {}
           if (dx === 0 && dy === 0) delete next[prov]
           else next[prov] = { dx, dy }
           // 拖动即意味着用户要自定义位置：自动切到自定义位置模式（偏移才会生效）
