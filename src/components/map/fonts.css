@@ -5,10 +5,14 @@
  * - NotoSansSC：思源黑体（SIL OFL），干净正文
  * - ZCOOLXiaoWei：站酷小薇体（免费可商用），宋体感标题
  * - ZCOOLQingKeHuangYou：站酷高端黑（免费可商用），粗展示
+ *
+ * 字体文件统一放 public/fonts：稳定 URL（不带构建哈希），
+ * 可在 index.html 用 <link rel="preload"> 并行预载，并走 CDN 长缓存；
+ * font-display: swap 保证渐进式渲染（先用兜底字体显示，字体到达后无感替换）。
  */
 @font-face {
   font-family: 'AlimamaShuHeiTi';
-  src: url('../../assets/fonts/AlimamaShuHeiTi-Bold-subset.woff2') format('woff2');
+  src: url('/fonts/AlimamaShuHeiTi-Bold-subset.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -16,7 +20,7 @@
 
 @font-face {
   font-family: 'NotoSansSC';
-  src: url('../../assets/fonts/NotoSansSC-subset.woff2') format('woff2');
+  src: url('/fonts/NotoSansSC-subset.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -24,7 +28,7 @@
 
 @font-face {
   font-family: 'ZCOOLXiaoWei';
-  src: url('../../assets/fonts/ZCOOLXiaoWei-subset.woff2') format('woff2');
+  src: url('/fonts/ZCOOLXiaoWei-subset.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -32,7 +36,7 @@
 
 @font-face {
   font-family: 'ZCOOLQingKeHuangYou';
-  src: url('../../assets/fonts/ZCOOLQingKeHuangYou-subset.woff2') format('woff2');
+  src: url('/fonts/ZCOOLQingKeHuangYou-subset.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

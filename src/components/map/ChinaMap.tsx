@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { CalligraphyAsset, StudentBadge, StudentEntry } from '@/types'
 import { useMapData } from '@/store/MapDataContext'
 import { prefetchCityCenters } from '@/utils/cities'
@@ -78,6 +78,18 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
   /** 拖动中的省份块实时偏移（LabelColumns 上报）：用于画布 viewBox 实时扩大，
       拖到边缘的卡片不会被裁剪，也不会被上方标题区盖住 */
   const [liveDrag, setLiveDrag] = useState<{ province: string; dx: number; dy: number } | null>(null)
+
+  /** 卡片 z 序：点击/拖动某省份卡片时分配递增序号，渲染时序号大的绘制在上层（SVG 无 z-index，
+      以绘制顺序实现「点谁谁上移」）。会话级状态，不落库 */
+  const [zRanks, setZRanks] = useState<Record<string, number>>({})
+  const zCounterRef = useRef(0)
+  const activateCard = (province: string) => {
+    // 已是最上层（最近一次激活的就是它）时不重复分配，避免无意义重渲染
+    if (zRanks[province] === zCounterRef.current && zCounterRef.current > 0) return
+    zCounterRef.current += 1
+    const rank = zCounterRef.current
+    setZRanks((prev) => ({ ...prev, [province]: rank }))
+  }
 
   /** 省份集合的稳定键，用于触发城市坐标预取 */
   const provincesKey = useMemo(() => [...groups.keys()].join('|'), [groups])
@@ -200,10 +212,13 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     let maxX = geom.designW
     let maxY = layout.svgHeight
     for (const b of [...layout.left, ...layout.right]) {
+      // 自动布局（一列/两列）模式下持久化偏移不生效；拖动中的实时偏移始终生效
       const off =
         liveDrag && liveDrag.province === b.province
           ? liveDrag
-          : (data.provinceOffsets[b.province] ?? null)
+          : data.customPosition
+            ? (data.provinceOffsets[b.province] ?? null)
+            : null
       if (!off) continue
       minX = Math.min(minX, b.cardX + off.dx - PAD)
       minY = Math.min(minY, b.cardY + off.dy - PAD)
@@ -216,7 +231,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       w: Math.ceil(maxX - Math.floor(minX)),
       h: Math.ceil(maxY - Math.floor(minY)),
     }
-  }, [layout, liveDrag, data.provinceOffsets, geom.designW])
+  }, [layout, liveDrag, data.provinceOffsets, data.customPosition, geom.designW])
 
   // 地图数据未就绪：渲染与正式图同高度的骨架占位（与 labels.ts 的 svgHeight 公式一致），
   // 灰底呼吸块模拟标题/地图/两侧标注列，避免布局跳动与空白闪烁
@@ -373,8 +388,15 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         </g>
       </g>
 
-      {/* 标注列 + 引线（onLiveDrag 上报拖动实时偏移，驱动画布 viewBox 自动扩大） */}
-      <LabelColumns left={layout.left} right={layout.right} onLiveDrag={setLiveDrag} />
+      {/* 标注列 + 引线（onLiveDrag 上报拖动实时偏移，驱动画布 viewBox 自动扩大；
+          onCardActivate/zRanks 实现点击卡片层级上移） */}
+      <LabelColumns
+        left={layout.left}
+        right={layout.right}
+        onLiveDrag={setLiveDrag}
+        zRanks={zRanks}
+        onCardActivate={activateCard}
+      />
 
       {/* 城市级定位圆点（压在引线起点之上）；主点带光晕，多城市时副点略小 */}
       {dots.map((d) =>

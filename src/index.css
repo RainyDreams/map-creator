@@ -2,26 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 马善政毛笔体（已子集化为 woff2）：用于蹭饭图大字、年份、标题等装饰文字 */
+/* 马善政毛笔体（已子集化为 woff2）：用于蹭饭图大字、年份、标题等装饰文字。
+   字体文件放 public/fonts（稳定 URL、可被 preload 并行预载、CDN 长缓存） */
 @font-face {
   font-family: 'MaShanZheng';
-  src: url('./assets/fonts/MaShanZheng-subset.woff2') format('woff2');
+  src: url('/fonts/MaShanZheng-subset.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
-/* 思源黑体（GB2312 一级常用字子集）：全局界面默认字体；
+/* 思源黑体（GB2312 全集 + 生僻姓氏子集）：全局界面默认字体；
    子集未覆盖的罕见字符自动回退系统黑体 */
 @font-face {
   font-family: 'NotoSansSC';
-  src: url('./assets/fonts/NotoSansSC-subset.woff2') format('woff2');
+  src: url('/fonts/NotoSansSC-subset.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @layer base {
+  /* 蹭饭图画布：所有文字（含 SVG text）不可选中，图片/SVG 不可触发浏览器原生拖动，防误触 */
+  .cf-map-canvas,
+  .cf-map-canvas * {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+  }
+
   /* 装饰书法字体：毛笔体优先，楷体兜底（兜底保证子集未覆盖字符可见） */
   .font-calligraphy {
     font-family: 'MaShanZheng', 'Kaiti SC', 'STKaiti', 'KaiTi', '楷体', serif;

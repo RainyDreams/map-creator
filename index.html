@@ -19,6 +19,13 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <!-- 地图轮廓数据预载：独立静态资源（不打进 JS bundle），CDN 缓存 -->
     <link rel="preload" href="/data/china.json" as="fetch" crossorigin />
+    <!-- 画布字体并行预载：@font-face 默认惰性下载（用到才拉），
+         preload 让 5 个子集字体在解析 HTML 时即并行下载，配合 font-display: swap 渐进渲染 -->
+    <link rel="preload" href="/fonts/NotoSansSC-subset.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/MaShanZheng-subset.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/AlimamaShuHeiTi-Bold-subset.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/ZCOOLXiaoWei-subset.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/ZCOOLQingKeHuangYou-subset.woff2" as="font" type="font/woff2" crossorigin />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />

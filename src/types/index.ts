@@ -71,8 +71,13 @@ export interface MapData {
   subtitle: string
   /** 地图标注三个模块的字号（px，画布基准） */
   labelSizes: LabelSizes
-  /** 每侧标注列数：1（默认）或 2（人多时更宽松，文字列宽减半） */
+  /** 每侧标注列数：1（默认）或 2（人多时更宽松，文字列宽减半）。自定义位置模式下作为基础布局 */
   labelColumns: 1 | 2
+  /**
+   * 省份卡片位置模式（v1.15）：false = 一列/两列自动布局（忽略拖动偏移，偏移数据保留）；
+   * true = 自定义位置（应用 provinceOffsets，卡片可拖动；拖动卡片会自动切到此模式）
+   */
+  customPosition: boolean
   /** 同校合并：同一大学的多名同学姓名一人一行竖排，右侧只显示一次 校徽 + 学校 · 城市 */
   mergeSameSchool: boolean
   /** 省份名单卡片背景：开启后每个省份块衬一个圆角底色卡片（引线被卡片遮住，不再穿过名单） */
@@ -115,6 +120,7 @@ export const EMPTY_MAP_DATA: MapData = {
   subtitle: '',
   labelSizes: DEFAULT_LABEL_SIZES,
   labelColumns: 1,
+  customPosition: false,
   mergeSameSchool: false,
   labelCardBg: true,
   cardRadius: 10,

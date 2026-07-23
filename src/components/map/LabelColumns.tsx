@@ -20,6 +20,10 @@ export interface LabelColumnsProps {
   right: LabelBlock[]
   /** 拖动实时偏移上报（null = 拖动结束）：驱动上层画布 viewBox 自动扩大 */
   onLiveDrag?: (drag: { province: string; dx: number; dy: number } | null) => void
+  /** 卡片 z 序（省份 → 层级序号，越大越靠上）：点击/拖动卡片时自动上移，避免被其他卡片盖住 */
+  zRanks?: Record<string, number>
+  /** 卡片被点击/选中时上报：上层为其分配更高的 z 序 */
+  onCardActivate?: (province: string) => void
 }
 
 /**
@@ -36,7 +40,7 @@ export interface LabelColumnsProps {
  * 偏移量持久化在 data.provinceOffsets（viewBox 单位），块在列中的占位不变，
  * 卡片/文字/引线端点一起平移；拖回原位（偏移≈0）时自动清除记录。
  */
-export function LabelColumns({ left, right, onLiveDrag }: LabelColumnsProps) {
+export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }: LabelColumnsProps) {
   const { theme, fontSlots, customFonts, data, setData } = useMapData()
   const provinceFont = slotFontFamily('province', fontSlots, customFonts)
   const personFont = slotFontFamily('person', fontSlots, customFonts)
@@ -62,9 +66,11 @@ export function LabelColumns({ left, right, onLiveDrag }: LabelColumnsProps) {
     [],
   )
 
-  /** 某省份当前生效的偏移：拖动中用实时值，否则用持久化值 */
+  /** 某省份当前生效的偏移：拖动中用实时值，否则用持久化值；
+      自定义位置模式关闭时（一列/两列自动布局）偏移不生效，但数据保留 */
   const offsetOf = (prov: string): { dx: number; dy: number } => {
     if (dragState && dragState.province === prov) return { dx: dragState.dx, dy: dragState.dy }
+    if (!data.customPosition) return { dx: 0, dy: 0 }
     return data.provinceOffsets[prov] ?? { dx: 0, dy: 0 }
   }
 
@@ -83,6 +89,8 @@ export function LabelColumns({ left, right, onLiveDrag }: LabelColumnsProps) {
   const onBlockPointerDown = (e: React.PointerEvent, prov: string) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     e.stopPropagation()
+    // 点击/按住即把卡片提到最上层，避免被其他卡片盖住
+    onCardActivate?.(prov)
     // 移动端：未选中时这次点击只选中（出现虚线框），选中后才进入拖动
     if (isCoarse && selectedProv !== prov) {
       setSelectedProv(prov)
@@ -130,7 +138,8 @@ export function LabelColumns({ left, right, onLiveDrag }: LabelColumnsProps) {
           const next = { ...prev.provinceOffsets }
           if (dx === 0 && dy === 0) delete next[prov]
           else next[prov] = { dx, dy }
-          return { ...prev, provinceOffsets: next }
+          // 拖动即意味着用户要自定义位置：自动切到自定义位置模式（偏移才会生效）
+          return { ...prev, provinceOffsets: next, customPosition: true }
         })
       }
       return null
@@ -375,8 +384,21 @@ export function LabelColumns({ left, right, onLiveDrag }: LabelColumnsProps) {
   const cardBlur = data.cardBlur
 
   const allBlocks = [...left, ...right]
+  /** 第二遍渲染按 z 序稳定排序：被点击/拖动过的省份序号更大、绘制更靠后（压在上层）。
+      SVG 没有 z-index，绘制顺序即层级顺序 */
+  const sortedBlocks = zRanks
+    ? allBlocks
+        .map((b, i) => ({ b, i }))
+        .sort((p, q) => (zRanks[p.b.province] ?? 0) - (zRanks[q.b.province] ?? 0) || p.i - q.i)
+        .map((x) => x.b)
+    : allBlocks
   return (
-    <g ref={rootRef} onPointerDown={() => setSelectedProv(null)}>
+    // user-select:none + draggable 禁用：画布上所有文字不可选中、不可触发浏览器原生拖动，防误触
+    <g
+      ref={rootRef}
+      onPointerDown={() => setSelectedProv(null)}
+      style={{ userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
+    >
       {/* 卡片羽化滤镜：用户可调模糊半径（0 = 不启用，避免滤镜开销） */}
       {showCard && cardBlur > 0 && (
         <defs>
@@ -405,8 +427,9 @@ export function LabelColumns({ left, right, onLiveDrag }: LabelColumnsProps) {
           />
         )
       })}
-      {/* 第二遍：卡片背景 + 省份名 + 学生行（整块可拖动：PC 直拖，移动端先点选中再拖） */}
-      {allBlocks.map((b) => {
+      {/* 第二遍：卡片背景 + 省份名 + 学生行（整块可拖动：PC 直拖，移动端先点选中再拖；
+          按 z 序排序渲染，被点击的卡片压在上层） */}
+      {sortedBlocks.map((b) => {
         const off = offsetOf(b.province)
         const selected = selectedProv === b.province
         let rowOffset = 0

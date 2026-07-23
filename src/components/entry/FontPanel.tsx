@@ -245,50 +245,75 @@ export function FontPanel() {
         </div>
       </div>
 
-      {/* 每侧标注列数：人多时两列更宽松（文字列宽减半、换行更多）；推荐值以行内标注给出 */}
-      <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
-        <span className="flex items-center gap-1.5 text-xs text-stone-500">
-          每侧标注列数
-          {/* 行内推荐标注：超高 1.1 倍才建议两列；两列能放回一列时反向建议 */}
-          {fitRec?.twoColumns === true && data.labelColumns === 1 && (
-            <button
-              type="button"
-              onClick={() => setData((prev) => ({ ...prev, labelColumns: 2 }))}
-              title="内容较高，推荐切换为每侧两列（点击应用）"
-              className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
-            >
-              推荐两列
-            </button>
-          )}
-          {fitRec?.oneColumn === true && data.labelColumns === 2 && (
-            <button
-              type="button"
-              onClick={() => setData((prev) => ({ ...prev, labelColumns: 1 }))}
-              title="一列也放得下，切回一列更简洁（点击应用）"
-              className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
-            >
-              一列也放得下
-            </button>
-          )}
-        </span>
-        <div className="flex overflow-hidden rounded-md border border-stone-200" role="radiogroup" aria-label="每侧标注列数">
-          {([1, 2] as const).map((n) => (
-            <button
-              key={n}
-              type="button"
-              role="radio"
-              aria-checked={data.labelColumns === n}
-              onClick={() => setData((prev) => ({ ...prev, labelColumns: n }))}
-              className={
-                data.labelColumns === n
-                  ? 'bg-stone-900 px-2.5 py-1 text-[11px] text-white'
-                  : 'bg-white px-2.5 py-1 text-[11px] text-stone-500 transition-colors hover:bg-stone-50'
-              }
-            >
-              {n === 1 ? '一列' : '两列（人多时）'}
-            </button>
-          ))}
+      {/* 省份卡片位置：一列/两列为自动布局（忽略拖动偏移），自定义位置应用手动摆放；
+          直接拖动卡片会自动切到自定义位置；推荐值以行内标注给出 */}
+      <div className="mt-3 border-t border-stone-100 pt-2.5">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-xs text-stone-500">
+            省份卡片位置
+            {/* 行内推荐标注：超高 1.1 倍才建议两列；两列能放回一列时反向建议 */}
+            {fitRec?.twoColumns === true && data.labelColumns === 1 && (
+              <button
+                type="button"
+                onClick={() => setData((prev) => ({ ...prev, labelColumns: 2, customPosition: false }))}
+                title="内容较高，推荐切换为每侧两列（点击应用）"
+                className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
+              >
+                推荐两列
+              </button>
+            )}
+            {fitRec?.oneColumn === true && data.labelColumns === 2 && (
+              <button
+                type="button"
+                onClick={() => setData((prev) => ({ ...prev, labelColumns: 1, customPosition: false }))}
+                title="一列也放得下，切回一列更简洁（点击应用）"
+                className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
+              >
+                一列也放得下
+              </button>
+            )}
+          </span>
+          <div className="flex overflow-hidden rounded-md border border-stone-200" role="radiogroup" aria-label="省份卡片位置">
+            {(
+              [
+                { key: '1', label: '一列', active: !data.customPosition && data.labelColumns === 1, apply: { labelColumns: 1 as const, customPosition: false } },
+                { key: '2', label: '两列', active: !data.customPosition && data.labelColumns === 2, apply: { labelColumns: 2 as const, customPosition: false } },
+                { key: 'custom', label: '自定义', active: data.customPosition, apply: { customPosition: true } },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                role="radio"
+                aria-checked={opt.active}
+                onClick={() => setData((prev) => ({ ...prev, ...opt.apply }))}
+                title={opt.key === 'custom' ? '使用手动拖动的位置（在地图上按住省份卡片即可拖动）' : undefined}
+                className={
+                  opt.active
+                    ? 'bg-stone-900 px-2.5 py-1 text-[11px] text-white'
+                    : 'bg-white px-2.5 py-1 text-[11px] text-stone-500 transition-colors hover:bg-stone-50'
+                }
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
+        {/* 位置重置：拖乱了一键回到自动布局（清除全部手动偏移并退出自定义位置模式） */}
+        {Object.keys(data.provinceOffsets).length > 0 && (
+          <div className="mt-1.5 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                setData((prev) => ({ ...prev, provinceOffsets: {}, customPosition: false }))
+              }
+              title="清除所有省份卡片的手动位置，恢复自动布局"
+              className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] whitespace-nowrap text-stone-500 transition-colors hover:bg-stone-50 hover:text-stone-700"
+            >
+              重置位置（已手动调整 {Object.keys(data.provinceOffsets).length} 个省）
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 校徽显示开关：关闭后地图与导出图中都不渲染校徽，大学文字照常 */}

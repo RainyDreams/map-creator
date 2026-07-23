@@ -440,7 +440,8 @@ export default function MapPage() {
           <div
             ref={canvasRef}
             data-testid="map-canvas"
-            className="relative overflow-hidden rounded-xl border shadow-sm"
+            className="cf-map-canvas relative overflow-hidden rounded-xl border shadow-sm select-none"
+            onDragStart={(e) => e.preventDefault()}
             style={{
               background: theme.canvasBg,
               borderColor: `color-mix(in srgb, ${theme.leaderLine} 45%, transparent)`,
@@ -457,6 +458,7 @@ export default function MapPage() {
                     <img
                       src={badge}
                       alt="班徽"
+                      draggable={false}
                       className="mb-0.5 h-12 w-12 rounded-full object-contain"
                     />
                   )}
