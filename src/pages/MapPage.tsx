@@ -324,20 +324,27 @@ export default function MapPage() {
     [data.customOrderProvinces],
   )
 
-  /** 左右下角覆盖层（老师名单 / 海外+未定位）的画布预留高度（ChinaMap 与排版推荐共用） */
-  const reserveLeftBottom =
+  /** 老师块上拖/下拖的实时纵向偏移（设计 px）：拖动中即生效，画布与拖动同步伸缩 */
+  const effTeacherDy = liveTeacherDy ?? data.teachersOffset.dy
+
+  /** 左下角老师块的画布预留高度（设计 px）：
+      基准 = 实际块高（标题行 (size+3)×1.4 + 名单 n×size×1.6 + 内边距 28）+ 底部边距 54——
+      旧公式 (110+n×24)×1.3 对少人数高估 ~40%（1 个老师 174 vs 实际 ~125），底部白白留空；
+      上拖（dy<0）时预留随之上收、画布同步缩小，块底恒距画布底 48px，拖出的空白被自动吃掉；
+      预留耗尽（归 0）后块继续上移进入地图区——用户把块拖进地图是明确选择 */
+  const teacherSize = data.labelSizes.teacher
+  const baseReserveLeft =
     data.showTeachers && data.teachers.length > 0
-      ? Math.round((110 + data.teachers.length * 24) * 1.3)
+      ? Math.round((teacherSize + 3) * 1.4 + data.teachers.length * teacherSize * 1.6 + 28 + 54)
       : 0
+  const reserveLeftBottom = Math.max(0, baseReserveLeft + Math.min(0, Math.round(effTeacherDy)))
   const reserveRightBottom =
     (overseas.length > 0 ? Math.round(80 + overseas.length * 22) : 0) +
     (unlocated.length > 0 ? 130 : 0)
 
-  /** 老师块画布联动（与省份卡片同语义：到达边界才扩充，往回缩立即缩小）：
-      块底原本距画布底 48px、页脚约 28px，向下拖的前 12px（屏幕）不扩画布；
-      继续下拖则画布 1:1 加高（块底始终留 页脚+8px 呼吸），往回拖立即缩回。
-      用拖动中的实时偏移（liveTeacherDy），未落库前画布也跟着动 */
-  const effTeacherDy = liveTeacherDy ?? data.teachersOffset.dy
+  /** 老师块下拖（dy>0）时的画布加高量（屏幕 px）：与省份卡片同语义——到达边界才扩充；
+      块底原本距画布底 48px、页脚约 28px，向下拖的前 12px 不扩画布，
+      继续下拖则画布 1:1 加高（块底始终留 页脚+8px 呼吸），往回拖立即缩回 */
   const teacherSpacerH =
     data.showTeachers && data.teachers.length > 0 && canvasW > 0 && effTeacherDy > 0
       ? Math.max(0, Math.round((effTeacherDy * canvasW) / 1500) - 12)
@@ -556,7 +563,7 @@ export default function MapPage() {
               </p>
             )}
 
-            <TeachersBlock teachers={data.teachers} flowRef={flowRef} footerRef={footerRef} onLiveDy={setLiveTeacherDy} />
+            <TeachersBlock teachers={data.teachers} flowRef={flowRef} footerRef={footerRef} onLiveDy={setLiveTeacherDy} reserveDesign={baseReserveLeft} />
 
             {/* 右下角堆叠区：海外/境外名单在上、未定位提示在下 */}
             {(overseas.length > 0 || unlocated.length > 0) && (

@@ -30,12 +30,16 @@ export function TeachersBlock({
   flowRef,
   footerRef,
   onLiveDy,
+  reserveDesign,
 }: {
   teachers: TeacherEntry[]
   flowRef: React.RefObject<HTMLDivElement | null>
   footerRef: React.RefObject<HTMLDivElement | null>
   /** 拖动中实时上报纵向偏移（设计 px，未落库）；拖动结束传 null——MapPage 据此让画布高度与拖动同步伸缩 */
   onLiveDy?: (dy: number | null) => void
+  /** 底部预留区基准高度（设计 px，dy=0 时的预留）：上拖时预留随之上收，
+      预留耗尽后剩余上移量由本组件的 top 偏移补上（块跟随进入地图区） */
+  reserveDesign?: number
 }) {
   const { data, setData, theme, fontSlots, customFonts } = useMapData()
   /** 移动端「先点选中」状态（选中后才可拖） */
@@ -74,8 +78,14 @@ export function TeachersBlock({
       const canvas = root?.closest('[data-testid="map-canvas"]') as HTMLElement | null
       if (!root || !flow || !canvas || canvas.clientWidth <= 0) return
       const footerH = footerRef.current?.offsetHeight ?? 0
-      const dyScreen = (off.dy * canvas.clientWidth) / 1500
-      setTopPx(flow.offsetHeight + footerH - BOTTOM_GAP - root.offsetHeight + dyScreen)
+      const k = canvas.clientWidth / 1500
+      const dyScreen = off.dy * k
+      const rScreen = (reserveDesign ?? 0) * k
+      // dy>0：MapPage 在 flow 与 footer 间加 spacer 把画布撑高，块随 dy 下移（距底恒 36px）；
+      // dy<0：预留区随 dy 上收（flow 自然变矮、画布缩小），块随之上移（距底恒 48px）——
+      // 预留耗尽（归 0）后剩余上移量由 offsetY 补上，块跟随进入地图区
+      const offsetY = dyScreen > 0 ? dyScreen : Math.min(0, dyScreen + rScreen)
+      setTopPx(flow.offsetHeight + footerH - BOTTOM_GAP - root.offsetHeight + offsetY)
     }
     update()
     const ro = new ResizeObserver(update)
@@ -87,7 +97,7 @@ export function TeachersBlock({
       ro.disconnect()
       window.removeEventListener('resize', update)
     }
-  }, [off.dy, flowRef, footerRef])
+  }, [off.dy, flowRef, footerRef, reserveDesign])
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
