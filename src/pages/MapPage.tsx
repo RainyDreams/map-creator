@@ -77,6 +77,99 @@ const PROGRESS_FILLERS = [
   '就快完成了，再等一下下…',
 ] as const
 
+/** 导出选项模态框：选择导出格式和清晰度 */
+function ExportOptionsDialog({
+  onExportPng,
+  onExportZip,
+  onClose,
+  exporting,
+}: {
+  onExportPng: (quality: ExportQuality) => void
+  onExportZip: () => void
+  onClose: () => void
+  exporting: ExportQuality | null
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+      <div
+        role="dialog"
+        aria-label="导出选项"
+        className="w-96 rounded-xl border border-stone-200 bg-white p-6 shadow-2xl"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-stone-800">导出蹭饭图</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {/* PNG 导出选项 */}
+          <div className="rounded-lg border border-stone-200 p-4">
+            <h3 className="mb-2 text-sm font-medium text-stone-700">PNG 图片</h3>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  onExportPng('standard')
+                  onClose()
+                }}
+                disabled={exporting !== null}
+                className="flex-1"
+              >
+                普通（2x）
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  onExportPng('ultra')
+                  onClose()
+                }}
+                disabled={exporting !== null}
+                className="flex-1 bg-stone-900 text-white hover:bg-stone-700"
+              >
+                超清（≥4000px）
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-stone-400">
+              导出单张高清图片，适合分享到班级群
+            </p>
+          </div>
+
+          {/* ZIP 全量导出选项 */}
+          <div className="rounded-lg border border-stone-200 p-4">
+            <h3 className="mb-2 text-sm font-medium text-stone-700">全量备份</h3>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                onExportZip()
+                onClose()
+              }}
+              disabled={exporting !== null}
+              className="w-full"
+            >
+              导出 ZIP 压缩包
+            </Button>
+            <p className="mt-2 text-xs text-stone-400">
+              包含地图图片、配置数据、毛笔字图片、自定义校徽等所有资源，适合备份和迁移
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-stone-400">
+          导出过程可能需要几秒钟，请耐心等待
+        </p>
+      </div>
+    </div>
+  )
+}
+
 /** 导出进度模态框：居中原点卡片 + 百分比进度条 + 预计剩余时间 + 红色取消按钮，风格与全站一致 */
 function ExportProgressDialog({
   progress,
@@ -176,6 +269,8 @@ export default function MapPage() {
   const [progress, setProgress] = useState<ExportProgress | null>(null)
   /** 是否是全量 zip 导出（用于进度框标题） */
   const [isZipExport, setIsZipExport] = useState(false)
+  /** 显示导出选项模态框 */
+  const [showExportOptions, setShowExportOptions] = useState(false)
   /** 微信环境下导出完成的图片 dataURL（弹窗引导长按保存） */
   const [wechatImage, setWechatImage] = useState<string | null>(null)
   /** 进度锚点（真实阶段 + 到达时刻）与展示值（向锚点平滑爬行）分离，长耗时阶段也有前进感 */
@@ -499,43 +594,17 @@ export default function MapPage() {
         <div className="flex shrink-0 items-center gap-2">
           <Button
             size="sm"
-            variant="ghost"
-            onClick={() => handleExport('standard')}
-            disabled={exporting !== null}
-            className="text-stone-500 hover:text-stone-700"
-            title="普通清晰度（约 2 倍图，体积小）"
-          >
-            {exporting === 'standard' ? <Loader2 className="animate-spin" /> : null}
-            普通
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => handleExport('ultra')}
+            onClick={() => setShowExportOptions(true)}
             disabled={exporting !== null}
             className="bg-stone-900 text-white hover:bg-stone-700"
-            title="超清矢量栅格化导出（≥4000px 宽）"
+            title="导出蹭饭图"
           >
-            {exporting === 'ultra' ? (
+            {exporting !== null ? (
               <Loader2 className="animate-spin" />
             ) : (
               <Download />
             )}
-            {exporting === 'ultra' ? '导出中…' : '导出超清 PNG'}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExportZip}
-            disabled={exporting !== null}
-            className="border-stone-300 text-stone-600 hover:bg-stone-50 hover:text-stone-800"
-            title="全量导出：包含地图图片、配置数据、毛笔字图片、自定义校徽等所有资源的 zip 文件"
-          >
-            {exporting === 'ultra' ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <Download />
-            )}
-            {exporting === 'ultra' ? '导出中…' : '全量导出 ZIP'}
+            {exporting !== null ? '导出中…' : '导出'}
           </Button>
         </div>
       </header>
@@ -693,6 +762,16 @@ export default function MapPage() {
           </div>
         </div>
       </div>
+
+      {/* 导出选项模态框 */}
+      {showExportOptions && (
+        <ExportOptionsDialog
+          onExportPng={handleExport}
+          onExportZip={handleExportZip}
+          onClose={() => setShowExportOptions(false)}
+          exporting={exporting}
+        />
+      )}
 
       {/* 导出进度模态框 */}
       {exporting !== null && progress !== null && (
