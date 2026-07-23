@@ -78,8 +78,9 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
   }, [])
 
   const allBlocks = [...left, ...right]
-  /** 对齐吸附阈值（viewBox 单位 ≈ 设计 px；画布按 1500px 设计时即 5px） */
-  const SNAP_PX = 5
+  /** 对齐吸附阈值（viewBox 单位 ≈ 设计 px）：调小到 3，只在距离很近时才吸附，
+      让"紧贴"与"留间隙"两种目标各自独立触发、不互相干扰 */
+  const SNAP_PX = 3
   /** 相邻卡片呼吸间隙（与 labels.ts BASE_GAP 一致）：接触型吸附时留缝，避免卡片紧贴 */
   const SNAP_GAP = 20
   /** 拖动时激活的辅助对齐线（x = 垂直线位置，y = 水平线位置；仅吸附时显示） */
@@ -185,13 +186,15 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
         const oTop = o.cardY + oo.dy
         const oCen = o.centerY + oo.dy
         const oBot = o.cardY + o.cardH + oo.dy
-        // (拖动卡片边, 吸附目标) 对：对齐型无间隙，接触型加 GAP 呼吸缝
+        // (拖动卡片边, 吸附目标) 对：对齐型 + 紧贴型(0间隙) + 间隔型(SNAP_GAP间隙，与自动布局 BASE_GAP 一致)
         const pairs: Array<[number, number]> = [
           [dTop, oTop], // 对齐顶边
           [dCen, oCen], // 对齐中心
           [dBot, oBot], // 对齐底边
-          [dTop, oBot + SNAP_GAP], // 贴在下方 + 间隙
-          [dBot, oTop - SNAP_GAP], // 贴在上方 - 间隙
+          [dTop, oBot], // 紧贴下方（无间隙）
+          [dBot, oTop], // 紧贴上方（无间隙）
+          [dTop, oBot + SNAP_GAP], // 贴在下方 + 间隔（同自动布局间隙）
+          [dBot, oTop - SNAP_GAP], // 贴在上方 - 间隔
         ]
         let snapped = false
         for (const [ed, t] of pairs) {
