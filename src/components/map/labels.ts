@@ -148,12 +148,13 @@ export function studentLineParts(s: StudentEntry): Omit<StudentLineParts, 'place
 
 /* ---------- 侧宽动态界定的档位与间距常量 ---------- */
 
-/** 单列模式：每侧文字可用宽度档（按内容在两者之间取实测值） */
+/** 单列模式：每侧文字宽度按内容实测（fit-content）；上限只是防极端输入撑爆画布的兜底，
+    正常校名/地名（含「中国石油大学（北京）· 北京」级别长文本）都在上限内，整行一人一行不换行 */
 const COL_MIN_TEXT_W = 200
-const COL_MAX_TEXT_W = 320
-/** 两列模式：每个子列的文字可用宽度档 */
+const COL_MAX_TEXT_W = 560
+/** 两列模式：每个子列的文字宽度档（上限同样只做兜底） */
 const COL2_MIN_TEXT_W = 150
-const COL2_MAX_TEXT_W = 260
+const COL2_MAX_TEXT_W = 420
 /** 两列模式子列间距（透明背景时） */
 const COL2_GAP = 12
 /** 两列模式子列间距（开启卡片背景时：卡片内边距需要更大间隙，避免相邻卡片贴上） */
@@ -943,18 +944,25 @@ export function recommendFontSizes(
   if (need <= 0 || target <= 0) return null
   // 高度与字号近似线性：factor > 1 表示有富余可放大，< 1 表示需缩小
   const factor = target / need
-  // 毛笔字图片协调建议：字号 ≈ 图片显示高度的 70%（取各图片最大值，避免建议偏小）
+  // 死区：接近用满（±6%，约 ±1px）时不再推荐——避免因取整产生「点完推荐还有推荐」的循环
+  if (factor >= 0.94 && factor <= 1.06) return null
+  // 毛笔字图片协调建议：字号 ≈ 图片显示高度的 70%。
+  // 关键：用基准字号 13px（而非当前字号）计算图片显示高度——否则应用推荐后图片随字号变化，
+  // 又会推出新的下限，形成永远到不了不动点的反复推荐。上限封顶 19px。
   let calliMin = 0
   for (const asset of Object.values(options?.calligraphy ?? {})) {
     if (asset && asset.scale > 0) {
-      const displayH = sizes.place * CALLI_RATIO * asset.scale
+      const displayH = 13 * CALLI_RATIO * asset.scale
       calliMin = Math.max(calliMin, Math.round(displayH * 0.7))
     }
   }
+  calliMin = Math.min(calliMin, 19)
+  // 统一正文基准：姓名/校名/城市同字号（三个槽位大小一致才好看），省份名标题略大
+  const bodySize = clampFit(Math.max(Math.round(sizes.place * factor), calliMin), FIT_RANGE.place)
   const rec = {
-    province: clampFit(Math.max(Math.round(sizes.province * factor), calliMin > 0 ? calliMin + 3 : 0), FIT_RANGE.province),
-    person: clampFit(Math.max(Math.round(sizes.person * factor), calliMin), FIT_RANGE.person),
-    place: clampFit(Math.max(Math.round(sizes.place * factor), calliMin), FIT_RANGE.place),
+    province: clampFit(Math.max(bodySize + 3, Math.round(sizes.province * factor)), FIT_RANGE.province),
+    person: clampFit(bodySize, FIT_RANGE.person),
+    place: clampFit(bodySize, FIT_RANGE.place),
   }
   // 放大建议收敛上限 19px：空间富余时也不推荐过大字号（16–19px 观感最佳）
   if (factor >= 1) {

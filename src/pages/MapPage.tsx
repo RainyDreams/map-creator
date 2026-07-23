@@ -171,6 +171,19 @@ export default function MapPage() {
   const etaRef = useRef<number | null>(null)
   /** 本次导出的 AbortController：进度框红色「取消导出」按钮触发中断 */
   const exportAbortRef = useRef<AbortController | null>(null)
+  /** 画布 flow 内容（标题+地图）与 footer 的 ref：老师块 top 锚定与画布加高测量用 */
+  const flowRef = useRef<HTMLDivElement>(null)
+  const footerRef = useRef<HTMLDivElement>(null)
+  /** 画布渲染宽度（屏幕 px）：老师块向下拖出时换算画布加高量 */
+  const [canvasW, setCanvasW] = useState(0)
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setCanvasW(el.clientWidth))
+    ro.observe(el)
+    setCanvasW(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
 
   /** 分模块字体栈：标题按字符类型分 数字/英文/中文 三槽位 */
   const digitFont = slotFontFamily('digit', fontSlots, customFonts)
@@ -314,6 +327,13 @@ export default function MapPage() {
     (overseas.length > 0 ? Math.round(80 + overseas.length * 22) : 0) +
     (unlocated.length > 0 ? 130 : 0)
 
+  /** 老师块向下拖时画布同步加高（拖回则缩回）：加高量 = 纵向拖移量（屏幕 px），
+      使块底与画布底部的距离恒为 48px 边距，既不压 footer 也不被裁掉 */
+  const teacherSpacerH =
+    data.showTeachers && data.teachers.length > 0 && canvasW > 0 && data.teachersOffset.dy > 0
+      ? Math.round((data.teachersOffset.dy * canvasW) / 1500)
+      : 0
+
   /* 排版建议已去弹窗化：推荐值以行内标注形式出现在「字体设置 / 列数设置」旁（见 FontPanel）。 */
 
   const alignClass =
@@ -450,6 +470,8 @@ export default function MapPage() {
               containerType: 'inline-size',
             }}
           >
+            {/* flow 内容（标题区 + 地图主体）：老师块 top 锚定的测量基准 */}
+            <div ref={flowRef}>
             {/* 标题区：班徽 + 大标题（数字/英文/中文三种字体分段）+ 英文副标题；titleAlign 控制居左/中/右 */}
             {hasHeader && (
               <div className={`px-8 pt-6 pb-1 ${alignClass}`}>
@@ -513,6 +535,10 @@ export default function MapPage() {
               calligraphy={data.calligraphy}
               badgeOverrides={data.badgeOverrides}
             />
+            </div>
+
+            {/* 老师块向下拖出时撑开画布的占位（flow 之后、footer 之前，footer 仍在画布最底部） */}
+            {teacherSpacerH > 0 && <div aria-hidden style={{ height: teacherSpacerH }} />}
 
             {/* 无数据时的温和提示 */}
             {data.students.length === 0 && (
@@ -521,7 +547,7 @@ export default function MapPage() {
               </p>
             )}
 
-            <TeachersBlock teachers={data.teachers} />
+            <TeachersBlock teachers={data.teachers} flowRef={flowRef} footerRef={footerRef} />
 
             {/* 右下角堆叠区：海外/境外名单在上、未定位提示在下 */}
             {(overseas.length > 0 || unlocated.length > 0) && (
@@ -534,6 +560,7 @@ export default function MapPage() {
             {/* 底部来源条：画布的一部分，随导出一起进 PNG。
                 左侧生成时间，中央生成信息（字距正常、极小字、克制不喧宾夺主）；字体固定思源黑体 */}
             <div
+              ref={footerRef}
               className="relative flex items-center border-t px-4 py-1.5 text-[10px] text-stone-400"
               style={{
                 backgroundColor: theme.footerBg,
