@@ -50,8 +50,8 @@ export interface SharePushResult {
   forbidden?: boolean
 }
 
-/** 深拷贝 data 并剥离图片类数据；返回剥离说明 */
-function stripBinary(
+/** 深拷贝 data 并剥离图片类数据；返回剥离说明（hash 链接分享也复用此函数） */
+export function stripBinary(
   data: MapData,
   badge: string | null,
   stripped: string[],

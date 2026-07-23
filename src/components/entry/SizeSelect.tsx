@@ -10,6 +10,8 @@ interface SizeSelectProps {
   /** 可选字号档位（px） */
   options: readonly number[]
   ariaLabel?: string
+  /** 显示单位（默认 px；透明度用 %，模糊半径可用空串） */
+  unit?: string
 }
 
 /**
@@ -18,7 +20,7 @@ interface SizeSelectProps {
  * - 展开方向感知屏幕位置：下方空间不足时向上展开（与城市选择器一致的策略）
  * - 边框 / 阴影 / 高亮色跟随当前画布主题（theme.accent）
  */
-export function SizeSelect({ value, onChange, options, ariaLabel }: SizeSelectProps) {
+export function SizeSelect({ value, onChange, options, ariaLabel, unit = 'px' }: SizeSelectProps) {
   const { theme } = useMapData()
   const [open, setOpen] = useState(false)
   const [dropUp, setDropUp] = useState(false)
@@ -70,7 +72,7 @@ export function SizeSelect({ value, onChange, options, ariaLabel }: SizeSelectPr
           boxShadow: open ? `0 0 0 3px ${theme.accent}22, 0 4px 14px ${theme.accent}18` : undefined,
         }}
       >
-        {value}px
+        {value}{unit}
         <ChevronDown
           className={cn('h-3 w-3 shrink-0 text-stone-400 transition-transform', open && 'rotate-180')}
         />
@@ -107,7 +109,7 @@ export function SizeSelect({ value, onChange, options, ariaLabel }: SizeSelectPr
                       : undefined
                   }
                 >
-                  {px}px
+                  {px}{unit}
                   {active && <Check className="h-3 w-3 shrink-0" />}
                 </button>
               </li>

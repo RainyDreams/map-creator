@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useMapData } from '@/store/MapDataContext'
 import { slotFontFamily } from '@/utils/fonts'
 import { schoolBadgeUrl } from '@/utils/universities'
@@ -29,12 +29,107 @@ export interface LabelColumnsProps {
  * 超长校名由 labels.ts 预先换行（placeLines），此处逐行渲染：
  * 首行与姓名同行，续行与大学起点对齐；绝不省略号截断、不缩小单行字号。
  * 校徽渲染在大学段第一行文字前（本站代理地址，同源无跨域污染，可随导出进 PNG）。
+ *
+ * 省份块可拖动（v1.13）：电脑端直接按住拖动；移动端先点选中（出现虚线框）再拖动。
+ * 偏移量持久化在 data.provinceOffsets（viewBox 单位），块在列中的占位不变，
+ * 卡片/文字/引线端点一起平移；拖回原位（偏移≈0）时自动清除记录。
  */
 export function LabelColumns({ left, right }: LabelColumnsProps) {
-  const { theme, fontSlots, customFonts, data } = useMapData()
+  const { theme, fontSlots, customFonts, data, setData } = useMapData()
   const provinceFont = slotFontFamily('province', fontSlots, customFonts)
   const personFont = slotFontFamily('person', fontSlots, customFonts)
   const placeFont = slotFontFamily('place', fontSlots, customFonts)
+
+  /* ---------------- 省份块拖动 ---------------- */
+  const rootRef = useRef<SVGGElement>(null)
+  /** 移动端「先点选中」的省份（选中后才可拖） */
+  const [selectedProv, setSelectedProv] = useState<string | null>(null)
+  /** 拖动中的实时偏移（提交前不落库） */
+  const [dragState, setDragState] = useState<{ province: string; dx: number; dy: number } | null>(null)
+  const dragRef = useRef<{
+    province: string
+    pointerId: number
+    startX: number
+    startY: number
+    baseDx: number
+    baseDy: number
+  } | null>(null)
+  /** 是否触屏设备（决定先选中再拖，还是直接拖） */
+  const isCoarse = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+    [],
+  )
+
+  /** 某省份当前生效的偏移：拖动中用实时值，否则用持久化值 */
+  const offsetOf = (prov: string): { dx: number; dy: number } => {
+    if (dragState && dragState.province === prov) return { dx: dragState.dx, dy: dragState.dy }
+    return data.provinceOffsets[prov] ?? { dx: 0, dy: 0 }
+  }
+
+  /** 屏幕坐标 → SVG viewBox 坐标 */
+  const toSvgPoint = (e: React.PointerEvent): { x: number; y: number } | null => {
+    const svg = rootRef.current?.ownerSVGElement
+    const ctm = svg?.getScreenCTM()
+    if (!svg || !ctm) return null
+    const pt = svg.createSVGPoint()
+    pt.x = e.clientX
+    pt.y = e.clientY
+    const loc = pt.matrixTransform(ctm.inverse())
+    return { x: loc.x, y: loc.y }
+  }
+
+  const onBlockPointerDown = (e: React.PointerEvent, prov: string) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.stopPropagation()
+    // 移动端：未选中时这次点击只选中（出现虚线框），选中后才进入拖动
+    if (isCoarse && selectedProv !== prov) {
+      setSelectedProv(prov)
+      return
+    }
+    const loc = toSvgPoint(e)
+    if (!loc) return
+    const base = offsetOf(prov)
+    dragRef.current = {
+      province: prov,
+      pointerId: e.pointerId,
+      startX: loc.x,
+      startY: loc.y,
+      baseDx: base.dx,
+      baseDy: base.dy,
+    }
+    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+  }
+
+  const onBlockPointerMove = (e: React.PointerEvent, prov: string) => {
+    const d = dragRef.current
+    if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
+    const loc = toSvgPoint(e)
+    if (!loc) return
+    setDragState({
+      province: prov,
+      dx: d.baseDx + (loc.x - d.startX),
+      dy: d.baseDy + (loc.y - d.startY),
+    })
+  }
+
+  const finishDrag = (e: React.PointerEvent, prov: string) => {
+    const d = dragRef.current
+    if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
+    dragRef.current = null
+    setDragState((cur) => {
+      if (cur && cur.province === prov) {
+        const dx = Math.min(600, Math.max(-600, Math.round(cur.dx)))
+        const dy = Math.min(600, Math.max(-600, Math.round(cur.dy)))
+        setData((prev) => {
+          const next = { ...prev.provinceOffsets }
+          if (dx === 0 && dy === 0) delete next[prov]
+          else next[prov] = { dx, dy }
+          return { ...prev, provinceOffsets: next }
+        })
+      }
+      return null
+    })
+  }
 
   /**
    * 文字真实宽度测量（canvas measureText + 实际字体栈）。
@@ -268,19 +363,34 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
 
   const showCard = data.labelCardBg
   const cardRx = data.cardRadius
+  /** 卡片填充：自定义颜色优先，否则跟随主题页脚底色 */
+  const cardFill = data.cardColor !== '' ? data.cardColor : theme.footerBg
+  const cardOpacity = data.cardOpacity
+  const cardBlur = data.cardBlur
 
   const allBlocks = [...left, ...right]
   return (
-    <g>
+    <g ref={rootRef} onPointerDown={() => setSelectedProv(null)}>
+      {/* 卡片羽化滤镜：用户可调模糊半径（0 = 不启用，避免滤镜开销） */}
+      {showCard && cardBlur > 0 && (
+        <defs>
+          <filter id="label-card-blur" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation={cardBlur} />
+          </filter>
+        </defs>
+      )}
       {/* 第一遍：全部引线（压在卡片与文字下层——开启卡片背景时，引线被其他省份卡片
-          自然遮住，视觉上不再穿过别人的名单） */}
+          自然遮住，视觉上不再穿过别人的名单）；引线端点随省份块拖动偏移同步平移 */}
       {allBlocks.map((b) => {
-        const midX = (b.centroidX + b.edgeX) / 2
-        const midY = (b.centroidY + b.centerY) / 2
+        const off = offsetOf(b.province)
+        const ex = b.edgeX + off.dx
+        const ey = b.centerY + off.dy
+        const midX = (b.centroidX + ex) / 2
+        const midY = (b.centroidY + ey) / 2
         return (
           <path
             key={`leader-${b.province}`}
-            d={`M${b.centroidX},${b.centroidY} C${midX},${b.centroidY} ${midX},${midY} ${b.edgeX},${b.centerY}`}
+            d={`M${b.centroidX},${b.centroidY} C${midX},${b.centroidY} ${midX},${midY} ${ex},${ey}`}
             fill="none"
             stroke={theme.leaderLine}
             strokeWidth={1}
@@ -289,11 +399,33 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
           />
         )
       })}
-      {/* 第二遍：卡片背景 + 省份名 + 学生行 */}
+      {/* 第二遍：卡片背景 + 省份名 + 学生行（整块可拖动：PC 直拖，移动端先点选中再拖） */}
       {allBlocks.map((b) => {
+        const off = offsetOf(b.province)
+        const selected = selectedProv === b.province
         let rowOffset = 0
         return (
-          <g key={b.province}>
+          <g
+            key={b.province}
+            transform={off.dx !== 0 || off.dy !== 0 ? `translate(${off.dx},${off.dy})` : undefined}
+            onPointerDown={(e) => onBlockPointerDown(e, b.province)}
+            onPointerMove={(e) => onBlockPointerMove(e, b.province)}
+            onPointerUp={(e) => finishDrag(e, b.province)}
+            onPointerCancel={(e) => finishDrag(e, b.province)}
+            style={{
+              cursor: dragState?.province === b.province ? 'grabbing' : 'grab',
+              // 触屏未选中时保留页面滚动；选中后禁用浏览器手势，拖动才生效
+              touchAction: isCoarse && !selected ? 'auto' : 'none',
+            }}
+          >
+            {/* 命中区域：卡片包围盒（卡片背景关闭时也有一层透明热区，保证整块可拖） */}
+            <rect
+              x={b.cardX}
+              y={b.cardY}
+              width={b.cardW}
+              height={b.cardH}
+              fill="transparent"
+            />
             {showCard && (
               <rect
                 x={b.cardX}
@@ -301,11 +433,26 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
                 width={b.cardW}
                 height={b.cardH}
                 rx={cardRx}
-                fill={theme.footerBg}
-                opacity={0.92}
+                fill={cardFill}
+                opacity={cardOpacity}
                 stroke={theme.leaderLine}
                 strokeOpacity={0.35}
                 strokeWidth={0.75}
+                filter={cardBlur > 0 ? 'url(#label-card-blur)' : undefined}
+              />
+            )}
+            {/* 移动端选中态：主题色虚线框提示「再次按住即可拖动」 */}
+            {selected && (
+              <rect
+                x={b.cardX - 2}
+                y={b.cardY - 2}
+                width={b.cardW + 4}
+                height={b.cardH + 4}
+                rx={cardRx + 2}
+                fill="none"
+                stroke={theme.accent}
+                strokeWidth={1.2}
+                strokeDasharray="4 3"
               />
             )}
             <text

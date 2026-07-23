@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { ArrowDownUp, Brush, ChevronDown, ChevronUp, GripVertical, ImagePlus, MapPinOff, Plane, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -12,8 +11,6 @@ import {
 } from '@/components/ui/dialog'
 import { Slider } from '@/components/ui/slider'
 import CityPicker from '@/components/entry/CityPicker'
-import { FitAdviceDialog } from '@/components/map/FitAdviceDialog'
-import { CALLI_RATIO } from '@/components/map/labels'
 import { useMapData } from '@/store/MapDataContext'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
 import { getUniInfoSync, prefetchUniversities, schoolBadgeUrl } from '@/utils/universities'
@@ -264,23 +261,11 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     try {
       const asset = await processCalliFile(file)
       setCalli(uni, asset)
-      // 字号协调建议：姓名/城市大学字号 ≈ 图片显示高度的 70%（60%–80% 区间的中值），
-      // 避免文字相对毛笔字图片过大或过小；用户可自行决定是否接受
-      const displayH = data.labelSizes.place * CALLI_RATIO * asset.scale
-      const place = Math.min(22, Math.max(9, Math.round(displayH * 0.7)))
-      const province = Math.min(28, Math.max(10, place + 3))
-      if (place !== data.labelSizes.place || place !== data.labelSizes.person) {
-        setCalliAdvice({ uni, sizes: { province, person: place, place } })
-      }
+      // 字号协调建议已去弹窗化：统一由「字体设置」面板中的行内推荐标注给出（recommendFontSizes 并入毛笔字高度因素）
     } catch {
       // 读取失败静默忽略（用户可重试）
     }
   }
-  /** 毛笔字上传后的字号协调建议（null = 不展示） */
-  const [calliAdvice, setCalliAdvice] = useState<{
-    uni: string
-    sizes: { province: number; person: number; place: number }
-  } | null>(null)
 
   /* ---------- 每人校徽：自定义图片 / 单独隐藏（按学生 id 存储） ---------- */
   const [badgeOpenId, setBadgeOpenId] = useState<string | null>(null)
@@ -753,30 +738,6 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
         setForm={setAddForm}
         nameRef={addNameRef}
         onConfirm={confirmAdd}
-      />
-
-      {/* 毛笔字上传后的字号协调建议（Portal 到 body，层级安全） */}
-      <FitAdviceDialog
-        open={calliAdvice !== null}
-        onOpenChange={(open) => {
-          if (!open) setCalliAdvice(null)
-        }}
-        title="让文字与毛笔字更协调"
-        description={`已上传「${calliAdvice?.uni ?? ''}」的毛笔字图片。建议把姓名/城市大学字号调整为图片显示高度的 70% 左右（60%–80% 区间），文字与图片比例会更美观：`}
-        changes={
-          calliAdvice
-            ? [
-                `姓名字号：${data.labelSizes.person}px → ${calliAdvice.sizes.person}px`,
-                `城市/大学字号：${data.labelSizes.place}px → ${calliAdvice.sizes.place}px`,
-                `省份名字号：${data.labelSizes.province}px → ${calliAdvice.sizes.province}px`,
-              ]
-            : []
-        }
-        onApply={() => {
-          if (!calliAdvice) return
-          setData((prev) => ({ ...prev, labelSizes: { ...prev.labelSizes, ...calliAdvice.sizes } }))
-          toast.success('已应用协调字号')
-        }}
       />
     </div>
   )

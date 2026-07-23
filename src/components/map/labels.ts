@@ -329,16 +329,11 @@ export function studentRowBoost(ln: StudentLineParts, placePx: number): number {
 
 const BASE_HEADER = 16
 const BASE_LINE = 13
-/** 行距加大：BASE_LINE * MIN_SCALE 不得小于 9px 硬下限 */
+/** 行距加大：姓名/地点行在常用字号下有足够呼吸 */
 const BASE_LINE_H = 22
 const BASE_HEADER_H = 28
 /** 块间距加大，避免省份块之间视觉粘连 */
 const BASE_GAP = 20
-/** 标注列的最小可用高度：地图较矮时也给列留出足够空间再缩字号 */
-const COL_MIN = 560
-/** 字号档位：逐级尝试，命中即停；最低档为硬下限（13*0.72=9.36 ≥ 9px），不再缩小 */
-const SCALE_LEVELS = [1, 0.94, 0.88, 0.82, 0.76, 0.72] as const
-const MIN_SCALE = SCALE_LEVELS[SCALE_LEVELS.length - 1]
 /** 每省块在负载均衡中的权重：标题行的折算成本（偏高以平衡块数） */
 const HEADER_WEIGHT = 2
 
@@ -583,6 +578,8 @@ export function computeLabelLayout(
     let rBlocks: LabelBlock[] = []
     let lBottom = 0
     let rBottom = 0
+    /** 左列的子列划分（仅单列模式做西南区溢出搬迁，需要此处可访问） */
+    let leftCols: SideItem[][] = []
 
     const projectAll = (g: MapGeom) => {
       for (const i of items) {
@@ -694,7 +691,7 @@ export function computeLabelLayout(
       const left = byLng.slice(0, bestK).sort(byLatDesc)
       const right = byLng.slice(bestK).sort(byLatDesc)
 
-      const leftCols = splitSide(left, columnsPerSide)
+      leftCols = splitSide(left, columnsPerSide)
       const rightCols = splitSide(right, columnsPerSide)
 
       // 每个子列的最终列宽：按子列内最长单行内容动态界定；与临时宽度不同时重排换行
@@ -716,18 +713,9 @@ export function computeLabelLayout(
       projectAll(geom)
 
       const allCols = [...leftCols, ...rightCols]
-      // 各（子）列共享同一可用高度：先求各自最低档所需高度，取大者与列最小高度比较，
-      // 这样人少的列在加高的画布上能用更大的字号档位
-      const floorNeed = Math.max(0, ...allCols.map((c) => heightAt(c, MIN_SCALE)))
-      const colTarget = Math.max(geom.mapH, COL_MIN, floorNeed)
-      const pickScale = (list: SideItem[]): number => {
-        for (const level of SCALE_LEVELS) {
-          if (heightAt(list, level) <= colTarget) return level
-        }
-        return MIN_SCALE
-      }
-      /** 全部（子）列共享同一缩放档（取所需较小值），保证所有列字号完全一致 */
-      sharedScale = Math.min(...allCols.map((c) => pickScale(c)), 1)
+      // 字号直觉化：用户设置多大就渲染多大（scale 恒为 1），放不下时加高画布，
+      // 绝不在背后按百分比缩小——设置大字号结果反而变小是反直觉的
+      sharedScale = 1
       maxColHeight1 = Math.max(0, ...allCols.map((c) => heightAt(c, 1)))
 
       const l = buildSide(leftCols, leftWidths, 'left')
@@ -742,69 +730,95 @@ export function computeLabelLayout(
       sharedScale = 1
     }
 
-    /** 西南空白区：西藏/云南块横向依次排放在主图左下（文字左对齐，引线接卡片顶边中点） */
+    /** 西南空白区：西藏/云南块横向依次排放在主图左下（文字左对齐，引线接卡片顶边中点）。
+        左列（单列模式）超出地图高度的尾部省份也会搬迁到这里——只要是左列的都可用这块空白 */
     let swBlocks: LabelBlock[] = []
+    const scale1 = sharedScale
+    const zoneY = TOP + geom.mapH * 0.68
+    const zoneBottom = TOP + geom.mapH - 12
+    const zoneRight = geom.x0 + MAP_W * 0.62
+    const zoneStartX = geom.x0 + 14 + CARD_PAD_X
+    let zx = zoneStartX
+    let zy = zoneY
+    let zRowMaxH = 0
+    /** 把一个标注块按西南区规则改坐标后放入（返回 false = 空白区已满） */
+    const placeBlockInZone = (b: LabelBlock): boolean => {
+      if (zx - CARD_PAD_X + b.cardW > zoneRight && zx > zoneStartX) {
+        // 横向放不下则换下一排
+        zy += zRowMaxH + 10
+        zx = zoneStartX
+        zRowMaxH = 0
+      }
+      if (zy + b.cardH > zoneBottom) return false
+      const newCardX = zx - CARD_PAD_X
+      const newCardY = zy - CARD_PAD_Y
+      const dy = newCardY - b.cardY
+      swBlocks.push({
+        ...b,
+        anchorX: zx,
+        textAnchor: 'start',
+        headerBaseline: b.headerBaseline + dy,
+        firstLineBaseline: b.firstLineBaseline + dy,
+        // 引线接入点：卡片顶边中点（定位点在卡片上方）
+        centerY: newCardY,
+        edgeX: newCardX + b.cardW / 2,
+        cardX: newCardX,
+        cardY: newCardY,
+      })
+      zx += b.cardW + 14
+      zRowMaxH = Math.max(zRowMaxH, b.cardH)
+      return true
+    }
+
     if (swActive && swItems.length > 0) {
-      const scale = sharedScale
-      const headerH = BASE_HEADER_H * scale * provPct
-      const headerSize = BASE_HEADER * scale * provPct
-      const personSize = BASE_LINE * scale * personPct
-      const placeSize = BASE_LINE * scale * placePct
+      const headerH = BASE_HEADER_H * scale1 * provPct
+      const headerSize = BASE_HEADER * scale1 * provPct
+      const personSize = BASE_LINE * scale1 * personPct
+      const placeSize = BASE_LINE * scale1 * placePct
       const swW = clampW(Math.max(...swItems.map((i) => i.oneLineW)))
       for (const i of swItems) wrapAt(i, swW)
-      const zoneY = TOP + geom.mapH * 0.68
-      const zoneBottom = TOP + geom.mapH - 12
-      const zoneRight = geom.x0 + MAP_W * 0.62
-      let x = geom.x0 + 14 + CARD_PAD_X
-      let y = zoneY
-      let rowMaxH = 0
-      let overflow = false
       for (const i of swItems) {
-        const lineH = BASE_LINE_H * scale * linePct * i.rowBoost
+        const lineH = BASE_LINE_H * scale1 * linePct * i.rowBoost
         const h = headerH + i.rowCount * lineH
         const cardH = h + CARD_PAD_Y * 2
         const cardW = swW + CARD_PAD_X * 2
-        if (x - CARD_PAD_X + cardW > zoneRight && x > geom.x0 + 14 + CARD_PAD_X) {
-          // 横向放不下则换下一排
-          y += rowMaxH + 10
-          x = geom.x0 + 14 + CARD_PAD_X
-          rowMaxH = 0
-        }
-        if (y + cardH > zoneBottom) {
-          overflow = true
-          break
-        }
         const canvasPts = i.cityPts ?? [{ x: 0, y: 0 }]
         const cx = canvasPts.reduce((s, p) => s + p.x, 0) / canvasPts.length
         const cy = canvasPts.reduce((s, p) => s + p.y, 0) / canvasPts.length
-        const cardX = x - CARD_PAD_X
-        const cardY = y - CARD_PAD_Y
-        swBlocks.push({
+        const ok = placeBlockInZone({
           province: i.province,
           lines: i.wrapped,
-          anchorX: x,
+          anchorX: 0,
           textAnchor: 'start',
-          headerBaseline: y + headerH - 8 * scale,
-          firstLineBaseline: y + headerH + lineH * 0.72,
+          headerBaseline: headerH - 8 * scale1,
+          firstLineBaseline: headerH + lineH * 0.72,
           lineH,
           headerSize,
           personSize,
           placeSize,
-          // 引线接入点：卡片顶边中点（定位点在卡片上方）
-          centerY: cardY,
-          edgeX: cardX + cardW / 2,
+          centerY: 0,
+          edgeX: 0,
           centroidX: cx,
           centroidY: cy,
           cityPoints: canvasPts,
-          cardX,
-          cardY,
+          cardX: 0,
+          cardY: 0,
           cardW,
           cardH,
         })
-        x += cardW + 14
-        rowMaxH = Math.max(rowMaxH, cardH)
+        if (!ok) return null
       }
-      if (overflow) return null
+    }
+
+    // 左列溢出搬迁：单列模式下左列底部超过地图高度时，把列尾（偏南）省份逐个搬进西南空白区，
+    // 直到左列收回地图高度内或空白区放满（放满则由下方的画布加高逻辑兜底）
+    if (leftCols.length === 1) {
+      while (lBlocks.length > 0 && lBottom > TOP + geom.mapH) {
+        const tail = lBlocks[lBlocks.length - 1]
+        if (!placeBlockInZone(tail)) break
+        lBlocks = lBlocks.slice(0, -1)
+        lBottom = lBlocks.length > 0 ? Math.max(...lBlocks.map((b) => b.cardY + b.cardH)) - CARD_PAD_Y : 0
+      }
     }
 
     // 超出列高时加高画布（纵向扩展），保证最低档字号下依然不重叠；
@@ -830,14 +844,16 @@ export function computeLabelLayout(
   return assemble(items, false) as LabelLayout
 }
 
-/** 排版自适应推荐结果 */
+/** 排版自适应推荐结果（供设置项旁边的轻量标注使用，不再弹窗） */
 export interface FitRecommendation {
-  /** 建议切换为每侧两列（当前为一列且两列明显更宽松时为 true） */
+  /** 建议切换为每侧两列（内容超高且两列明显更宽松时为 true） */
   twoColumns: boolean
-  /** 推荐字号（px）：按当前所需缩放档换算，应用后内容可按原字号比例放下 */
+  /** 反向建议：当前两列但一列也放得下时为 true（建议切回一列） */
+  oneColumn?: boolean
+  /** 推荐字号（px）：两列也放不下时按高度预算换算 */
   sizes: { province: number; person: number; place: number }
-  /** 当前设置下的实际缩放档（<1 表示画布被迫整体缩小了字号） */
-  currentScale: number
+  /** 单列内容所需高度 / 地图纵向高度（>1.1 才建议两列） */
+  overflowRatio: number
 }
 
 /** 字号可调范围（与录入面板档位一致） */
@@ -847,13 +863,15 @@ const FIT_RANGE = {
   place: { min: 9, max: 22 },
 } as const
 
+const clampFit = (v: number, range: { min: number; max: number }) =>
+  Math.min(range.max, Math.max(range.min, v))
+
 /**
- * 标注排版自适应推荐：
- * - 当前字号能按原样放下（scale = 1）→ 返回 null，不打扰；
- * - 能一列绝不分两列：仅当单列内容在用户字号下的所需高度超过地图纵向高度 1.1 倍时，
- *   才考虑推荐两列（且两列确实明显更宽松）；
- * - 否则只推荐缩小后的字号（按当前缩放档换算到 px，向下取整并夹在可调范围内）。
- * 是否采纳由用户决定（调用方弹提示）。
+ * 标注排版自适应推荐（轻量标注用）：
+ * - 字号不再被后台缩放（设置多大渲多大），所以这里的建议只关于「列数」与「画布是否被加高」；
+ * - 能一列绝不分两列：仅当单列内容所需高度超过地图高度 1.1 倍时才建议两列；
+ * - 当前已是两列、而一列也能放得下（≤1.0 倍）时，反向建议切回一列；
+ * - 两列也超高时，建议把字号缩到高度预算内（取整到 px，夹在可调范围内）。
  */
 export function recommendLabelFit(
   groups: Map<string, StudentEntry[]>,
@@ -863,48 +881,55 @@ export function recommendLabelFit(
   const sizes = options?.sizes ?? { province: 16, person: 13, place: 13 }
   const cols = options?.columnsPerSide ?? 1
   const current = computeLabelLayout(groups, undefined, { ...options, columnsPerSide: cols })
-  if (current.scale >= 0.999) return null
+  const ratio = current.geom.mapH > 0 ? current.maxColHeight1 / current.geom.mapH : 0
 
-  const clamp = (v: number, range: { min: number; max: number }) =>
-    Math.min(range.max, Math.max(range.min, v))
-  const scaledSizes = (s: number) => ({
-    province: clamp(Math.floor(sizes.province * s), FIT_RANGE.province),
-    person: clamp(Math.floor(sizes.person * s), FIT_RANGE.person),
-    place: clamp(Math.floor(sizes.place * s), FIT_RANGE.place),
-  })
-
-  if (cols === 1) {
-    // 单列所需高度（用户字号原样）超过地图高度 1.1 倍才建议分两列
-    const overflowRatio = current.geom.mapH > 0 ? current.maxColHeight1 / current.geom.mapH : 0
-    if (overflowRatio > 1.1) {
-      const two = computeLabelLayout(groups, undefined, { ...options, columnsPerSide: 2 })
-      if (two.scale > current.scale + 0.02) {
-        return {
-          twoColumns: true,
-          sizes: two.scale >= 0.999 ? { ...sizes } : scaledSizes(two.scale),
-          currentScale: current.scale,
-        }
-      }
+  if (cols === 2) {
+    // 反向建议：一列也放得下 → 建议切回一列（更简洁）
+    const one = computeLabelLayout(groups, undefined, { ...options, columnsPerSide: 1 })
+    const oneRatio = one.geom.mapH > 0 ? one.maxColHeight1 / one.geom.mapH : 0
+    if (oneRatio <= 1.0) {
+      return { twoColumns: false, oneColumn: true, sizes: { ...sizes }, overflowRatio: ratio }
     }
+    if (ratio <= 1.1) return null
+    // 两列也超高 → 建议缩字号
+    const f = (current.geom.mapH * 1.0) / current.maxColHeight1
+    const sizes2 = {
+      province: clampFit(Math.round(sizes.province * f), FIT_RANGE.province),
+      person: clampFit(Math.round(sizes.person * f), FIT_RANGE.person),
+      place: clampFit(Math.round(sizes.place * f), FIT_RANGE.place),
+    }
+    if (sizes2.province === sizes.province && sizes2.person === sizes.person && sizes2.place === sizes.place) {
+      return null
+    }
+    return { twoColumns: false, sizes: sizes2, overflowRatio: ratio }
   }
 
-  const sizes2 = scaledSizes(current.scale)
-  // 推荐值与当前完全一致（字号已到下限）且无列数建议时不打扰
-  if (
-    sizes2.province === sizes.province &&
-    sizes2.person === sizes.person &&
-    sizes2.place === sizes.place
-  ) {
+  // 一列：只有超过 1.1 倍才建议两列
+  if (ratio <= 1.1) return null
+  const two = computeLabelLayout(groups, undefined, { ...options, columnsPerSide: 2 })
+  const twoRatio = two.geom.mapH > 0 ? two.maxColHeight1 / two.geom.mapH : 0
+  if (twoRatio < ratio - 0.1) {
+    return { twoColumns: true, sizes: { ...sizes }, overflowRatio: ratio }
+  }
+  // 两列收益不大 → 建议缩字号
+  const f = (current.geom.mapH * 1.0) / current.maxColHeight1
+  const sizes2 = {
+    province: clampFit(Math.round(sizes.province * f), FIT_RANGE.province),
+    person: clampFit(Math.round(sizes.person * f), FIT_RANGE.person),
+    place: clampFit(Math.round(sizes.place * f), FIT_RANGE.place),
+  }
+  if (sizes2.province === sizes.province && sizes2.person === sizes.person && sizes2.place === sizes.place) {
     return null
   }
-  return { twoColumns: false, sizes: sizes2, currentScale: current.scale }
+  return { twoColumns: false, sizes: sizes2, overflowRatio: ratio }
 }
 
 /**
- * 「推荐设置」字号建议（字体设置面板按钮）：
- * 以地图纵向高度为预算，算出在当前人数/列数下能放下的最美观字号——
- * 当前字号偏大时建议缩小，偏小时（空间充裕）建议放大，夹在可调范围内。
- * 与当前设置一致时返回 null（无需打扰）。
+ * 字号推荐（设置项旁的「推荐 xxpx」标注）：
+ * 以地图纵向高度为预算，算出在当前人数/列数下恰好用满空间的字号——
+ * 当前字号偏大（画布被加高）时建议缩小，偏小时（空间充裕）建议放大。
+ * 取整用四舍五入（宁大勿小），并与毛笔字图片高度建议（图高 70%）取较大者。
+ * 与当前设置一致时返回 null（无需标注）。
  */
 export function recommendFontSizes(
   groups: Map<string, StudentEntry[]>,
@@ -913,17 +938,23 @@ export function recommendFontSizes(
   if (groups.size === 0) return null
   const sizes = options?.sizes ?? { province: 16, person: 13, place: 13 }
   const layout = computeLabelLayout(groups, undefined, options)
-  const target = Math.max(layout.geom.mapH, 560)
+  const target = layout.geom.mapH
   const need = layout.maxColHeight1
-  if (need <= 0) return null
+  if (need <= 0 || target <= 0) return null
   // 高度与字号近似线性：factor > 1 表示有富余可放大，< 1 表示需缩小
   const factor = target / need
-  const clamp = (v: number, range: { min: number; max: number }) =>
-    Math.min(range.max, Math.max(range.min, v))
+  // 毛笔字图片协调建议：字号 ≈ 图片显示高度的 70%（取各图片最大值，避免建议偏小）
+  let calliMin = 0
+  for (const asset of Object.values(options?.calligraphy ?? {})) {
+    if (asset && asset.scale > 0) {
+      const displayH = sizes.place * CALLI_RATIO * asset.scale
+      calliMin = Math.max(calliMin, Math.round(displayH * 0.7))
+    }
+  }
   const rec = {
-    province: clamp(Math.floor(sizes.province * factor), FIT_RANGE.province),
-    person: clamp(Math.floor(sizes.person * factor), FIT_RANGE.person),
-    place: clamp(Math.floor(sizes.place * factor), FIT_RANGE.place),
+    province: clampFit(Math.max(Math.round(sizes.province * factor), calliMin > 0 ? calliMin + 3 : 0), FIT_RANGE.province),
+    person: clampFit(Math.max(Math.round(sizes.person * factor), calliMin), FIT_RANGE.person),
+    place: clampFit(Math.max(Math.round(sizes.place * factor), calliMin), FIT_RANGE.place),
   }
   if (rec.province === sizes.province && rec.person === sizes.person && rec.place === sizes.place) {
     return null

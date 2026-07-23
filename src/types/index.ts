@@ -79,6 +79,17 @@ export interface MapData {
   labelCardBg: boolean
   /** 省份卡片圆角（画布单位，0–24） */
   cardRadius: number
+  /** 省份卡片填充色（'' = 跟随主题页脚底色；也可自定义为任意 hex 颜色） */
+  cardColor: string
+  /** 省份卡片不透明度（0.3–1，默认 0.92） */
+  cardOpacity: number
+  /** 省份卡片边缘羽化/模糊半径（画布单位，0–10，0 = 清晰边缘） */
+  cardBlur: number
+  /**
+   * 省份卡片手动拖动偏移（画布 viewBox 单位）：省份名 → {dx, dy}。
+   * 拖动只平移渲染位置，块在列中的占位不变；引线与文字随卡片一起移动
+   */
+  provinceOffsets: Record<string, { dx: number; dy: number }>
   /**
    * 省内手动排序的省份列表：在录入弹窗中拖动调整过顺序的省份，
    * 该省在地图上保持手动顺序（不再按软科排名自动排序）
@@ -107,6 +118,10 @@ export const EMPTY_MAP_DATA: MapData = {
   mergeSameSchool: false,
   labelCardBg: true,
   cardRadius: 10,
+  cardColor: '',
+  cardOpacity: 0.92,
+  cardBlur: 0,
+  provinceOffsets: {},
   customOrderProvinces: [],
   calligraphy: {},
   badgeOverrides: {},

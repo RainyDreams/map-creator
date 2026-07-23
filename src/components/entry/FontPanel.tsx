@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { Sparkles, Type, Upload, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Type, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
 import { Label } from '@/components/ui/label'
@@ -13,8 +13,8 @@ import {
 } from '@/utils/fonts'
 import { FontSelect } from '@/components/entry/FontSelect'
 import { SizeSelect } from '@/components/entry/SizeSelect'
-import { FitAdviceDialog } from '@/components/map/FitAdviceDialog'
-import { recommendFontSizes } from '@/components/map/labels'
+import { recommendFontSizes, recommendLabelFit } from '@/components/map/labels'
+import { isGeoReady, loadGeoFeatures } from '@/components/map/geo'
 import { resolveProvince } from '@/utils/geo'
 import { newId, type StudentEntry } from '@/types'
 
@@ -31,6 +31,21 @@ const SIZE_OPTIONS: Record<(typeof SLOTS)[number], readonly number[]> = {
 const TEACHER_SIZE_OPTIONS: readonly number[] = [10, 11, 12, 13, 14, 15, 16, 18, 20]
 /** 省份卡片圆角档位（画布单位） */
 const CARD_RADIUS_OPTIONS: readonly number[] = [0, 6, 10, 14, 20]
+/** 卡片不透明度档位（百分比，存储时 /100） */
+const CARD_OPACITY_OPTIONS: readonly number[] = [100, 92, 85, 75, 60, 45, 30]
+/** 卡片边缘羽化档位（画布单位，0 = 清晰边缘） */
+const CARD_BLUR_OPTIONS: readonly number[] = [0, 2, 4, 6, 8, 10]
+/** 卡片颜色预设（'' = 跟随主题页脚底色） */
+const CARD_COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: '跟随主题', value: '' },
+  { label: '纯白', value: '#ffffff' },
+  { label: '米白', value: '#faf6ef' },
+  { label: '浅灰', value: '#f5f5f4' },
+  { label: '暖黄', value: '#fef3c7' },
+  { label: '青绿', value: '#e7f6ec' },
+  { label: '雾蓝', value: '#eaf1f8' },
+  { label: '绯红', value: '#fbeaea' },
+]
 
 /**
  * 字体设置面板：地图标注类槽位（省份名/姓名/城市大学）独立选字体（预设 + 用户上传），
@@ -40,28 +55,26 @@ export function FontPanel() {
   const { data, setData, fontSlots, setFontSlot, customFonts, addCustomFont, removeCustomFont } = useMapData()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  /** 「推荐设置」字号建议弹窗内容 */
-  const [fontAdvice, setFontAdvice] = useState<{
-    sizes: { province: number; person: number; place: number }
-    direction: 'up' | 'down'
-  } | null>(null)
 
-  /** 推荐设置：按当前人数/列数，以地图纵向高度为预算算出最美观的字号 */
-  function handleRecommend() {
-    const groups = new Map<string, StudentEntry[]>()
+  /* ---------- 行内推荐标注（去弹窗化） ----------
+   * 字号推荐：以地图纵向高度为预算，算出恰好用满空间的字号（含毛笔字图片高度协调）；
+   * 列数推荐：能一列绝不分两列，超高 1.1 倍才建议两列；两列能放回一列时反向建议。
+   * 推荐值以小标注形式出现在对应设置项旁，点击才应用——不弹窗、不擅改。 */
+  const groups = useMemo(() => {
+    const g = new Map<string, StudentEntry[]>()
     for (const s of data.students) {
       if (s.overseas === true) continue
       const p = resolveProvince(s)
       if (p === null) continue
-      const list = groups.get(p)
+      const list = g.get(p)
       if (list) list.push(s)
-      else groups.set(p, [s])
+      else g.set(p, [s])
     }
-    if (groups.size === 0) {
-      toast('先录入一些同学，再使用推荐设置')
-      return
-    }
-    const rec = recommendFontSizes(groups, {
+    return g
+  }, [data.students])
+
+  const layoutOptions = useMemo(
+    () => ({
       sizes: data.labelSizes,
       columnsPerSide: data.labelColumns,
       manualProvinces: new Set(data.customOrderProvinces),
@@ -69,12 +82,51 @@ export function FontPanel() {
       badgeOverrides: data.badgeOverrides,
       mergeSameSchool: data.mergeSameSchool,
       cardBg: data.labelCardBg,
-    })
-    if (!rec) {
-      toast.success('当前字号已经很合适', { description: '与页面空间匹配良好，无需调整' })
-      return
+    }),
+    [
+      data.labelSizes,
+      data.labelColumns,
+      data.customOrderProvinces,
+      data.calligraphy,
+      data.badgeOverrides,
+      data.mergeSameSchool,
+      data.labelCardBg,
+    ],
+  )
+
+  /** 地图轮廓数据异步加载完成后触发推荐重算（投影未就绪时布局预算不可用，推荐会错误地为 null） */
+  const [geoTick, setGeoTick] = useState(0)
+  useEffect(() => {
+    if (isGeoReady()) return
+    let cancelled = false
+    loadGeoFeatures()
+      .then(() => {
+        if (!cancelled) setGeoTick((t) => t + 1)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
     }
-    setFontAdvice(rec)
+  }, [])
+
+  /** 字号推荐（null = 当前已合适或无数据） */
+  const sizeRec = useMemo(
+    () => (groups.size > 0 && isGeoReady() ? recommendFontSizes(groups, layoutOptions) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groups, layoutOptions, geoTick],
+  )
+  /** 列数/整体排版推荐（null = 无需建议） */
+  const fitRec = useMemo(
+    () => (groups.size > 0 && isGeoReady() ? recommendLabelFit(groups, layoutOptions) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groups, layoutOptions, geoTick],
+  )
+
+  /** 应用单个槽位的推荐字号 */
+  function applySizeRec(slot: (typeof SLOTS)[number]) {
+    if (!sizeRec) return
+    const px = sizeRec.sizes[slot]
+    setData((prev) => ({ ...prev, labelSizes: { ...prev.labelSizes, [slot]: px } }))
   }
 
   function handleUpload(file: File) {
@@ -113,16 +165,6 @@ export function FontPanel() {
           字体设置
         </h2>
         <div className="flex items-center gap-1.5">
-          {/* 推荐设置：按人数/列数计算最美观的字号（弹窗确认后生效） */}
-          <button
-            type="button"
-            onClick={handleRecommend}
-            title="根据同学人数与列数，推荐合适的字号"
-            className="flex items-center gap-1 rounded-md border border-stone-200 px-1.5 py-1 text-[11px] text-stone-500 transition-colors hover:bg-stone-50 hover:text-stone-700"
-          >
-            <Sparkles className="h-3 w-3" />
-            推荐设置
-          </button>
           {/* 上传入口刻意小巧：预设字体是主路径 */}
           <button
             type="button"
@@ -170,6 +212,17 @@ export function FontPanel() {
               }
               ariaLabel={`${FONT_SLOT_LABELS[slot]}字号`}
             />
+            {/* 行内推荐标注：与当前值不同才出现，点击应用该槽位的推荐字号 */}
+            {sizeRec && sizeRec.sizes[slot] !== data.labelSizes[slot] && (
+              <button
+                type="button"
+                onClick={() => applySizeRec(slot)}
+                title={`按当前人数与空间，推荐使用 ${sizeRec.sizes[slot]}px（点击应用）`}
+                className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-1 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
+              >
+                推荐 {sizeRec.sizes[slot]}px
+              </button>
+            )}
           </div>
         ))}
         {/* 老师名单只有字号可调（字体跟随标题/姓名/地点槽位） */}
@@ -192,9 +245,32 @@ export function FontPanel() {
         </div>
       </div>
 
-      {/* 每侧标注列数：人多时两列更宽松（文字列宽减半、换行更多） */}
+      {/* 每侧标注列数：人多时两列更宽松（文字列宽减半、换行更多）；推荐值以行内标注给出 */}
       <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
-        <span className="text-xs text-stone-500">每侧标注列数</span>
+        <span className="flex items-center gap-1.5 text-xs text-stone-500">
+          每侧标注列数
+          {/* 行内推荐标注：超高 1.1 倍才建议两列；两列能放回一列时反向建议 */}
+          {fitRec?.twoColumns === true && data.labelColumns === 1 && (
+            <button
+              type="button"
+              onClick={() => setData((prev) => ({ ...prev, labelColumns: 2 }))}
+              title="内容较高，推荐切换为每侧两列（点击应用）"
+              className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
+            >
+              推荐两列
+            </button>
+          )}
+          {fitRec?.oneColumn === true && data.labelColumns === 2 && (
+            <button
+              type="button"
+              onClick={() => setData((prev) => ({ ...prev, labelColumns: 1 }))}
+              title="一列也放得下，切回一列更简洁（点击应用）"
+              className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
+            >
+              一列也放得下
+            </button>
+          )}
+        </span>
         <div className="flex overflow-hidden rounded-md border border-stone-200" role="radiogroup" aria-label="每侧标注列数">
           {([1, 2] as const).map((n) => (
             <button
@@ -254,45 +330,94 @@ export function FontPanel() {
         />
       </div>
       {data.labelCardBg && (
-        <div className="mt-2 flex items-center gap-2">
-          <span className="w-20 shrink-0 text-xs text-stone-500 md:w-24">卡片圆角</span>
-          <span className="min-w-0 flex-1 text-[11px] text-stone-400">0 为直角</span>
-          <SizeSelect
-            value={data.cardRadius}
-            options={CARD_RADIUS_OPTIONS}
-            onChange={(r) => setData((prev) => ({ ...prev, cardRadius: r }))}
-            ariaLabel="卡片圆角"
-          />
-        </div>
+        <>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="w-20 shrink-0 text-xs text-stone-500 md:w-24">卡片圆角</span>
+            <span className="min-w-0 flex-1 text-[11px] text-stone-400">0 为直角</span>
+            <SizeSelect
+              value={data.cardRadius}
+              options={CARD_RADIUS_OPTIONS}
+              onChange={(r) => setData((prev) => ({ ...prev, cardRadius: r }))}
+              ariaLabel="卡片圆角"
+            />
+          </div>
+          {/* 卡片颜色：预设色板（含「跟随主题」）+ 自定义取色 */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="w-20 shrink-0 text-xs text-stone-500 md:w-24">卡片颜色</span>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              {CARD_COLOR_PRESETS.map((c) => {
+                const active = data.cardColor === c.value
+                return (
+                  <button
+                    key={c.label}
+                    type="button"
+                    title={c.label}
+                    aria-label={`卡片颜色：${c.label}`}
+                    aria-pressed={active}
+                    onClick={() => setData((prev) => ({ ...prev, cardColor: c.value }))}
+                    className={
+                      active
+                        ? 'h-5 w-5 rounded-full border-2 border-stone-700 ring-2 ring-stone-300'
+                        : 'h-5 w-5 rounded-full border border-stone-300 transition-transform hover:scale-110'
+                    }
+                    style={{
+                      backgroundColor: c.value === '' ? undefined : c.value,
+                      backgroundImage:
+                        c.value === ''
+                          ? 'linear-gradient(135deg,#fafaf9 0%,#fafaf9 49%,#d6d3d1 50%,#fafaf9 51%)'
+                          : undefined,
+                    }}
+                  />
+                )
+              })}
+              {/* 自定义颜色（原生取色器，刻意小巧） */}
+              <label
+                className="relative h-5 w-5 cursor-pointer overflow-hidden rounded-full border border-dashed border-stone-400 transition-transform hover:scale-110"
+                title="自定义颜色"
+                style={
+                  data.cardColor !== '' && !CARD_COLOR_PRESETS.some((c) => c.value === data.cardColor)
+                    ? { backgroundColor: data.cardColor, borderStyle: 'solid', borderColor: '#44403c' }
+                    : undefined
+                }
+              >
+                <input
+                  type="color"
+                  value={data.cardColor !== '' ? data.cardColor : '#fafaf9'}
+                  onChange={(e) => setData((prev) => ({ ...prev, cardColor: e.target.value }))}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="自定义卡片颜色"
+                />
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[10px] text-stone-500">
+                  +
+                </span>
+              </label>
+            </div>
+          </div>
+          {/* 不透明度与边缘羽化：下拉档位，非原生滑块 */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="w-20 shrink-0 text-xs text-stone-500 md:w-24">不透明度</span>
+            <span className="min-w-0 flex-1 text-[11px] text-stone-400">越低越透出地图</span>
+            <SizeSelect
+              value={Math.round(data.cardOpacity * 100)}
+              options={CARD_OPACITY_OPTIONS}
+              unit="%"
+              onChange={(v) => setData((prev) => ({ ...prev, cardOpacity: v / 100 }))}
+              ariaLabel="卡片不透明度"
+            />
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="w-20 shrink-0 text-xs text-stone-500 md:w-24">边缘羽化</span>
+            <span className="min-w-0 flex-1 text-[11px] text-stone-400">0 为清晰边缘</span>
+            <SizeSelect
+              value={data.cardBlur}
+              options={CARD_BLUR_OPTIONS}
+              unit=""
+              onChange={(v) => setData((prev) => ({ ...prev, cardBlur: v }))}
+              ariaLabel="卡片边缘羽化"
+            />
+          </div>
+        </>
       )}
-
-      {/* 「推荐设置」字号建议弹窗 */}
-      <FitAdviceDialog
-        open={fontAdvice !== null}
-        onOpenChange={(open) => {
-          if (!open) setFontAdvice(null)
-        }}
-        title="推荐字号设置"
-        description={
-          fontAdvice?.direction === 'up'
-            ? '当前空间比较充裕，字号可以适当放大，整体会更美观：'
-            : '按当前人数与列数，字号偏大、内容会被迫整体缩小，建议调整为：'
-        }
-        changes={
-          fontAdvice
-            ? [
-                `省份名字号：${data.labelSizes.province}px → ${fontAdvice.sizes.province}px`,
-                `姓名字号：${data.labelSizes.person}px → ${fontAdvice.sizes.person}px`,
-                `城市/大学字号：${data.labelSizes.place}px → ${fontAdvice.sizes.place}px`,
-              ]
-            : []
-        }
-        onApply={() => {
-          if (!fontAdvice) return
-          setData((prev) => ({ ...prev, labelSizes: { ...prev.labelSizes, ...fontAdvice.sizes } }))
-          toast.success('已应用推荐字号')
-        }}
-      />
 
       {customFonts.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5 border-t border-stone-100 pt-2.5">

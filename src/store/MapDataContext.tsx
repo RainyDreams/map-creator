@@ -189,12 +189,42 @@ function normalizeData(raw: unknown): MapData | null {
     cardRadius: typeof d.cardRadius === 'number' && Number.isFinite(d.cardRadius)
       ? Math.min(24, Math.max(0, Math.round(d.cardRadius)))
       : 10,
+    // v1.13 迁移：卡片颜色/透明度/模糊与拖动偏移为新增字段，旧数据走默认值
+    cardColor:
+      typeof d.cardColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(d.cardColor)
+        ? d.cardColor
+        : '',
+    cardOpacity:
+      typeof d.cardOpacity === 'number' && Number.isFinite(d.cardOpacity)
+        ? Math.min(1, Math.max(0.3, d.cardOpacity))
+        : 0.92,
+    cardBlur:
+      typeof d.cardBlur === 'number' && Number.isFinite(d.cardBlur)
+        ? Math.min(10, Math.max(0, Math.round(d.cardBlur)))
+        : 0,
+    provinceOffsets: normalizeProvinceOffsets(d.provinceOffsets),
     customOrderProvinces: Array.isArray(d.customOrderProvinces)
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
       : [],
     calligraphy: normalizeCalligraphy(d.calligraphy),
     badgeOverrides: normalizeBadgeOverrides(d.badgeOverrides),
   }
+}
+
+/** v1.13 迁移：旧数据无 provinceOffsets 字段时回退空表；逐项校验结构并限制偏移幅度 */
+function normalizeProvinceOffsets(raw: unknown): MapData['provinceOffsets'] {
+  const out: MapData['provinceOffsets'] = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [prov, o] of Object.entries(raw as Record<string, unknown>)) {
+    const p = o as Partial<{ dx: number; dy: number }> | null
+    if (!p || typeof p !== 'object') continue
+    if (typeof p.dx !== 'number' || typeof p.dy !== 'number') continue
+    if (!Number.isFinite(p.dx) || !Number.isFinite(p.dy)) continue
+    const dx = Math.min(600, Math.max(-600, p.dx))
+    const dy = Math.min(600, Math.max(-600, p.dy))
+    if (dx !== 0 || dy !== 0) out[prov] = { dx, dy }
+  }
+  return out
 }
 
 /** v1.9 迁移：旧数据无 badgeOverrides 字段时回退空表；逐项校验结构 */

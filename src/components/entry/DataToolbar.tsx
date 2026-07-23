@@ -1,5 +1,5 @@
 /**
- * 录入页数据工具条：下载模板 / 导入 / 导出。
+ * 录入页数据工具条：导入 / 导出 / 分享。
  * - 导入面板：① 提前下载模板；② 导入 Excel（上传后先预览即将导入的数据，再选追加/替换）；
  *   ③ 导入 JSON（整幅画布备份，预览摘要后作为新画布导入，不覆盖现有内容）
  * - 导出面板：导出 Excel（名单）/ 导出 JSON（整幅画布）
@@ -23,6 +23,7 @@ import { newId } from '@/types'
 import { downloadTemplate, exportWorkbook, parseWorkbook, type ParseResult } from '@/utils/excel'
 import { exportCanvasJson, parseCanvasJson, type CanvasJsonPayload } from '@/utils/exportData'
 import { requestMapExport } from '@/utils/exportBus'
+import { buildShareUrl } from '@/utils/shareLink'
 
 interface PendingExcel {
   result: ParseResult
@@ -58,6 +59,31 @@ export default function DataToolbar() {
     ? `${window.location.origin}/?share=${activeShare.id}`
     : null
   const shownShareExpiresAt = activeShare?.expiresAt ?? null
+
+  /** hash 分享链接（纯前端生成，数据编码在 URL 里，不经过服务器） */
+  const [hashShare, setHashShare] = useState<{ url: string; stripped: string[]; tooLarge: boolean } | null>(null)
+
+  const handleBuildHashLink = () => {
+    const result = buildShareUrl({ name: activeCanvasName, data, theme, fontSlots, badge })
+    setHashShare(result)
+    if (result.tooLarge) {
+      toast.info('名单较长，链接已生成但可能超出部分浏览器限制', {
+        description: '如对方打不开，请改用导出 JSON 文件分享',
+      })
+    }
+  }
+
+  const handleCopyHashLink = async () => {
+    if (!hashShare) return
+    try {
+      await navigator.clipboard.writeText(hashShare.url)
+      toast.success('链接已复制', { description: '发给同学，打开即可预览并加载到自己的画布' })
+    } catch {
+      const input = document.getElementById('hash-share-input') as HTMLInputElement | null
+      input?.select()
+      toast.info('请手动复制选中的链接')
+    }
+  }
 
   const excelInputRef = useRef<HTMLInputElement>(null)
   const jsonInputRef = useRef<HTMLInputElement>(null)
@@ -197,16 +223,6 @@ export default function DataToolbar() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={downloadTemplate}
-          className="border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900 md:text-sm"
-        >
-          <Download className="size-4" />
-          下载模板
-        </Button>
         <Button
           type="button"
           variant="outline"
@@ -601,17 +617,51 @@ export default function DataToolbar() {
               </div>
             )}
 
-            {/* 特别小的选项：分享为链接（暂时禁用，置灰不可点） */}
-            <div className="flex items-center justify-center gap-1 pt-1">
+            {/* 特别小的选项：分享为链接（纯前端 hash 编码，数据不经过服务器） */}
+            <div className="flex flex-col items-center gap-2 pt-1">
               <button
                 type="button"
-                disabled
-                aria-disabled="true"
-                className="flex cursor-not-allowed items-center gap-1 text-[11px] text-stone-300"
+                onClick={handleBuildHashLink}
+                className="flex items-center gap-1 text-[11px] text-stone-400 underline-offset-2 transition-colors hover:text-stone-600 hover:underline"
               >
                 <Link2 className="h-3 w-3" />
-                分享为链接（7 天有效）
+                分享为链接
               </button>
+
+              {hashShare !== null && (
+                <div className="w-full space-y-2 rounded-lg border border-stone-200 bg-stone-50/60 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="hash-share-input"
+                      readOnly
+                      value={hashShare.url}
+                      onFocus={(e) => e.target.select()}
+                      className="h-8 min-w-0 flex-1 rounded-md border border-stone-200 bg-white px-2.5 font-mono text-xs text-stone-700 outline-none"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCopyHashLink}
+                      className="shrink-0 bg-stone-900 text-white hover:bg-stone-700"
+                    >
+                      <Copy className="size-3.5" />
+                      复制
+                    </Button>
+                  </div>
+                  <p className="text-[11px] leading-4 text-stone-400">
+                    打开链接的人会先看到名单预览，再决定加载到自己的新画布。
+                    链接内容是生成这一刻的画布快照，之后你的修改不会同步，需重新生成。
+                    {hashShare.stripped.length > 0 &&
+                      `（${hashShare.stripped.join('、')}不随链接传输）`}
+                  </p>
+                  {hashShare.tooLarge && (
+                    <p className="text-[11px] leading-4 text-amber-600">
+                      名单较长，链接可能超出部分浏览器/微信的长度限制；对方打不开时请改用导出
+                      JSON 文件分享。
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

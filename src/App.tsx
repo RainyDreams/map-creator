@@ -15,6 +15,8 @@ import { ClipboardList, Info, Map as MapIcon, PanelLeftClose, PanelLeftOpen } fr
 import { cn } from '@/lib/utils'
 import { onGotoMapExport } from '@/utils/exportBus'
 import { takeShareIdFromUrl, fetchShareState } from '@/utils/share'
+import { takeSharePayloadFromHash, type ShareLinkPayload } from '@/utils/shareLink'
+import { ShareImportLanding } from '@/components/ShareImportLanding'
 
 type TabKey = 'entry' | 'map' | 'about'
 
@@ -277,6 +279,13 @@ function TabButton({
 }
 
 export default function App() {
+  /** hash 分享链接（#import=…）解码出的画布数据：展示预览落地页 */
+  const [importPayload, setImportPayload] = useState<ShareLinkPayload | null>(null)
+  useEffect(() => {
+    const p = takeSharePayloadFromHash()
+    if (p) setImportPayload(p)
+  }, [])
+
   return (
     <MapDataProvider>
       <Routes>
@@ -285,6 +294,9 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/about" element={<AboutPage />} />
       </Routes>
+      {importPayload !== null && (
+        <ShareImportLanding payload={importPayload} onClose={() => setImportPayload(null)} />
+      )}
       <ConsentDialog />
       <WeChatGuideDialog />
       <Toaster position="top-center" richColors />
