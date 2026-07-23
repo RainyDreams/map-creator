@@ -5,7 +5,7 @@ import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
 import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
-import { exportNodeToPng, renderNodeToPngDataUrl, type ExportQuality } from '@/utils/exportImage'
+import { exportNodeToPng, renderNodeToPngDataUrl, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
@@ -68,8 +68,14 @@ const PROGRESS_FILLERS = [
   '就快完成了，再等一下下…',
 ] as const
 
-/** 导出进度模态框：居中原点卡片 + 百分比进度条 + 预计剩余时间，风格与全站一致 */
-function ExportProgressDialog({ progress }: { progress: ExportProgress }) {
+/** 导出进度模态框：居中原点卡片 + 百分比进度条 + 预计剩余时间 + 红色取消按钮，风格与全站一致 */
+function ExportProgressDialog({
+  progress,
+  onCancel,
+}: {
+  progress: ExportProgress
+  onCancel: () => void
+}) {
   const pct = Math.min(100, Math.max(0, Math.round(progress.pct)))
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
@@ -97,6 +103,14 @@ function ExportProgressDialog({ progress }: { progress: ExportProgress }) {
               ? '即将完成'
               : `预计还需约 ${progress.etaSeconds} 秒`}
         </p>
+        {/* 红色取消按钮：导出可中断，避免长导出把用户困在进度框里 */}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-3.5 w-full rounded-lg border border-red-200 bg-red-50 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 hover:text-red-700"
+        >
+          取消导出
+        </button>
       </div>
     </div>
   )
@@ -155,6 +169,8 @@ export default function MapPage() {
   const exportStartRef = useRef(0)
   /** 已展示的剩余秒数（只减不增，避免假进度外推值越估越大引发焦虑） */
   const etaRef = useRef<number | null>(null)
+  /** 本次导出的 AbortController：进度框红色「取消导出」按钮触发中断 */
+  const exportAbortRef = useRef<AbortController | null>(null)
 
   /** 分模块字体栈：标题按字符类型分 数字/英文/中文 三槽位 */
   const digitFont = slotFontFamily('digit', fontSlots, customFonts)
@@ -316,6 +332,9 @@ export default function MapPage() {
     etaRef.current = null
     anchorRef.current = { pct: 4, stage: '正在启动导出…', at: Date.now() }
     setProgress({ pct: 4, stage: '正在启动导出…', etaSeconds: null })
+    /** 本次导出的取消控制器：进度框的红色「取消导出」按钮触发 */
+    const abort = new AbortController()
+    exportAbortRef.current = abort
     // 等一拍：让 footer 的生成时间在克隆前刷新到当前时刻
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
     const onProgress = (pct: number, stage: string) => {
@@ -329,18 +348,29 @@ export default function MapPage() {
     try {
       if (isWeChatBrowser()) {
         // 微信不支持 a[download]：渲染出 dataURL，弹窗引导用户长按保存
-        const r = await renderNodeToPngDataUrl(node, quality, onProgress)
+        const r = await renderNodeToPngDataUrl(node, quality, onProgress, abort.signal)
         setWechatImage(r.dataUrl)
       } else {
-        await exportNodeToPng(node, data.title, quality, onProgress)
+        await exportNodeToPng(node, data.title, quality, onProgress, abort.signal)
       }
     } catch (err) {
-      console.error('导出 PNG 失败', err)
-      setExportError('导出失败，请重试')
+      if (err instanceof ExportCancelledError) {
+        // 用户主动取消：静默收尾，不算失败
+        console.info('[导出] 用户取消了导出')
+      } else {
+        console.error('导出 PNG 失败', err)
+        setExportError('导出失败，请重试')
+      }
     } finally {
+      exportAbortRef.current = null
       setExporting(null)
       setProgress(null)
     }
+  }
+
+  /** 取消进行中的导出（进度框红色按钮） */
+  function handleCancelExport() {
+    exportAbortRef.current?.abort()
   }
 
   // 录入页「预览并导出为图片」：
@@ -519,7 +549,7 @@ export default function MapPage() {
       </div>
 
       {/* 导出进度模态框 */}
-      {exporting !== null && progress !== null && <ExportProgressDialog progress={progress} />}
+      {exporting !== null && progress !== null && <ExportProgressDialog progress={progress} onCancel={handleCancelExport} />}
 
       {/* 微信环境：图片生成后引导长按保存 */}
       {wechatImage !== null && (

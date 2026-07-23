@@ -18,6 +18,8 @@ import {
 export interface LabelColumnsProps {
   left: LabelBlock[]
   right: LabelBlock[]
+  /** 拖动实时偏移上报（null = 拖动结束）：驱动上层画布 viewBox 自动扩大 */
+  onLiveDrag?: (drag: { province: string; dx: number; dy: number } | null) => void
 }
 
 /**
@@ -34,7 +36,7 @@ export interface LabelColumnsProps {
  * 偏移量持久化在 data.provinceOffsets（viewBox 单位），块在列中的占位不变，
  * 卡片/文字/引线端点一起平移；拖回原位（偏移≈0）时自动清除记录。
  */
-export function LabelColumns({ left, right }: LabelColumnsProps) {
+export function LabelColumns({ left, right, onLiveDrag }: LabelColumnsProps) {
   const { theme, fontSlots, customFonts, data, setData } = useMapData()
   const provinceFont = slotFontFamily('province', fontSlots, customFonts)
   const personFont = slotFontFamily('person', fontSlots, customFonts)
@@ -105,17 +107,21 @@ export function LabelColumns({ left, right }: LabelColumnsProps) {
     if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
     const loc = toSvgPoint(e)
     if (!loc) return
-    setDragState({
+    const next = {
       province: prov,
       dx: d.baseDx + (loc.x - d.startX),
       dy: d.baseDy + (loc.y - d.startY),
-    })
+    }
+    setDragState(next)
+    // 上报实时偏移：画布 viewBox 随拖动自动扩大，卡片出界不被裁剪/不被标题盖住
+    onLiveDrag?.(next)
   }
 
   const finishDrag = (e: React.PointerEvent, prov: string) => {
     const d = dragRef.current
     if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
     dragRef.current = null
+    onLiveDrag?.(null)
     setDragState((cur) => {
       if (cur && cur.province === prov) {
         const dx = Math.min(600, Math.max(-600, Math.round(cur.dx)))

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router'
 import { Map as MapIcon } from 'lucide-react'
 import {
   Dialog,
@@ -22,11 +23,24 @@ function hasConsented(): boolean {
 
 /**
  * 首访欢迎与协议同意弹窗：
- * - 仅在第一次打开时出现一次，点击「开始使用」后记住选择、之后不再打扰
+ * - 仅在第一次打开主创作页时出现一次，点击「开始使用」后记住选择、之后不再打扰
+ * - 在《用户协议》《隐私政策》《关于》页面不弹出——用户还没读到协议内容就要求同意，
+ *   逻辑上是倒置的；阅读协议本身不需要先同意
  * - 内容刻意精简：一句话软件介绍 + 协议链接 + 一个按钮
  */
+/** 不弹同意窗的路径（阅读协议/隐私/关于不需要先同意协议） */
+const CONSENT_FREE_PATHS = new Set(['/agreement', '/privacy', '/about'])
+
 export function ConsentDialog() {
-  const [open, setOpen] = useState<boolean>(() => !hasConsented())
+  const { pathname } = useLocation()
+  const [open, setOpen] = useState<boolean>(
+    () => !hasConsented() && !CONSENT_FREE_PATHS.has(window.location.pathname),
+  )
+
+  // 用户先在协议页阅读、再进入主创作页时，补弹一次同意窗（已同意过则不再打扰）
+  useEffect(() => {
+    if (!hasConsented() && !CONSENT_FREE_PATHS.has(pathname)) setOpen(true)
+  }, [pathname])
 
   const agree = () => {
     try {

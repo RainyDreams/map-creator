@@ -20,10 +20,18 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useMapData } from '@/store/MapDataContext'
 import { newId } from '@/types'
-import { downloadTemplate, exportWorkbook, parseWorkbook, type ParseResult } from '@/utils/excel'
+import type { ParseResult } from '@/utils/excel'
 import { exportCanvasJson, parseCanvasJson, type CanvasJsonPayload } from '@/utils/exportData'
 import { requestMapExport } from '@/utils/exportBus'
 import { buildShareUrl } from '@/utils/shareLink'
+
+/** xlsx 模块懒加载（代码分割：首屏不下载 Excel 引擎，首次使用模板/导入/导出时才加载） */
+async function loadExcel(): Promise<typeof import('@/utils/excel')> {
+  const t = performance.now()
+  const mod = await import('@/utils/excel')
+  console.info(`[Excel] 表格模块加载完成（+${Math.round(performance.now() - t)}ms）`)
+  return mod
+}
 
 interface PendingExcel {
   result: ParseResult
@@ -90,13 +98,36 @@ export default function DataToolbar() {
   const [pendingExcel, setPendingExcel] = useState<PendingExcel | null>(null)
   const [pendingJson, setPendingJson] = useState<PendingJson | null>(null)
   const [parsing, setParsing] = useState(false)
+  /** Excel 引擎首次加载中的繁忙标记（下载模板 / 导出 Excel 共用，按钮显示加载动画） */
+  const [excelBusy, setExcelBusy] = useState(false)
 
   /* ---------------- 导出 ---------------- */
 
-  const handleExportExcel = () => {
-    exportWorkbook(data)
-    toast.success('已导出 Excel 名单', { description: '与模板同构，可再次上传导入' })
-    setExportOpen(false)
+  const handleExportExcel = async () => {
+    setExcelBusy(true)
+    try {
+      const { exportWorkbook } = await loadExcel()
+      exportWorkbook(data)
+      toast.success('已导出 Excel 名单', { description: '与模板同构，可再次上传导入' })
+      setExportOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '导出失败，请重试')
+    } finally {
+      setExcelBusy(false)
+    }
+  }
+
+  /** 下载模板（首点需加载 Excel 引擎，显示加载动画） */
+  const handleDownloadTemplate = async () => {
+    setExcelBusy(true)
+    try {
+      const { downloadTemplate } = await loadExcel()
+      downloadTemplate()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '模板生成失败，请重试')
+    } finally {
+      setExcelBusy(false)
+    }
   }
 
   const handleExportJson = () => {
@@ -135,6 +166,7 @@ export default function DataToolbar() {
     setParsing(true)
     setPendingJson(null)
     try {
+      const { parseWorkbook } = await loadExcel()
       const result = await parseWorkbook(file)
       if (result.students.length === 0 && result.teachers.length === 0) {
         // 原样回传模板（只含说明/示例行）是最常见的误操作，给出针对性提示而非“格式不符”
@@ -295,11 +327,12 @@ export default function DataToolbar() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={downloadTemplate}
+                disabled={excelBusy}
+                onClick={handleDownloadTemplate}
                 className="shrink-0 border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100"
               >
                 <Download className="size-3.5" />
-                下载模板
+                {excelBusy ? '加载中…' : '下载模板'}
               </Button>
             </div>
 
@@ -522,12 +555,15 @@ export default function DataToolbar() {
             </button>
             <button
               type="button"
+              disabled={excelBusy}
               onClick={handleExportExcel}
-              className="flex items-center gap-3 rounded-lg border border-stone-200 px-3.5 py-3 text-left transition-colors hover:bg-stone-50"
+              className="flex items-center gap-3 rounded-lg border border-stone-200 px-3.5 py-3 text-left transition-colors hover:bg-stone-50 disabled:opacity-50"
             >
               <FileSpreadsheet className="h-5 w-5 shrink-0 text-stone-400" />
               <span>
-                <span className="block text-sm font-medium text-stone-800">导出 Excel</span>
+                <span className="block text-sm font-medium text-stone-800">
+                  {excelBusy ? '正在加载表格模块…' : '导出 Excel'}
+                </span>
                 <span className="block text-xs text-stone-500">
                   仅名单（学生 + 老师），与模板同构，可再次导入
                 </span>
@@ -617,52 +653,57 @@ export default function DataToolbar() {
               </div>
             )}
 
-            {/* 特别小的选项：分享为链接（纯前端 hash 编码，数据不经过服务器） */}
-            <div className="flex flex-col items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleBuildHashLink}
-                className="flex items-center gap-1 text-[11px] text-stone-400 underline-offset-2 transition-colors hover:text-stone-600 hover:underline"
-              >
-                <Link2 className="h-3 w-3" />
-                分享为链接
-              </button>
+            {/* 次明显选项：在其他设备上继续此工作（纯前端 ?import= 编码，数据不经过服务器） */}
+            <button
+              type="button"
+              onClick={handleBuildHashLink}
+              className="flex w-full items-center gap-3 rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-left transition-colors hover:bg-stone-50"
+            >
+              <Link2 className="h-5 w-5 shrink-0 text-stone-500" />
+              <span>
+                <span className="block text-sm font-medium text-stone-800">
+                  在其他设备上继续此工作
+                </span>
+                <span className="block text-xs text-stone-500">
+                  生成一个链接，在另一台手机/电脑上打开即可接着编辑这张画布
+                </span>
+              </span>
+            </button>
 
-              {hashShare !== null && (
-                <div className="w-full space-y-2 rounded-lg border border-stone-200 bg-stone-50/60 p-2.5">
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="hash-share-input"
-                      readOnly
-                      value={hashShare.url}
-                      onFocus={(e) => e.target.select()}
-                      className="h-8 min-w-0 flex-1 rounded-md border border-stone-200 bg-white px-2.5 font-mono text-xs text-stone-700 outline-none"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleCopyHashLink}
-                      className="shrink-0 bg-stone-900 text-white hover:bg-stone-700"
-                    >
-                      <Copy className="size-3.5" />
-                      复制
-                    </Button>
-                  </div>
-                  <p className="text-[11px] leading-4 text-stone-400">
-                    打开链接的人会先看到名单预览，再决定加载到自己的新画布。
-                    链接内容是生成这一刻的画布快照，之后你的修改不会同步，需重新生成。
-                    {hashShare.stripped.length > 0 &&
-                      `（${hashShare.stripped.join('、')}不随链接传输）`}
-                  </p>
-                  {hashShare.tooLarge && (
-                    <p className="text-[11px] leading-4 text-amber-600">
-                      名单较长，链接可能超出部分浏览器/微信的长度限制；对方打不开时请改用导出
-                      JSON 文件分享。
-                    </p>
-                  )}
+            {hashShare !== null && (
+              <div className="w-full space-y-2 rounded-lg border border-stone-200 bg-stone-50/60 p-2.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="hash-share-input"
+                    readOnly
+                    value={hashShare.url}
+                    onFocus={(e) => e.target.select()}
+                    className="h-8 min-w-0 flex-1 rounded-md border border-stone-200 bg-white px-2.5 font-mono text-xs text-stone-700 outline-none"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCopyHashLink}
+                    className="shrink-0 bg-stone-900 text-white hover:bg-stone-700"
+                  >
+                    <Copy className="size-3.5" />
+                    复制
+                  </Button>
                 </div>
-              )}
-            </div>
+                <p className="text-[11px] leading-4 text-stone-400">
+                  打开链接的人会先看到名单预览，再决定加载到自己的新画布。
+                  链接内容是生成这一刻的画布快照，之后你的修改不会同步，需重新生成。
+                  {hashShare.stripped.length > 0 &&
+                    `（${hashShare.stripped.join('、')}不随链接传输）`}
+                </p>
+                {hashShare.tooLarge && (
+                  <p className="text-[11px] leading-4 text-amber-600">
+                    名单较长，链接可能超出部分浏览器/微信的长度限制；对方打不开时请改用导出
+                    JSON 文件分享。
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>

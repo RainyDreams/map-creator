@@ -75,6 +75,10 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
   const mainClipId = `cf-main-clip-${uid}`
   const insetClipId = `cf-inset-clip-${uid}`
 
+  /** 拖动中的省份块实时偏移（LabelColumns 上报）：用于画布 viewBox 实时扩大，
+      拖到边缘的卡片不会被裁剪，也不会被上方标题区盖住 */
+  const [liveDrag, setLiveDrag] = useState<{ province: string; dx: number; dy: number } | null>(null)
+
   /** 省份集合的稳定键，用于触发城市坐标预取 */
   const provincesKey = useMemo(() => [...groups.keys()].join('|'), [groups])
 
@@ -182,6 +186,38 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     return list
   }, [layout])
 
+  /** 动态几何：画布宽/地图位置随标注内容界定（见 labels.ts）。
+      必须在 !geoReady 早退之前计算——useMemo 是 Hook，不能放在条件 return 之后 */
+  const geom = layout.geom
+
+  /* 画布自动扩大：把「持久化偏移 + 拖动中实时偏移」后的卡片包围盒纳入 viewBox。
+     向上拖出界的卡片不再被 SVG 视口裁剪（此前表现为被标题区盖住）。
+     注意：此 Hook 必须位于 !geoReady 条件早退之前，否则 Hook 数量随渲染变化会崩溃 */
+  const vb = useMemo(() => {
+    const PAD = 10
+    let minX = 0
+    let minY = 0
+    let maxX = geom.designW
+    let maxY = layout.svgHeight
+    for (const b of [...layout.left, ...layout.right]) {
+      const off =
+        liveDrag && liveDrag.province === b.province
+          ? liveDrag
+          : (data.provinceOffsets[b.province] ?? null)
+      if (!off) continue
+      minX = Math.min(minX, b.cardX + off.dx - PAD)
+      minY = Math.min(minY, b.cardY + off.dy - PAD)
+      maxX = Math.max(maxX, b.cardX + b.cardW + off.dx + PAD)
+      maxY = Math.max(maxY, b.cardY + b.cardH + off.dy + PAD)
+    }
+    return {
+      x: Math.floor(minX),
+      y: Math.floor(minY),
+      w: Math.ceil(maxX - Math.floor(minX)),
+      h: Math.ceil(maxY - Math.floor(minY)),
+    }
+  }, [layout, liveDrag, data.provinceOffsets, geom.designW])
+
   // 地图数据未就绪：渲染与正式图同高度的骨架占位（与 labels.ts 的 svgHeight 公式一致），
   // 灰底呼吸块模拟标题/地图/两侧标注列，避免布局跳动与空白闪烁
   if (!geoReady) {
@@ -248,12 +284,10 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     )
   }
   const features = getGeoFeatures()
-  /** 动态几何：画布宽/地图位置随标注内容界定（见 labels.ts） */
-  const geom = layout.geom
 
   return (
     <svg
-      viewBox={`0 0 ${Math.round(geom.designW)} ${Math.round(layout.svgHeight)}`}
+      viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
       className="block h-auto w-full"
       role="img"
       aria-label="班级蹭饭地图"
@@ -339,8 +373,8 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         </g>
       </g>
 
-      {/* 标注列 + 引线 */}
-      <LabelColumns left={layout.left} right={layout.right} />
+      {/* 标注列 + 引线（onLiveDrag 上报拖动实时偏移，驱动画布 viewBox 自动扩大） */}
+      <LabelColumns left={layout.left} right={layout.right} onLiveDrag={setLiveDrag} />
 
       {/* 城市级定位圆点（压在引线起点之上）；主点带光晕，多城市时副点略小 */}
       {dots.map((d) =>

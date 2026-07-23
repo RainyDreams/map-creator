@@ -4,6 +4,19 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 
 const changelog = [
   {
+    version: 'v1.14.0',
+    date: '2026-07-23',
+    items: [
+      '导出可中断：导出进度框新增红色「取消导出」按钮，长导出随时停',
+      '导出提速：不再每次导出重复下载约 10MB 字体文件，二次导出明显更快',
+      '首屏提速：Excel 引擎、图像导出模块、用户协议/隐私政策/关于页改为按需加载，首次打开下载量显著下降；按需加载时按钮/页面有加载动画',
+      '省份卡片拖动更自由：拖出画布边缘时画布自动扩大，向上拖动不再被标题区盖住',
+      '分享链接格式升级：由 # 改为 ? 参数（个别浏览器不加载井号参数），分享弹窗新增醒目的「在其他设备上继续此工作」按钮',
+      '字体缺字修复：思源黑体子集扩充至 GB2312 全集 + 常见生僻姓氏（谌、冼、覃、綦、昝、翀、彧、垚、喆、赟等），马善政体同步补充生僻字',
+      '阅读用户协议、隐私政策、关于页时不再弹出同意窗（未读无法同意，逻辑修正）',
+    ],
+  },
+  {
     version: 'v1.13.0',
     date: '2026-07-23',
     items: [
@@ -45,13 +58,6 @@ const changelog = [
     date: '2026-07-22',
     items: [
       '地图轮廓数据（china.json，约 570KB）不再打进 JS 包：改为独立的 /data/ 静态资源按需加载（CDN 缓存 7 天、页面预载），主包体积从 1.72MB 降至 1.14MB，打开更快',
-    ],
-  },
-  {
-    version: 'v1.10.2',
-    date: '2026-07-22',
-    items: [
-      '修复「导入 → 导入 Excel」数据预览表无法纵向滚动、内容被截断溢出的问题：预览区改为原生滚动容器，表头滚动时吸附置顶',
     ],
   },
 ]
@@ -113,7 +119,7 @@ export default function AboutPage() {
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>
-          <dd className="text-stone-700">v1.13.0</dd>
+          <dd className="text-stone-700">v1.14.0</dd>
           <dt className="text-stone-400">访问网址</dt>
           <dd>
             <a

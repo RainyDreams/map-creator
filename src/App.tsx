@@ -1,13 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Routes, Route } from 'react-router'
 import { MapDataProvider, useMapData } from '@/store/MapDataContext'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
 import EntryPage from '@/pages/EntryPage'
 import MapPage from '@/pages/MapPage'
-import AgreementPage from '@/pages/AgreementPage'
-import PrivacyPage from '@/pages/PrivacyPage'
-import AboutPage from '@/pages/AboutPage'
 import SiteFooter from '@/components/layout/SiteFooter'
 import { ConsentDialog } from '@/components/ConsentDialog'
 import { WeChatGuideDialog } from '@/components/WeChatGuideDialog'
@@ -17,6 +14,25 @@ import { onGotoMapExport } from '@/utils/exportBus'
 import { takeShareIdFromUrl, fetchShareState } from '@/utils/share'
 import { takeSharePayloadFromHash, type ShareLinkPayload } from '@/utils/shareLink'
 import { ShareImportLanding } from '@/components/ShareImportLanding'
+
+/** 协议/隐私/关于页按需加载（独立 chunk），首屏不下载 */
+const AgreementPage = lazy(() => import('@/pages/AgreementPage'))
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
+const AboutPage = lazy(() => import('@/pages/AboutPage'))
+
+/** 懒加载页面的占位骨架：与全站 stone 风格一致的脉冲占位块 */
+function PageSkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl animate-pulse space-y-4 px-6 py-10">
+      <div className="h-7 w-40 rounded-md bg-stone-200" />
+      <div className="h-4 w-full rounded bg-stone-200/80" />
+      <div className="h-4 w-11/12 rounded bg-stone-200/80" />
+      <div className="h-4 w-4/5 rounded bg-stone-200/70" />
+      <div className="h-4 w-full rounded bg-stone-200/60" />
+      <div className="h-4 w-2/3 rounded bg-stone-200/60" />
+    </div>
+  )
+}
 
 type TabKey = 'entry' | 'map' | 'about'
 
@@ -220,7 +236,9 @@ function Creator() {
           <MapPage />
         ) : (
           <div className="h-full overflow-y-auto">
-            <AboutPage />
+            <Suspense fallback={<PageSkeleton />}>
+              <AboutPage />
+            </Suspense>
           </div>
         )}
       </div>
@@ -288,12 +306,14 @@ export default function App() {
 
   return (
     <MapDataProvider>
-      <Routes>
-        <Route path="/" element={<Creator />} />
-        <Route path="/agreement" element={<AgreementPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/about" element={<AboutPage />} />
-      </Routes>
+      <Suspense fallback={<PageSkeleton />}>
+        <Routes>
+          <Route path="/" element={<Creator />} />
+          <Route path="/agreement" element={<AgreementPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/about" element={<AboutPage />} />
+        </Routes>
+      </Suspense>
       {importPayload !== null && (
         <ShareImportLanding payload={importPayload} onClose={() => setImportPayload(null)} />
       )}
