@@ -593,7 +593,7 @@ export default function MapPage() {
               }}
             >
               <span className="tabular-nums">生成于 {formatNow()}</span>
-              <span className="absolute left-1/2 flex -translate-x-1/2 items-center whitespace-nowrap">
+              <span className="absolute left-1/2 inline-flex w-fit -translate-x-1/2 items-center justify-center text-center whitespace-nowrap">
                 本图片由
                 <span
                   style={{
