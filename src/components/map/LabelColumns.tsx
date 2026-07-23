@@ -18,8 +18,6 @@ import {
 export interface LabelColumnsProps {
   left: LabelBlock[]
   right: LabelBlock[]
-  /** 画布设计宽度（viewBox 单位）：用于卡片拖动横向限幅，避免卡片被 SVG 视口裁剪 */
-  designW?: number
   /** 拖动实时偏移上报（null = 拖动结束）：驱动上层画布 viewBox 自动扩大 */
   onLiveDrag?: (drag: { province: string; dx: number; dy: number } | null) => void
   /** 卡片 z 序（省份 → 层级序号，越大越靠上）：点击/拖动卡片时自动上移，避免被其他卡片盖住 */
@@ -42,7 +40,7 @@ export interface LabelColumnsProps {
  * 偏移量持久化在 data.provinceOffsets（viewBox 单位），块在列中的占位不变，
  * 卡片/文字/引线端点一起平移；拖回原位（偏移≈0）时自动清除记录。
  */
-export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardActivate }: LabelColumnsProps) {
+export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }: LabelColumnsProps) {
   const { theme, fontSlots, customFonts, data, setData } = useMapData()
   const provinceFont = slotFontFamily('province', fontSlots, customFonts)
   const personFont = slotFontFamily('person', fontSlots, customFonts)
@@ -59,6 +57,11 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
     pointerId: number
     startX: number
     startY: number
+    /** 按下时的屏幕坐标与 SVG 缩放比：拖动增量按固定坐标系换算，避免 viewBox 扩缩反馈 */
+    startClientX: number
+    startClientY: number
+    scaleX: number
+    scaleY: number
     baseDx: number
     baseDy: number
   } | null>(null)
@@ -101,23 +104,15 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
     return { minX, maxX, minY, maxY }
   }, [left, right])
 
-  /** 卡片横向限幅：偏移后卡片完整留在画布 [0, designW] 内，避免被 SVG 视口裁剪。
-      与 ChinaMap 的「横向不扩 viewBox」配合——既不产生左右空白，也不丢卡片 */
-  const clampDx = (b: LabelBlock, dx: number): number => {
-    if (!designW) return dx
-    return Math.max(-b.cardX, Math.min(designW - b.cardX - b.cardW, dx))
-  }
-
   /** 某省份当前生效的偏移：拖动中用实时值，否则用持久化值；
       一列/两列（自动布局）下偏移不生效——且切换过去时已被重置（见 FontPanel），
       这里的 gating 只是分享链接/导入数据等非常规路径的兜底。
-      持久化偏移同样做横向限幅，兼容历史数据（可能存在超出边界的旧偏移） */
+      不做横向限幅：画布边界随卡片位置自动扩缩（见 ChinaMap 的 viewBox 计算），
+      卡片可以拖到任何位置，画布始终贴着内容走 */
   const offsetOf = (prov: string): { dx: number; dy: number } => {
     if (dragState && dragState.province === prov) return { dx: dragState.dx, dy: dragState.dy }
     if (!data.customPosition) return { dx: 0, dy: 0 }
-    const raw = data.provinceOffsets[prov] ?? { dx: 0, dy: 0 }
-    const b = allBlocks.find((x) => x.province === prov)
-    return b ? { dx: clampDx(b, raw.dx), dy: raw.dy } : raw
+    return data.provinceOffsets[prov] ?? { dx: 0, dy: 0 }
   }
 
   /** 屏幕坐标 → SVG viewBox 坐标 */
@@ -145,11 +140,19 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
     const loc = toSvgPoint(e)
     if (!loc) return
     const base = offsetOf(prov)
+    // 记录按下时的屏幕坐标与缩放比：拖动增量用「屏幕位移 ÷ 按下时缩放」计算——
+    // 拖动中画布 viewBox 随卡片外扩会改变缩放，若每帧重新换算坐标系，
+    // 位移会被反馈放大（拖 60px 屏幕距离落库变成 228 设计 px 的漂移）
+    const ctm = rootRef.current?.ownerSVGElement?.getScreenCTM()
     dragRef.current = {
       province: prov,
       pointerId: e.pointerId,
       startX: loc.x,
       startY: loc.y,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      scaleX: ctm?.a || 1,
+      scaleY: ctm?.d || 1,
       baseDx: base.dx,
       baseDy: base.dy,
     }
@@ -159,10 +162,9 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
   const onBlockPointerMove = (e: React.PointerEvent, prov: string) => {
     const d = dragRef.current
     if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
-    const loc = toSvgPoint(e)
-    if (!loc) return
-    let dx = d.baseDx + (loc.x - d.startX)
-    let dy = d.baseDy + (loc.y - d.startY)
+    // 固定坐标系换算：屏幕位移 ÷ 按下时缩放（不受拖动中 viewBox 扩缩影响）
+    let dx = d.baseDx + (e.clientX - d.startClientX) / d.scaleX
+    let dy = d.baseDy + (e.clientY - d.startClientY) / d.scaleY
 
     // 对齐吸附 + 辅助线预览：GUIDE_PX 内显示辅助线引导，SNAP_PX 内吸附到位
     const GUIDE_PX = 16
@@ -173,13 +175,35 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
       const peers = (left.some((b) => b.province === prov) ? left : right).filter(
         (b) => b.province !== prov,
       )
-      // X 吸附/预览：接近列标准位置时显示垂直辅助线，很近时吸附回列
-      const dxDist = Math.abs(dx)
-      if (dxDist <= SNAP_PX) {
-        dx = 0
-        guideX = block.cardX
-      } else if (dxDist <= GUIDE_PX) {
-        guideX = block.cardX
+      // X 吸附/预览：被拖卡片的 左缘/垂直中线/右缘 对到同侧卡片的 左/中/右缘，
+      // 以及「回到列标准位置」（dx=0）；GUIDE_PX 内出垂直辅助线，SNAP_PX 内吸附
+      const dL = block.cardX + dx
+      const dCX = block.cardX + block.cardW / 2 + dx
+      const dR = block.cardX + block.cardW + dx
+      type SnapHit = { target: number; edge: number; dist: number }
+      const xHits: SnapHit[] = []
+      const considerX = (target: number) => {
+        for (const ed of [dL, dCX, dR]) {
+          const dist = Math.abs(ed - target)
+          if (dist <= GUIDE_PX) xHits.push({ target, edge: ed, dist })
+        }
+      }
+      // 列标准位置（home）：三缘各自归位等价于 dx=0
+      considerX(block.cardX)
+      considerX(block.cardX + block.cardW / 2)
+      considerX(block.cardX + block.cardW)
+      for (const o of peers) {
+        const oo = offsetOf(o.province)
+        considerX(o.cardX + oo.dx)
+        considerX(o.cardX + o.cardW / 2 + oo.dx)
+        considerX(o.cardX + o.cardW + oo.dx)
+      }
+      const nearestX = xHits.length > 0 ? xHits.reduce((a, b) => (b.dist < a.dist ? b : a)) : null
+      if (nearestX) {
+        guideX = nearestX.target
+        if (nearestX.dist <= SNAP_PX) {
+          dx += nearestX.target - nearestX.edge
+        }
       }
       // Y 吸附/预览：遍历同列卡片，找最近的吸附目标
       const dTop = block.cardY + dy
@@ -210,9 +234,6 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
       }
     }
 
-    // 横向限幅：卡片不超出画布边界（与 ChinaMap 横向不扩 viewBox 配合，避免被裁剪）
-    if (block) dx = clampDx(block, dx)
-
     setGuides(guideX !== undefined || guideY !== undefined ? { x: guideX, y: guideY } : null)
     const next = { province: prov, dx, dy }
     setDragState(next)
@@ -228,10 +249,8 @@ export function LabelColumns({ left, right, designW, onLiveDrag, zRanks, onCardA
     setGuides(null)
     setDragState((cur) => {
       if (cur && cur.province === prov) {
-        const b = allBlocks.find((x) => x.province === prov)
-        // 横向限幅在 ±600 与画布边界双重约束内
-        let dx = Math.min(600, Math.max(-600, Math.round(cur.dx)))
-        if (b) dx = clampDx(b, dx)
+        // 偏移幅值兜底 ±600（viewBox 单位），横向不再限幅——画布随卡片自动扩缩
+        const dx = Math.min(600, Math.max(-600, Math.round(cur.dx)))
         const dy = Math.min(600, Math.max(-600, Math.round(cur.dy)))
         setData((prev) => {
           // 从自动布局拖动切入自定义时，丢弃历史偏移（可能与当前布局不符），

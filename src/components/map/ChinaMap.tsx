@@ -36,6 +36,8 @@ export interface ChinaMapProps {
   calligraphy?: Record<string, CalligraphyAsset>
   /** 学生 id → 校徽覆盖（隐藏或自定义图片） */
   badgeOverrides?: Record<string, StudentBadge>
+  /** 视口宽度（viewBox 单位）变化时上报：外层用它把 footer 字号与地图缩放联动 */
+  onViewBoxW?: (w: number) => void
 }
 
 /**
@@ -43,7 +45,7 @@ export interface ChinaMapProps {
  * 宽度自适应容器，高度按 viewBox 等比缩放；内部全部为 SVG 文本，导出 PNG 时清晰。
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
-export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, calligraphy, badgeOverrides }: ChinaMapProps) {
+export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, calligraphy, badgeOverrides, onViewBoxW }: ChinaMapProps) {
   const { theme, fontSlots, customFonts, data } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
   /** 地图轮廓数据（/data/china.json）异步加载：未就绪时渲染同尺寸占位 SVG，避免布局跳动 */
@@ -202,38 +204,57 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       必须在 !geoReady 早退之前计算——useMemo 是 Hook，不能放在条件 return 之后 */
   const geom = layout.geom
 
-  /* 画布自动扩大：把「持久化偏移 + 拖动中实时偏移」后的卡片包围盒纳入 viewBox。
-     向上拖出界的卡片不再被 SVG 视口裁剪（此前表现为被标题区盖住）。
-     横向不扩画布：地图左右两侧的间隙允许不一致（由内容动态界定），但卡片左右拖动
-     不再撑宽 viewBox——否则会在画布左/右出现大面积空白。卡片横向限幅在 LabelColumns
-     内完成（不超出 [0, designW]），避免被视口裁剪。纵向仍可扩画布（向上拖的卡片不被标题盖住）。
+  /* 画布边界随内容自动界定（横向双向：既扩大也缩小）：
+     横向视口 = 「地图本体 ∪ 全部省份卡片（含拖动/持久化偏移）」的包围盒 + 边缘留白 EDGE——
+     · 卡片向外拖，画布自动扩大，卡片不被视口裁剪；
+     · 卡片向地图靠拢（内缩），画布边界跟着向里缩，不留大片空白；
+     · 左、右边界各自贴合本侧内容，不要求以地图中心对称；
+     · 画布边界与最外侧卡片之间始终保留 EDGE 的呼吸距离。
+     纵向：上缘随拖出的卡片扩大（不被标题盖住），下缘保持 svgHeight（含老师/海外块预留）。
      注意：此 Hook 必须位于 !geoReady 条件早退之前，否则 Hook 数量随渲染变化会崩溃 */
   const vb = useMemo(() => {
     const PAD = 10
-    let minX = 0
+    /** 画布边缘与最外侧内容（卡片/地图）之间保留的距离（viewBox 单位 ≈ 设计 px） */
+    const EDGE = 18
+    const blocks = [...layout.left, ...layout.right]
+    if (blocks.length === 0) {
+      return { x: 0, y: 0, w: geom.designW, h: Math.ceil(layout.svgHeight) }
+    }
+    // 内容包围盒：从地图本体起算，逐卡片合并（含偏移；自动模式下偏移不生效、拖动中的实时偏移生效）
+    let minX = geom.x0
+    let maxX = geom.x1
     let minY = 0
-    let maxX = geom.designW
     let maxY = layout.svgHeight
-    for (const b of [...layout.left, ...layout.right]) {
-      // 自动布局（一列/两列）模式下持久化偏移不生效；拖动中的实时偏移始终生效
+    for (const b of blocks) {
       const off =
         liveDrag && liveDrag.province === b.province
           ? liveDrag
           : data.customPosition
             ? (data.provinceOffsets[b.province] ?? null)
             : null
-      if (!off) continue
-      // 仅纵向扩画布；横向锁定 [0, designW]，不产生左右空白
-      minY = Math.min(minY, b.cardY + off.dy - PAD)
-      maxY = Math.max(maxY, b.cardY + b.cardH + off.dy + PAD)
+      const dx = off?.dx ?? 0
+      const dy = off?.dy ?? 0
+      minX = Math.min(minX, b.cardX + dx)
+      maxX = Math.max(maxX, b.cardX + b.cardW + dx)
+      minY = Math.min(minY, b.cardY + dy - PAD)
+      maxY = Math.max(maxY, b.cardY + b.cardH + dy + PAD)
     }
+    minX -= EDGE
+    maxX += EDGE
     return {
       x: Math.floor(minX),
       y: Math.floor(minY),
       w: Math.ceil(maxX - Math.floor(minX)),
       h: Math.ceil(maxY - Math.floor(minY)),
     }
-  }, [layout, liveDrag, data.provinceOffsets, data.customPosition, geom.designW])
+  }, [layout, liveDrag, data.provinceOffsets, data.customPosition, geom.designW, geom.x0, geom.x1])
+
+  /** 视口宽度上报：footer 字号随「画布屏幕宽 / 视口宽」等比缩放（地图变大时版权条也适当变大） */
+  const onViewBoxWRef = useRef(onViewBoxW)
+  onViewBoxWRef.current = onViewBoxW
+  useEffect(() => {
+    onViewBoxWRef.current?.(vb.w)
+  }, [vb.w])
 
   // 地图数据未就绪：渲染与正式图同高度的骨架占位（与 labels.ts 的 svgHeight 公式一致），
   // 灰底呼吸块模拟标题/地图/两侧标注列，避免布局跳动与空白闪烁
@@ -395,7 +416,6 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       <LabelColumns
         left={layout.left}
         right={layout.right}
-        designW={geom.designW}
         onLiveDrag={setLiveDrag}
         zRanks={zRanks}
         onCardActivate={activateCard}

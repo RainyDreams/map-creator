@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, memo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import { Download, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
@@ -52,9 +52,6 @@ function formatNow(): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
-
-/** 画布按 1500px 设计：px 字号 ÷ 15 = cqw，使 footer 字体随画布宽度同比例缩放（与老师/海外块一致） */
-const cqw = (px: number): string => `${(px / 15).toFixed(3)}cqw`
 
 /** 老师块拖动时画布高度逐帧变化会触发 MapPage 重渲染；ChinaMap 的 props 在此过程中
     全部稳定（memoized），用 memo 拦住整棵 SVG 子树的无效重渲染 */
@@ -286,6 +283,12 @@ export default function MapPage() {
   const footerRef = useRef<HTMLDivElement>(null)
   /** 画布渲染宽度（屏幕 px）：老师块向下拖出时换算画布加高量 */
   const [canvasW, setCanvasW] = useState(0)
+  /** 地图 SVG 视口宽度（viewBox 单位）：footer 字号随「画布屏幕宽 / 视口宽」联动——
+      地图在屏幕上显大（视口收窄）时版权条也适当变大，显小时变小 */
+  const [viewBoxW, setViewBoxW] = useState(1500)
+  const handleViewBoxW = useCallback((w: number) => {
+    setViewBoxW((prev) => (prev === w ? prev : w))
+  }, [])
   /** 老师块拖动中的实时偏移（设计 px）：画布高度与拖动同步伸缩，不等落库 */
   const [liveTeacherDy, setLiveTeacherDy] = useState<number | null>(null)
   useEffect(() => {
@@ -699,6 +702,7 @@ export default function MapPage() {
               manualProvinces={manualProvinces}
               calligraphy={data.calligraphy}
               badgeOverrides={data.badgeOverrides}
+              onViewBoxW={handleViewBoxW}
             />
             </div>
 
@@ -723,9 +727,15 @@ export default function MapPage() {
             )}
 
             {/* 底部来源条：画布的一部分，随导出一起进 PNG。
-                左侧生成时间，中央生成信息（map.linkbrain.top 以黑色圆角 pill 突出显示），右侧软件版本号；
-                字体/内边距用 cqw 随画布宽度缩放，地图变大时 footer 字体相应放大，保持视觉协调。
-                基准 13px（与学生名一致）：图片特别大时 footer 不会显得过小 */}
+                左侧生成时间，中央生成信息（map.linkbrain.top 以黑色圆角 pill 突出显示，「零本」用毛笔字图片），右侧软件版本号；
+                字号与内边距随「画布屏幕宽 / SVG 视口宽」联动（footerPx）：地图显大时版权条适当变大、显小时变小，
+                基准 13px（与学生名一致），夹在 10–26px 之间 */}
+            {(() => {
+              const footerPx =
+                canvasW > 0 && viewBoxW > 0
+                  ? Math.min(26, Math.max(10, Math.round((canvasW / viewBoxW) * 13)))
+                  : 13
+              return (
             <div
               ref={footerRef}
               className="relative flex items-center border-t text-stone-400"
@@ -733,8 +743,8 @@ export default function MapPage() {
                 backgroundColor: theme.footerBg,
                 borderColor: `color-mix(in srgb, ${theme.leaderLine} 40%, transparent)`,
                 fontFamily: '"NotoSansSC","PingFang SC","Microsoft YaHei",sans-serif',
-                fontSize: cqw(13),
-                padding: `${cqw(7)} ${cqw(16)}`,
+                fontSize: footerPx,
+                padding: `${Math.round(footerPx * 0.55)}px ${Math.round(footerPx * 1.25)}px`,
               }}
             >
               <span className="tabular-nums">生成于 {formatNow()}</span>
@@ -744,9 +754,9 @@ export default function MapPage() {
                   style={{
                     backgroundColor: '#000',
                     color: '#fff',
-                    borderRadius: cqw(5),
-                    padding: `${cqw(2)} ${cqw(8)}`,
-                    margin: `0 ${cqw(5)}`,
+                    borderRadius: Math.max(4, Math.round(footerPx * 0.4)),
+                    padding: `${Math.round(footerPx * 0.15)}px ${Math.round(footerPx * 0.6)}px`,
+                    margin: `0 ${Math.round(footerPx * 0.4)}px`,
                     fontWeight: 600,
                     letterSpacing: '0.01em',
                     whiteSpace: 'nowrap',
@@ -755,10 +765,23 @@ export default function MapPage() {
                 >
                   map.linkbrain.top
                 </span>
-                生成 © {new Date().getFullYear()} 零本
+                生成 © {new Date().getFullYear()}
+                <img
+                  src="/images/lingben-text.png"
+                  alt="零本"
+                  draggable={false}
+                  style={{
+                    height: '1.15em',
+                    width: 'auto',
+                    marginLeft: '0.3em',
+                    verticalAlign: '-0.18em',
+                  }}
+                />
               </span>
               <span className="ml-auto tabular-nums">v{APP_VERSION}</span>
             </div>
+              )
+            })()}
           </div>
         </div>
       </div>
