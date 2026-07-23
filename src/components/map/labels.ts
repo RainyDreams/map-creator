@@ -159,12 +159,8 @@ const COL2_MAX_TEXT_W = 420
 const COL2_GAP = 12
 /** 两列模式子列间距（开启卡片背景时：卡片内边距需要更大间隙，避免相邻卡片贴上） */
 const COL2_GAP_CARD = 26
-/** 每侧除文字外的固定留白：锚点距地图 8 + 画布边缘 2 */
-const SIDE_PAD = 10
-/** 开启卡片背景时的每侧固定留白：锚点距地图 8 + 卡片内边距 6 + 画布边缘 2 */
-const SIDE_PAD_CARD = 16
 /** 一侧完全没有标注块时保留的窄边距 */
-const EMPTY_SIDE_W = 24
+const EMPTY_SIDE_W = 48
 
 /** 校徽占位：图标边长 = 地点字号 × 1.05；校徽与校名无间隙，与姓名间留 3px 呼吸 */
 export const BADGE_RATIO = 1.05
@@ -527,9 +523,8 @@ export function computeLabelLayout(
   /** 西南空白区候选省份（西藏/云南）：优先放入主图左下空白区，不参与左右分列 */
   const swItems = items.filter((i) => SW_PROVINCES.has(i.province))
   const mainland = items.filter((i) => !SW_PROVINCES.has(i.province))
-  /** 卡片背景开启时，子列间距与侧边留白需要把卡片内边距算进去 */
+  /** 卡片背景开启时，子列间距需要把卡片内边距算进去 */
   const colGap = options?.cardBg === false ? COL2_GAP : COL2_GAP_CARD
-  const sidePad = options?.cardBg === false ? SIDE_PAD : SIDE_PAD_CARD
 
   /** 把一侧的省份块按行数权重连续切分为 count 个子列（两列模式时左右负载均衡） */
   function splitSide(list: SideItem[], count: number): SideItem[][] {
@@ -704,11 +699,14 @@ export function computeLabelLayout(
       const leftWidths = leftCols.map(colWidth)
       const rightWidths = rightCols.map(colWidth)
 
-      /** 一侧的标注区总宽：文字宽之和 + 子列间距 + 固定留白（空侧取窄边距） */
-      const sideWidth = (cols: SideItem[][], widths: number[]): number =>
-        cols.length === 0 || (cols.length === 1 && cols[0].length === 0)
-          ? EMPTY_SIDE_W
-          : widths.reduce((a, b) => a + b, 0) + colGap * (widths.length - 1) + sidePad
+      /** 一侧的标注区总宽：文字宽之和 + 子列间距 + 自适应留白（空侧取窄边距）。
+          留白随内容宽度动态调整：窄列少留白、宽列多留白，左右间隙不要求相等 */
+      const sideWidth = (cols: SideItem[][], widths: number[]): number => {
+        if (cols.length === 0 || (cols.length === 1 && cols[0].length === 0)) return EMPTY_SIDE_W
+        const contentW = widths.reduce((a, b) => a + b, 0) + colGap * (widths.length - 1)
+        const pad = Math.max(20, Math.round(contentW * 0.1))
+        return contentW + pad
+      }
 
       geom = buildGeom(sideWidth(leftCols, leftWidths) + MAP_W + sideWidth(rightCols, rightWidths), sideWidth(leftCols, leftWidths))
       projectAll(geom)

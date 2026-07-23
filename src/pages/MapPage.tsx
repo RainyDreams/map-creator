@@ -6,6 +6,7 @@ import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/u
 import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
 import { exportNodeToPng, renderNodeToPngDataUrl, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
+import { exportToZip } from '@/utils/exportZip'
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
@@ -80,9 +81,11 @@ const PROGRESS_FILLERS = [
 function ExportProgressDialog({
   progress,
   onCancel,
+  isZipExport = false,
 }: {
   progress: ExportProgress
   onCancel: () => void
+  isZipExport?: boolean
 }) {
   const pct = Math.min(100, Math.max(0, Math.round(progress.pct)))
   return (
@@ -94,7 +97,9 @@ function ExportProgressDialog({
       >
         <div className="mb-3 flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin text-stone-500" />
-          <h2 className="text-sm font-semibold text-stone-700">正在导出 PNG</h2>
+          <h2 className="text-sm font-semibold text-stone-700">
+            {isZipExport ? '正在全量导出 ZIP' : '正在导出 PNG'}
+          </h2>
           <span className="ml-auto text-sm font-medium text-stone-500 tabular-nums">{pct}%</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-stone-100">
@@ -169,6 +174,8 @@ export default function MapPage() {
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [progress, setProgress] = useState<ExportProgress | null>(null)
+  /** 是否是全量 zip 导出（用于进度框标题） */
+  const [isZipExport, setIsZipExport] = useState(false)
   /** 微信环境下导出完成的图片 dataURL（弹窗引导长按保存） */
   const [wechatImage, setWechatImage] = useState<string | null>(null)
   /** 进度锚点（真实阶段 + 到达时刻）与展示值（向锚点平滑爬行）分离，长耗时阶段也有前进感 */
@@ -370,6 +377,7 @@ export default function MapPage() {
     node.dispatchEvent(new CustomEvent('cf-clear-selection'))
     setExporting(quality)
     setExportError(null)
+    setIsZipExport(false)
     exportStartRef.current = Date.now()
     etaRef.current = null
     anchorRef.current = { pct: 4, stage: '正在启动导出…', at: Date.now() }
@@ -413,6 +421,52 @@ export default function MapPage() {
   /** 取消进行中的导出（进度框红色按钮） */
   function handleCancelExport() {
     exportAbortRef.current?.abort()
+  }
+
+  /** 全量导出为 zip 文件（包含地图图片 + 配置数据 + 所有自定义图片） */
+  async function handleExportZip() {
+    const node = canvasRef.current
+    if (!node || exporting) return
+
+    // 导出前清除选中态
+    node.dispatchEvent(new CustomEvent('cf-clear-selection'))
+    setExporting('ultra') // 复用 ultra 状态，但实际是 zip 导出
+    setExportError(null)
+    setIsZipExport(true)
+    exportStartRef.current = Date.now()
+    etaRef.current = null
+    anchorRef.current = { pct: 2, stage: '正在启动全量导出…', at: Date.now() }
+    setProgress({ pct: 2, stage: '正在启动全量导出…', etaSeconds: null })
+
+    const abort = new AbortController()
+    exportAbortRef.current = abort
+
+    // 等一拍，让 footer 时间刷新
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+    const onProgress = (pct: number, stage: string) => {
+      anchorRef.current = { pct, stage, at: Date.now() }
+      setProgress((prev) =>
+        prev === null
+          ? prev
+          : { ...prev, pct: Math.max(prev.pct, Math.min(pct, anchorRef.current.pct)), stage },
+      )
+    }
+
+    try {
+      await exportToZip(node, data, data.title, 'ultra', onProgress, abort.signal)
+    } catch (err) {
+      if (err instanceof ExportCancelledError || (err instanceof Error && err.message.includes('取消'))) {
+        console.info('[全量导出] 用户取消了导出')
+      } else {
+        console.error('全量导出失败', err)
+        setExportError('全量导出失败，请重试')
+      }
+    } finally {
+      exportAbortRef.current = null
+      setExporting(null)
+      setProgress(null)
+    }
   }
 
   // 录入页「预览并导出为图片」：
@@ -467,6 +521,21 @@ export default function MapPage() {
               <Download />
             )}
             {exporting === 'ultra' ? '导出中…' : '导出超清 PNG'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportZip}
+            disabled={exporting !== null}
+            className="border-stone-300 text-stone-600 hover:bg-stone-50 hover:text-stone-800"
+            title="全量导出：包含地图图片、配置数据、毛笔字图片、自定义校徽等所有资源的 zip 文件"
+          >
+            {exporting === 'ultra' ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Download />
+            )}
+            {exporting === 'ultra' ? '导出中…' : '全量导出 ZIP'}
           </Button>
         </div>
       </header>
@@ -626,7 +695,13 @@ export default function MapPage() {
       </div>
 
       {/* 导出进度模态框 */}
-      {exporting !== null && progress !== null && <ExportProgressDialog progress={progress} onCancel={handleCancelExport} />}
+      {exporting !== null && progress !== null && (
+        <ExportProgressDialog
+          progress={progress}
+          onCancel={handleCancelExport}
+          isZipExport={isZipExport}
+        />
+      )}
 
       {/* 微信环境：图片生成后引导长按保存 */}
       {wechatImage !== null && (
