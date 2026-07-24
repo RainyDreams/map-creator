@@ -251,6 +251,13 @@ function normalizeData(raw: unknown): MapData | null {
         typeof v === 'number' && Number.isFinite(v) ? Math.min(4000, Math.max(-4000, Math.round(v))) : 0
       return { dx: clamp(t?.dx), dy: clamp(t?.dy) }
     })(),
+    // v1.26.1 迁移：旧数据无 overseasOffset 字段时回退原位（语义同 teachersOffset）
+    overseasOffset: (() => {
+      const t = d.overseasOffset as { dx?: unknown; dy?: unknown } | undefined
+      const clamp = (v: unknown) =>
+        typeof v === 'number' && Number.isFinite(v) ? Math.min(4000, Math.max(-4000, Math.round(v))) : 0
+      return { dx: clamp(t?.dx), dy: clamp(t?.dy) }
+    })(),
     customOrderProvinces: Array.isArray(d.customOrderProvinces)
       ? d.customOrderProvinces.filter((p): p is string => typeof p === 'string')
       : [],

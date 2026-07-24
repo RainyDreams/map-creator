@@ -129,6 +129,9 @@ export interface MapData {
    * 存储层限幅 ±4000 仅防损坏数据
    */
   teachersOffset: { dx: number; dy: number }
+  /** 海外/境外名单块手动拖动偏移（v1.26.1，画布设计 px）：语义与 teachersOffset 一致，
+      纵向动态限幅（上不超画布顶、下 +1200），存储层限幅 ±4000 仅防损坏数据 */
+  overseasOffset: { dx: number; dy: number }
   /**
    * 省内手动排序的省份列表：在录入弹窗中拖动调整过顺序的省份，
    * 该省在地图上保持手动顺序（不再按软科排名自动排序）
@@ -184,6 +187,7 @@ export const EMPTY_MAP_DATA: MapData = {
   cardBlur: 0,
   provinceOffsets: {},
   teachersOffset: { dx: 0, dy: 0 },
+  overseasOffset: { dx: 0, dy: 0 },
   customOrderProvinces: [],
   calligraphy: {},
   badgeOverrides: {},

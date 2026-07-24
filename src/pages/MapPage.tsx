@@ -191,6 +191,8 @@ export default function MapPage() {
   }, [])
   /** 老师块拖动中的实时偏移（设计 px）：画布高度与拖动同步伸缩，不等落库 */
   const [liveTeacherDy, setLiveTeacherDy] = useState<number | null>(null)
+  /** 海外块拖动中的实时偏移（设计 px）：同 liveTeacherDy */
+  const [liveOverseasDy, setLiveOverseasDy] = useState<number | null>(null)
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
@@ -335,6 +337,8 @@ export default function MapPage() {
 
   /** 老师块上拖/下拖的实时纵向偏移（设计 px）：拖动中即生效，画布与拖动同步伸缩 */
   const effTeacherDy = liveTeacherDy ?? data.teachersOffset.dy
+  /** 海外块上拖/下拖的实时纵向偏移（设计 px）：同 effTeacherDy */
+  const effOverseasDy = liveOverseasDy ?? data.overseasOffset.dy
 
   /** 左下角老师块的画布预留高度（设计 px）：
       基准 = 实际块高（标题行 (size+3)×1.4 + 名单 n×size×1.6 + 内边距 28）+ 底部边距 54——
@@ -347,8 +351,11 @@ export default function MapPage() {
       ? Math.round((teacherSize + 3) * 1.4 + data.teachers.length * teacherSize * 1.6 + 28 + 54)
       : 0
   const reserveLeftBottom = Math.max(0, baseReserveLeft + Math.min(0, Math.round(effTeacherDy)))
+  /** 右下角海外块的画布预留基准（设计 px）：上拖（dy<0）时预留随之上收、画布同步缩小，语义同老师块 */
+  const baseReserveRightOverseas =
+    overseas.length > 0 ? Math.round(80 + overseas.length * 22) : 0
   const reserveRightBottom =
-    (overseas.length > 0 ? Math.round(80 + overseas.length * 22) : 0) +
+    Math.max(0, baseReserveRightOverseas + Math.min(0, Math.round(effOverseasDy))) +
     (unlocated.length > 0 ? 130 : 0)
 
   /** 老师块下拖（dy>0）时的画布加高量（屏幕 px）：与省份卡片同语义——到达边界才扩充；
@@ -358,6 +365,13 @@ export default function MapPage() {
     data.showTeachers && data.teachers.length > 0 && canvasW > 0 && effTeacherDy > 0
       ? Math.max(0, Math.round((effTeacherDy * canvasW) / 1500) - 12)
       : 0
+  /** 海外块下拖（dy>0）时的画布加高量（屏幕 px）：与老师块同语义 */
+  const overseasSpacerH =
+    overseas.length > 0 && canvasW > 0 && effOverseasDy > 0
+      ? Math.max(0, Math.round((effOverseasDy * canvasW) / 1500) - 12)
+      : 0
+  /** 底部占位取两者较大值——两块同时下拖时只撑一次画布，不重复加高 */
+  const bottomSpacerH = Math.max(teacherSpacerH, overseasSpacerH)
 
   /* 排版建议已去弹窗化：推荐值以行内标注形式出现在「字体设置 / 列数设置」旁（见 FontPanel）。 */
 
@@ -610,8 +624,8 @@ export default function MapPage() {
               <StatsBlock groups={groups} overseas={overseas} unlocated={unlocated} />
             )}
 
-            {/* 老师块向下拖出时撑开画布的占位（flow 之后、footer 之前，footer 仍在画布最底部） */}
-            {teacherSpacerH > 0 && <div aria-hidden style={{ height: teacherSpacerH }} />}
+            {/* 老师块/海外块向下拖出时撑开画布的占位（flow 之后、footer 之前，footer 仍在画布最底部） */}
+            {bottomSpacerH > 0 && <div aria-hidden style={{ height: bottomSpacerH }} />}
 
             {/* 无数据时的温和提示 */}
             {data.students.length === 0 && (
@@ -622,10 +636,10 @@ export default function MapPage() {
 
             <TeachersBlock teachers={data.teachers} flowRef={flowRef} footerRef={footerRef} onLiveDy={setLiveTeacherDy} reserveDesign={baseReserveLeft} />
 
-            {/* 右下角堆叠区：海外/境外名单在上、未定位提示在下 */}
-            {(overseas.length > 0 || unlocated.length > 0) && (
+            {/* 海外/境外名单块：右下角锚定，可自由拖动（同老师块交互）；未定位提示单独堆叠在右下 */}
+            <OverseasBlock students={overseas} flowRef={flowRef} footerRef={footerRef} onLiveDy={setLiveOverseasDy} reserveDesign={baseReserveRightOverseas} />
+            {unlocated.length > 0 && (
               <div className="absolute right-4 bottom-12 z-10 flex max-w-[42%] flex-col items-end gap-2">
-                <OverseasBlock students={overseas} />
                 <UnlocatedBlock students={unlocated} />
               </div>
             )}
