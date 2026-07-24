@@ -171,7 +171,6 @@ export function FontPanel() {
       icon={SlidersHorizontal}
       title="排版设计"
       summary={`${data.labelLayout === 'vertical' ? '竖版' : data.labelColumns === 2 ? '两列' : '一列'} · ${data.labelSizes.person}px`}
-      mobileOpen={false}
       headerExtra={
         <>
           {/* 上传入口刻意小巧：预设字体是主路径 */}
@@ -518,6 +517,7 @@ export function FontPanel() {
           >
             {(
               [
+                { value: 'auto', label: '自动' },
                 { value: 'right', label: '右上' },
                 { value: 'left', label: '左上' },
               ] as const

@@ -89,7 +89,6 @@ export default function ThemePicker() {
       icon={Palette}
       title="画布风格"
       summary={theme.id === 'custom' ? '自定义' : theme.name}
-      mobileOpen={false}
     >
       <div className="space-y-3 md:space-y-4">
         {/* 预设色板 */}

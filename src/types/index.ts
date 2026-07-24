@@ -98,8 +98,8 @@ export interface MapData {
   uniformCardWidth: boolean
   /** 卡片人数统计（v1.25）：开启后每张省份卡片内部角落显示该卡人数的精巧小块（默认关闭） */
   showCardCount: boolean
-  /** 人数小块位置（v1.26）：卡片内部左上角 / 右上角（默认右上） */
-  cardCountPos: 'left' | 'right'
+  /** 人数小块位置（v1.26）：auto = 跟随卡片文字对齐（左对齐→小块在右，右对齐→小块在左，默认）；也可固定左上/右上 */
+  cardCountPos: 'auto' | 'left' | 'right'
   /** 分布统计表（v1.25）：开启后画布下方（页脚之上）显示全班各地人数分布统计 */
   showStats: boolean
   /**
@@ -174,7 +174,7 @@ export const EMPTY_MAP_DATA: MapData = {
   mergeSameSchool: false,
   uniformCardWidth: false,
   showCardCount: false,
-  cardCountPos: 'right',
+  cardCountPos: 'auto',
   showStats: false,
   cardSizes: {},
   labelCardBg: true,

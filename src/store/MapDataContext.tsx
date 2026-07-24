@@ -205,7 +205,8 @@ function normalizeData(raw: unknown): MapData | null {
     uniformCardWidth: d.uniformCardWidth === true,
     // v1.26 迁移：人数小块默认关闭（v1.25 曾默认开启，v1.26 起改为用户主动开启），位置默认卡片内右上角
     showCardCount: d.showCardCount === true,
-    cardCountPos: d.cardCountPos === 'left' ? 'left' : 'right',
+    cardCountPos:
+      d.cardCountPos === 'left' || d.cardCountPos === 'right' ? d.cardCountPos : 'auto',
     showStats: d.showStats === true,
     cardSizes: (() => {
       const raw = d.cardSizes

@@ -784,16 +784,22 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
                 strokeDasharray="4 3"
               />
             )}
-            {/* 人数小块：卡片内部左上/右上角（可选，默认关闭），主题色浅底圆角小块 + 主题色数字，
-                显示该卡学生数（同校合并也按人头计）；精巧不抢戏，不骑缝、不压卡片边缘 */}
+            {/* 人数小块：卡片内部角落（可选，默认关闭），主题色浅底圆角小块 + 主题色数字，
+                显示该卡学生数（同校合并也按人头计）；auto 位置跟随文字对齐反向放置——
+                左对齐的卡片小块在右上，右对齐的在左上，避开标题文字一侧 */}
             {data.showCardCount &&
               b.studentCount > 0 &&
               (() => {
                 const cw = 10 + String(b.studentCount).length * 6
                 const ch = 12.5
                 const pad = 5
-                const cx =
-                  data.cardCountPos === 'left' ? b.cardX + pad : b.cardX + w - pad - cw
+                const pos =
+                  data.cardCountPos === 'auto'
+                    ? b.textAnchor === 'start'
+                      ? 'right'
+                      : 'left'
+                    : data.cardCountPos
+                const cx = pos === 'left' ? b.cardX + pad : b.cardX + w - pad - cw
                 const cy = b.cardY + pad
                 return (
                   <g pointerEvents="none">

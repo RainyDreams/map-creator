@@ -105,7 +105,6 @@ export default function TeacherTable() {
       title="老师名单"
       titleHint="可选填"
       summary={teachers.length > 0 ? `${teachers.length} 位` : undefined}
-      mobileOpen={teachers.length > 0}
       headerExtra={
         <>
           <Label htmlFor="teacher-toggle" className="text-xs whitespace-nowrap text-stone-500">
