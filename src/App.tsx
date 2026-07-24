@@ -7,7 +7,6 @@ import EntryPage from '@/pages/EntryPage'
 import MapPage from '@/pages/MapPage'
 import SiteFooter from '@/components/layout/SiteFooter'
 import { ConsentDialog } from '@/components/ConsentDialog'
-import { WeChatGuideDialog } from '@/components/WeChatGuideDialog'
 import { ClipboardList, Info, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { onGotoMapExport } from '@/utils/exportBus'
@@ -318,7 +317,6 @@ export default function App() {
         <ShareImportLanding payload={importPayload} onClose={() => setImportPayload(null)} />
       )}
       <ConsentDialog />
-      <WeChatGuideDialog />
       <Toaster position="top-center" richColors />
     </MapDataProvider>
   )
