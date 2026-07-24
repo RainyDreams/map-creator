@@ -140,6 +140,8 @@ export interface LabelLayoutOptions {
   columnsPerSide?: 1 | 2
   /** 同校合并：同一大学的多名同学合并为一个块（姓名竖排，学校信息只显示一次） */
   mergeSameSchool?: boolean
+  /** 卡片文字对齐覆盖：卡片键（含拆分卡「省份名#i」）→ 左/右对齐；缺省跟随所在侧 */
+  cardTextAlign?: Record<string, 'left' | 'right'>
   /** 省份卡片背景是否开启（影响子列间距：开启时卡片内边距需要更大的列间距） */
   cardBg?: boolean
 }
@@ -695,6 +697,15 @@ export function computeLabelLayout(
           cardH: h + CARD_PAD_Y * 2,
         }
         y += h + gap
+        // 卡片文字对齐覆盖（含拆分卡，键即 i.province）：缺省跟随所在侧
+        const alignOv = options?.cardTextAlign?.[i.province]
+        if (alignOv === 'left') {
+          block.textAnchor = 'start'
+          block.anchorX = cardX + CARD_PAD_X
+        } else if (alignOv === 'right') {
+          block.textAnchor = 'end'
+          block.anchorX = cardX + cardW - CARD_PAD_X
+        }
         return block
       })
       return { blocks, bottom: y - gap }
@@ -809,10 +820,13 @@ export function computeLabelLayout(
       const newCardX = zx - CARD_PAD_X
       const newCardY = zy - CARD_PAD_Y
       const dy = newCardY - b.cardY
+      // 卡片文字对齐覆盖：西南区默认左对齐，可被「右对齐」覆盖
+      const alignOv = options?.cardTextAlign?.[b.province]
+      const zoneAnchor = alignOv === 'right' ? newCardX + b.cardW - CARD_PAD_X : zx
       swBlocks.push({
         ...b,
-        anchorX: zx,
-        textAnchor: 'start',
+        anchorX: zoneAnchor,
+        textAnchor: alignOv === 'right' ? 'end' : 'start',
         headerBaseline: b.headerBaseline + dy,
         firstLineBaseline: b.firstLineBaseline + dy,
         // 引线接入点：卡片顶边中点（定位点在卡片上方）

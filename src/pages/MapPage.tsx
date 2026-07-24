@@ -436,8 +436,48 @@ export default function MapPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /** 移动端拖动卡顿提示：LabelColumns 采样 pointermove 间隔检测到卡顿后派发事件；
+      每次浏览器会话只弹一次（sessionStorage 记录），8 秒后自动消失 */
+  const [jankHint, setJankHint] = useState(false)
+  useEffect(() => {
+    const onJank = () => {
+      try {
+        if (sessionStorage.getItem('cf-jank-hint') === '1') return
+        sessionStorage.setItem('cf-jank-hint', '1')
+      } catch {
+        // sessionStorage 不可用时每次拖动卡顿都允许提示
+      }
+      setJankHint(true)
+      setTimeout(() => setJankHint(false), 8000)
+    }
+    window.addEventListener('cf-drag-jank', onJank)
+    return () => window.removeEventListener('cf-drag-jank', onJank)
+  }, [])
+
   return (
     <div className="flex h-full flex-col">
+      {/* 移动端拖动卡顿提示（LabelColumns 检测到卡顿后派发 cf-drag-jank；每次会话只弹一次） */}
+      {jankHint && (
+        <div
+          role="status"
+          className="fixed left-1/2 top-3 z-50 flex w-[min(92vw,26rem)] items-start gap-2 rounded-xl border border-amber-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur"
+          style={{ transform: 'translateX(-50%)' }}
+        >
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-stone-600">
+            <span className="font-medium text-stone-800">检测到卡顿，推荐到电脑端进行。</span>
+            <br />
+            在首页点击「分享」→「在其他设备上继续此工作」，画布就同步过去了。
+          </p>
+          <button
+            type="button"
+            aria-label="关闭提示"
+            onClick={() => setJankHint(false)}
+            className="shrink-0 rounded p-0.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
       {/* 工具栏（不参与导出） */}
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2.5">
         <div className="min-w-0">

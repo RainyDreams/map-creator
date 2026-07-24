@@ -116,6 +116,11 @@ export interface MapData {
   /** 学生 id → 校徽覆盖设置（隐藏或自定义图片，优先于全局校徽开关与自动匹配） */
   badgeOverrides: Record<string, StudentBadge>
   /**
+   * 卡片文字对齐覆盖（v1.23）：卡片键（省份名，拆分卡为「省份名#i」）→ 左/右对齐。
+   * 缺省跟随所在列（左列右对齐、右列左对齐、西南区左对齐）；拆分卡可分别设置
+   */
+  cardTextAlign: Record<string, 'left' | 'right'>
+  /**
    * 省份卡片拆分：省份名 → 卡片数组（每张卡 = 该省学生 id 的有序列表，编辑期允许暂存空卡）。
    * 缺省/{} = 一省一卡；拆分后该省按手动顺序处理（不再按软科排名重排）
    */
@@ -147,6 +152,7 @@ export const EMPTY_MAP_DATA: MapData = {
   calligraphy: {},
   badgeOverrides: {},
   provinceSplits: {},
+  cardTextAlign: {},
 }
 
 /** 拆分卡片键：`省份名#i`（0 起）；未拆分的省份直接用省份名作卡片键 */

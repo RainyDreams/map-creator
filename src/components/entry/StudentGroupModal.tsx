@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownUp, Brush, ChevronDown, ChevronUp, Combine, GripVertical, ImagePlus, MapPinOff, Plane, Plus, RotateCcw, Shield, Split, Trash2 } from 'lucide-react'
+import { AlignLeft, AlignRight, ArrowDownUp, Brush, ChevronDown, ChevronUp, Combine, GripVertical, ImagePlus, MapPinOff, Plane, Plus, RotateCcw, Shield, Split, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,7 +14,7 @@ import CityPicker from '@/components/entry/CityPicker'
 import { useMapData } from '@/store/MapDataContext'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
 import { getUniInfoSync, prefetchUniversities, schoolBadgeUrl } from '@/utils/universities'
-import { newId, type CalligraphyAsset, type MapData, type StudentBadge, type StudentEntry } from '@/types'
+import { newId, splitCardKey, type CalligraphyAsset, type MapData, type StudentBadge, type StudentEntry } from '@/types'
 
 /** 未定位条目的虚拟分组键 */
 const UNLOCATED = '__unlocated__'
@@ -259,6 +259,38 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
   const cardTitle = (members: StudentEntry[], idx: number): string => {
     const cities = new Set(members.map((m) => m.city.trim()).filter((c) => c !== ''))
     return cities.size === 1 ? [...cities][0] : `卡片 ${idx + 1}`
+  }
+
+  /** 卡片文字对齐切换（v1.23）：左/右；再次点击已选中的对齐则清除覆盖（恢复跟随所在列默认）。
+      键：未拆分省 = 省份名；拆分卡 = splitCardKey(prov, i)——与地图卡片键一致 */
+  const AlignToggle = ({ cardKey }: { cardKey: string }) => {
+    const cur = data.cardTextAlign[cardKey]
+    const set = (v: 'left' | 'right') =>
+      setData((prev) => {
+        const next = { ...prev.cardTextAlign }
+        if (cur === v) delete next[cardKey]
+        else next[cardKey] = v
+        return { ...prev, cardTextAlign: next }
+      })
+    const btn = (v: 'left' | 'right', Icon: typeof AlignLeft, label: string) => (
+      <button
+        type="button"
+        onClick={() => set(v)}
+        title={`${label}（当前${cur ? (cur === 'left' ? '左对齐' : '右对齐') : '跟随列默认'}；再次点击恢复默认）`}
+        aria-label={`${cardKey} ${label}`}
+        className={`flex items-center rounded px-1 py-0.5 ${
+          cur === v ? 'bg-stone-700 text-white' : 'text-stone-400 hover:bg-stone-100 hover:text-stone-700'
+        }`}
+      >
+        <Icon className="h-3 w-3" />
+      </button>
+    )
+    return (
+      <span className="inline-flex items-center gap-0.5 rounded border border-stone-200 bg-white p-0.5">
+        {btn('left', AlignLeft, '卡片文字左对齐')}
+        {btn('right', AlignRight, '卡片文字右对齐')}
+      </span>
+    )
   }
 
   /** 拆分/跨卡拖动后该省转为手动顺序（不再按软科排名重排） */
@@ -582,6 +614,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
               <span className="text-xs text-stone-400">{members.length} 人</span>
               {!isUnlocated && !isOverseas && (
                 <span className="ml-auto flex flex-wrap items-center gap-1 text-[11px] text-stone-400">
+                  <AlignToggle cardKey={prov} />
                   {cards !== null ? '已拆分' : isManual ? '手动顺序' : '按软科排名'}
                   {isManual && cards === null && (
                     <button
@@ -973,8 +1006,9 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                 <div className="space-y-1.5">
                   {cards.map((cardMembers, ci) => (
                     <div key={ci} className="rounded-md border border-stone-200 bg-white/70 p-1.5">
-                      <p className="px-1 pb-1 text-[11px] font-medium text-stone-500">
-                        {cardTitle(cardMembers, ci)}
+                      <p className="flex items-center justify-between gap-1 px-1 pb-1 text-[11px] font-medium text-stone-500">
+                        <span>{cardTitle(cardMembers, ci)}</span>
+                        <AlignToggle cardKey={splitCardKey(prov, ci)} />
                       </p>
                       {cardMembers.length === 0 ? (
                         <div

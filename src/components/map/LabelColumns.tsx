@@ -70,6 +70,12 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
     () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
     [],
   )
+  /** 移动端拖动卡顿检测：pointermove 间隔采样（last=0 表示未在拖动/已重置） */
+  const jankRef = useRef<{ last: number; samples: number[]; fired: boolean }>({
+    last: 0,
+    samples: [],
+    fired: false,
+  })
 
   /** 监听画布级「清除选中」事件（点空白处 / 导出前派发）：虚线框消失 */
   useEffect(() => {
@@ -162,6 +168,24 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
   const onBlockPointerMove = (e: React.PointerEvent, prov: string) => {
     const d = dragRef.current
     if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
+    // 移动端拖动卡顿检测：采样 pointermove 间隔，连续 8 帧平均间隔 >34ms（约 <30fps）
+    // 视为卡顿，派发一次全局事件让页面顶部提示「推荐到电脑端进行」（每次拖动会话只评一次）
+    if (isCoarse && !jankRef.current.fired) {
+      const now = performance.now()
+      const j = jankRef.current
+      if (j.last > 0) {
+        j.samples.push(now - j.last)
+        if (j.samples.length > 12) j.samples.shift()
+        if (j.samples.length >= 8) {
+          const avg = j.samples.reduce((a, b) => a + b, 0) / j.samples.length
+          if (avg > 34) {
+            j.fired = true
+            window.dispatchEvent(new CustomEvent('cf-drag-jank'))
+          }
+        }
+      }
+      j.last = now
+    }
     // 固定坐标系换算：屏幕位移 ÷ 按下时缩放（不受拖动中 viewBox 扩缩影响）
     let dx = d.baseDx + (e.clientX - d.startClientX) / d.scaleX
     let dy = d.baseDy + (e.clientY - d.startClientY) / d.scaleY
@@ -248,6 +272,9 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
     const d = dragRef.current
     if (!d || d.province !== prov || d.pointerId !== e.pointerId) return
     dragRef.current = null
+    // 卡顿采样重置：下一次拖动重新计时（fired 标志保留，一次会话只提示一次）
+    jankRef.current.last = 0
+    jankRef.current.samples = []
     onLiveDrag?.(null)
     setGuides(null)
     setDragState((cur) => {

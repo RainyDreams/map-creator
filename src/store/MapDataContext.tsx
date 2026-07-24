@@ -228,6 +228,16 @@ function normalizeData(raw: unknown): MapData | null {
     badgeOverrides: normalizeBadgeOverrides(d.badgeOverrides),
     // v1.22 迁移：旧数据无 provinceSplits 字段时回退空表
     provinceSplits: normalizeProvinceSplits(d.provinceSplits),
+    // v1.23 迁移：旧数据无 cardTextAlign 字段时回退空表（跟随列侧默认对齐）
+    cardTextAlign: (() => {
+      const raw = d.cardTextAlign
+      if (!raw || typeof raw !== 'object') return {}
+      const out: MapData['cardTextAlign'] = {}
+      for (const [k, v] of Object.entries(raw)) {
+        if (k.trim() !== '' && (v === 'left' || v === 'right')) out[k] = v
+      }
+      return out
+    })(),
   }
 }
 
