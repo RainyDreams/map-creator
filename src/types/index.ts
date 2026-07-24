@@ -51,6 +51,8 @@ export interface StudentBadge {
   hidden?: boolean
   /** 自定义校徽图片 dataURL（方形 PNG，上传时已压缩）；设置后替代自动匹配的校徽 */
   dataUrl?: string
+  /** 该学生校徽的个人大小倍率（0.5–2，缺省 = 跟随全局 badgeScale）；自动匹配与自定义校徽都适用 */
+  scale?: number
 }
 
 /** 蹭饭图全部数据 */

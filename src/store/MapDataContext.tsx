@@ -301,7 +301,11 @@ function normalizeBadgeOverrides(raw: unknown): MapData['badgeOverrides'] {
     if (typeof b.dataUrl === 'string' && b.dataUrl.startsWith('data:image/')) {
       item.dataUrl = b.dataUrl
     }
-    if (item.hidden || item.dataUrl) out[id] = item
+    if (typeof b.scale === 'number' && Number.isFinite(b.scale)) {
+      const sc = Math.min(2, Math.max(0.5, b.scale))
+      if (sc !== 1) item.scale = sc
+    }
+    if (item.hidden || item.dataUrl || item.scale !== undefined) out[id] = item
   }
   return out
 }

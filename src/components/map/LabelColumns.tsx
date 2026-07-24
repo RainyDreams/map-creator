@@ -318,7 +318,7 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
 
   /** 渲染一个学生行（可能占多行），返回占用行数 */
   function renderStudent(b: LabelBlock, ln: StudentLineParts, rowOffset: number, key: string) {
-    const badgeSize = b.placeSize * BADGE_RATIO * (b.badgeScale ?? 1)
+    const badgeSize = b.placeSize * BADGE_RATIO * (ln.badgeScale ?? b.badgeScale ?? 1)
     // 姓名与其后内容的间隙：有校徽时留 BADGE_GAP 呼吸（校徽与校名无间隙）；
     // 不显示校徽的同学（个人隐藏或全局关闭）姓名与校名之间留 NAME_PLACE_GAP，避免名字挨着校名
     const placeOnOwnLines = ln.ownLine
@@ -446,7 +446,7 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
   /** 渲染一个同校合并单元：姓名一人一行竖排，学校信息（校徽+毛笔字/文字）在右侧垂直居中只显示一次 */
   function renderGroup(b: LabelBlock, ln: StudentLineParts, rowOffset: number, key: string) {
     const names = ln.groupNames ?? []
-    const badgeSize = b.placeSize * BADGE_RATIO * (b.badgeScale ?? 1)
+    const badgeSize = b.placeSize * BADGE_RATIO * (ln.badgeScale ?? b.badgeScale ?? 1)
     const calli = ln.calli ?? null
     const calliW = calli ? calliSize(calli, b.placeSize).w : 0
     const calliH = calli ? b.placeSize * CALLI_RATIO * calli.sizeScale : 0

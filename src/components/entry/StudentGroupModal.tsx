@@ -490,10 +490,11 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
   const setBadgeOverride = (id: string, patch: StudentBadge | null) => {
     setData((prev) => {
       const badgeOverrides = { ...prev.badgeOverrides }
-      if (patch && (patch.hidden || patch.dataUrl)) {
+      if (patch && (patch.hidden || patch.dataUrl || (patch.scale !== undefined && patch.scale !== 1))) {
         badgeOverrides[id] = { ...badgeOverrides[id], ...patch }
-        // 两个字段都空则移除整条，保持数据干净
-        if (!badgeOverrides[id].hidden && !badgeOverrides[id].dataUrl) delete badgeOverrides[id]
+        // 所有字段都回到默认则移除整条，保持数据干净
+        const cur = badgeOverrides[id]
+        if (!cur.hidden && !cur.dataUrl && (cur.scale === undefined || cur.scale === 1)) delete badgeOverrides[id]
       } else {
         delete badgeOverrides[id]
       }
@@ -931,7 +932,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                   {badgeOpen && (
                     <div className="mt-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-2">
                       <p className="mb-1.5 text-[11px] leading-4 text-stone-400">
-                        「{s.name || '该同学'}」的校徽：默认按大学自动匹配（若该校已收录）；可上传自定义图片替代，或单独隐藏此人的校徽。
+                        「{s.name || '该同学'}」的校徽：默认按大学自动匹配（若该校已收录）；可上传自定义图片替代、单独隐藏，或用滑块单独调整大小（在全局倍率基础上叠加）。
                       </p>
                       <div className="flex items-center gap-2.5">
                         <div
@@ -959,6 +960,21 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                           {ovr?.hidden && <span className="ml-1 text-amber-600">（已隐藏，不在图上显示）</span>}
                         </div>
                       </div>
+                      {/* 个人校徽大小：50%–200%（默认 100% = 跟随全局），自动匹配与自定义校徽都适用 */}
+                      {!ovr?.hidden && (autoBadge || ovr?.dataUrl) && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="shrink-0 text-[11px] text-stone-500">大小</span>
+                          <Slider
+                            value={Math.round((ovr?.scale ?? 1) * 100)}
+                            min={50}
+                            max={200}
+                            step={5}
+                            format={(v) => `${v}%`}
+                            aria-label="该同学校徽大小"
+                            onChange={(v) => setBadgeOverride(s.id, { ...ovr, scale: v / 100 })}
+                          />
+                        </div>
+                      )}
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <button
                           type="button"

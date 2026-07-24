@@ -180,6 +180,8 @@ export interface StudentLineParts {
   ownLine: boolean
   /** 是否有校徽可在大学名前渲染 */
   badge?: boolean
+  /** 该行校徽的有效大小倍率（全局 badgeScale × 个人 scale；缺省 1） */
+  badgeScale?: number
   /** 原始校名（校徽代理 URL 用） */
   uni?: string
   /** 校徽内联 dataURL（预取完成时有值，渲染/导出免网络） */
@@ -261,7 +263,7 @@ type MeasureFn = (text: string, px: number, slot: 'person' | 'place') => number
 
 /** 一行的姓名后附加宽度：校徽占位（含呼吸）或无校徽时的姓名-校名间隙 */
 function afterNameW(parts: Omit<StudentLineParts, 'placeLines' | 'ownLine'>, sizes: LineFontSizes): number {
-  if (parts.badge) return sizes.place * BADGE_RATIO * (sizes.badgeScale ?? 1) + BADGE_GAP
+  if (parts.badge) return sizes.place * BADGE_RATIO * (parts.badgeScale ?? sizes.badgeScale ?? 1) + BADGE_GAP
   return parts.place !== '' || parts.calli ? NAME_PLACE_GAP : 0
 }
 
@@ -282,7 +284,7 @@ function oneLineWidth(
   const calliW = parts.calli ? calliSize(parts.calli, sizes.place).w : 0
   // 同校合并：姓名列 + 间隙 + 校徽 + 图片 + 学校文本
   if (parts.groupNames) {
-    const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (sizes.badgeScale ?? 1) + BADGE_GAP : 0
+    const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (parts.badgeScale ?? sizes.badgeScale ?? 1) + BADGE_GAP : 0
     return groupNameColW(parts, sizes, measure) + GROUP_GAP + badgeW + calliW + mPlace(parts.place)
   }
   return mPerson(parts.person) + afterNameW(parts, sizes) + calliW + mPlace(parts.place)
@@ -306,7 +308,7 @@ export function wrapStudentLine(
 
   // 同校合并：学校信息独占右侧一列（垂直居中），所有行等宽换行；姓名列不参与换行
   if (parts.groupNames) {
-    const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (sizes.badgeScale ?? 1) + BADGE_GAP : 0
+    const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (parts.badgeScale ?? sizes.badgeScale ?? 1) + BADGE_GAP : 0
     const calliW = parts.calli ? calliSize(parts.calli, sizes.place).w : 0
     const avail = Math.max(sizes.place * 4, colTextW - groupNameColW(parts, sizes, measure) - GROUP_GAP - badgeW - calliW)
     const lines: string[] = []
@@ -326,7 +328,7 @@ export function wrapStudentLine(
 
   const mPerson = (t: string) => (measure ? measure(t, sizes.person, 'person') : textEms(t) * sizes.person)
   const personW = mPerson(parts.person)
-  const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (sizes.badgeScale ?? 1) + BADGE_GAP : 0
+  const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (parts.badgeScale ?? sizes.badgeScale ?? 1) + BADGE_GAP : 0
   const nameGap = !parts.badge && parts.place !== '' ? NAME_PLACE_GAP : 0
   const calliW = parts.calli ? calliSize(parts.calli, sizes.place).w : 0
   const indent = personW + badgeW + nameGap + calliW
@@ -374,7 +376,7 @@ export function studentRowBoost(ln: StudentLineParts, placePx: number, badgeScal
   const base = BASE_LINE_H * (placePx / BASE_LINE)
   let boost = 1
   // 校徽放大后可能高于文字行：行高随之扩展，避免压到相邻行
-  if (ln.badge) boost = Math.max(boost, (placePx * BADGE_RATIO * badgeScale * 1.08) / base)
+  if (ln.badge) boost = Math.max(boost, (placePx * BADGE_RATIO * (ln.badgeScale ?? badgeScale) * 1.08) / base)
   if (ln.calli) {
     const { h } = calliSize(ln.calli, placePx)
     boost = Math.max(boost, (h * CALLI_ROW_PAD) / base)
@@ -480,12 +482,14 @@ export function computeLabelLayout(
       badge = true
       badgeUrl = ovr.dataUrl
     }
+    // 该行校徽有效倍率 = 全局 badgeScale × 个人 scale（自动匹配与自定义校徽都适用）
+    const lineBadgeScale = (options?.badgeScale ?? 1) * (ovr?.scale ?? 1)
     // 毛笔字图片：替代大学文字，place 只剩「· 城市」；图片宽度按列宽上限收敛倍率
     const raw = options?.calligraphy?.[key]
     let calli: CalliPlacement | null = null
     if (raw && raw.w > 0 && raw.h > 0) {
       const aspect = raw.w / raw.h
-      const badgeW = badge ? sizes.place * BADGE_RATIO * (options?.badgeScale ?? 1) + BADGE_GAP : 0
+      const badgeW = badge ? sizes.place * BADGE_RATIO * lineBadgeScale + BADGE_GAP : 0
       const maxW = maxColW - badgeW - 8
       const natW = sizes.place * CALLI_RATIO * raw.scale * aspect
       const sizeScale = natW > maxW ? raw.scale * (maxW / natW) : raw.scale
@@ -496,7 +500,7 @@ export function computeLabelLayout(
         ? parts.place.slice(parts.place.indexOf(' · '))
         : ''
       : parts.place
-    return { ...parts, place, badge, badgeUrl, calli }
+    return { ...parts, place, badge, badgeScale: lineBadgeScale, badgeUrl, calli }
   }
 
   /** 按指定列宽重算一个省的换行结果与行数/行高倍率 */
