@@ -67,6 +67,8 @@ export interface MapData {
   teachersTitle: string
   /** 校徽图片是否在地图上显示（关闭时图上不渲染校徽，大学文字照常） */
   showBadges: boolean
+  /** 行内校徽显示大小倍率（0.5–2，默认 1；自动匹配与用户上传校徽都按此缩放） */
+  badgeScale: number
   /** 画布标题排布：居左 / 居中 / 居右 */
   titleAlign: 'left' | 'center' | 'right'
   /** 英文副标题（可选，显示在标题下方） */
@@ -143,6 +145,7 @@ export const EMPTY_MAP_DATA: MapData = {
   showTeachers: true,
   teachersTitle: '相伴三年的老师们',
   showBadges: true,
+  badgeScale: 1,
   titleAlign: 'left',
   subtitle: '',
   labelSizes: DEFAULT_LABEL_SIZES,

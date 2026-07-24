@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Slider } from '@/components/ui/slider'
 import {
   CUSTOM_FONT_MAX_BYTES,
   FONT_SLOT_LABELS,
@@ -379,6 +380,22 @@ export function FontPanel() {
           aria-label="在大学名前显示校徽图片"
         />
       </div>
+
+      {/* 校徽大小：0.5–2 倍（默认 1），自动匹配与用户上传的校徽都按此缩放 */}
+      {data.showBadges && (
+        <div className="mt-2 flex items-center gap-2">
+          <span className="shrink-0 text-[11px] text-stone-500">校徽大小</span>
+          <Slider
+            value={data.badgeScale}
+            min={0.5}
+            max={2}
+            step={0.05}
+            format={(v) => `${Math.round(v * 100)}%`}
+            aria-label="校徽大小"
+            onChange={(v) => setData((prev) => ({ ...prev, badgeScale: v }))}
+          />
+        </div>
+      )}
 
       {/* 同校合并：同一大学的多名同学姓名竖排，学校信息只显示一次 */}
       <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">

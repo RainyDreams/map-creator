@@ -78,6 +78,8 @@ export interface LabelBlock {
   personSize: number
   /** 大学 · 城市段字号（已含列缩放） */
   placeSize: number
+  /** 校徽显示大小倍率（渲染时 placeSize × BADGE_RATIO × badgeScale） */
+  badgeScale?: number
   /** 块垂直中心（引线接入点 y） */
   centerY: number
   /** 引线接入点 x（标注块朝向地图一侧的边缘，在文字锚点之外） */
@@ -146,6 +148,8 @@ export interface LabelLayoutOptions {
   cardTextAlign?: Record<string, 'left' | 'right'>
   /** 省份卡片背景是否开启（影响子列间距：开启时卡片内边距需要更大的列间距） */
   cardBg?: boolean
+  /** 校徽显示大小倍率（0.5–2，默认 1；同时作用于自动匹配与用户上传的校徽） */
+  badgeScale?: number
 }
 
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
@@ -238,6 +242,8 @@ export function textEms(s: string): number {
 export interface LineFontSizes {
   person: number
   place: number
+  /** 校徽显示大小倍率（0.5–2，默认 1；自动匹配与用户上传校徽都按此缩放） */
+  badgeScale?: number
 }
 
 /** 毛笔字图片显示高度 = 地点字号 × CALLI_RATIO × 用户倍率（笔画比字形更舒展，略高于文字） */
@@ -255,7 +261,7 @@ type MeasureFn = (text: string, px: number, slot: 'person' | 'place') => number
 
 /** 一行的姓名后附加宽度：校徽占位（含呼吸）或无校徽时的姓名-校名间隙 */
 function afterNameW(parts: Omit<StudentLineParts, 'placeLines' | 'ownLine'>, sizes: LineFontSizes): number {
-  if (parts.badge) return sizes.place * BADGE_RATIO + BADGE_GAP
+  if (parts.badge) return sizes.place * BADGE_RATIO * (sizes.badgeScale ?? 1) + BADGE_GAP
   return parts.place !== '' || parts.calli ? NAME_PLACE_GAP : 0
 }
 
@@ -276,7 +282,7 @@ function oneLineWidth(
   const calliW = parts.calli ? calliSize(parts.calli, sizes.place).w : 0
   // 同校合并：姓名列 + 间隙 + 校徽 + 图片 + 学校文本
   if (parts.groupNames) {
-    const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
+    const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (sizes.badgeScale ?? 1) + BADGE_GAP : 0
     return groupNameColW(parts, sizes, measure) + GROUP_GAP + badgeW + calliW + mPlace(parts.place)
   }
   return mPerson(parts.person) + afterNameW(parts, sizes) + calliW + mPlace(parts.place)
@@ -300,7 +306,7 @@ export function wrapStudentLine(
 
   // 同校合并：学校信息独占右侧一列（垂直居中），所有行等宽换行；姓名列不参与换行
   if (parts.groupNames) {
-    const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
+    const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (sizes.badgeScale ?? 1) + BADGE_GAP : 0
     const calliW = parts.calli ? calliSize(parts.calli, sizes.place).w : 0
     const avail = Math.max(sizes.place * 4, colTextW - groupNameColW(parts, sizes, measure) - GROUP_GAP - badgeW - calliW)
     const lines: string[] = []
@@ -320,7 +326,7 @@ export function wrapStudentLine(
 
   const mPerson = (t: string) => (measure ? measure(t, sizes.person, 'person') : textEms(t) * sizes.person)
   const personW = mPerson(parts.person)
-  const badgeW = parts.badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
+  const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (sizes.badgeScale ?? 1) + BADGE_GAP : 0
   const nameGap = !parts.badge && parts.place !== '' ? NAME_PLACE_GAP : 0
   const calliW = parts.calli ? calliSize(parts.calli, sizes.place).w : 0
   const indent = personW + badgeW + nameGap + calliW
@@ -364,11 +370,16 @@ export function studentRowCount(ln: StudentLineParts): number {
 }
 
 /** 行高倍率：毛笔字图片比文字行高时，该省块整行加高（1 = 不 boost） */
-export function studentRowBoost(ln: StudentLineParts, placePx: number): number {
-  if (!ln.calli) return 1
-  const { h } = calliSize(ln.calli, placePx)
+export function studentRowBoost(ln: StudentLineParts, placePx: number, badgeScale: number = 1): number {
   const base = BASE_LINE_H * (placePx / BASE_LINE)
-  return Math.max(1, (h * CALLI_ROW_PAD) / base)
+  let boost = 1
+  // 校徽放大后可能高于文字行：行高随之扩展，避免压到相邻行
+  if (ln.badge) boost = Math.max(boost, (placePx * BADGE_RATIO * badgeScale * 1.08) / base)
+  if (ln.calli) {
+    const { h } = calliSize(ln.calli, placePx)
+    boost = Math.max(boost, (h * CALLI_ROW_PAD) / base)
+  }
+  return boost
 }
 
 const BASE_HEADER = 16
@@ -474,7 +485,7 @@ export function computeLabelLayout(
     let calli: CalliPlacement | null = null
     if (raw && raw.w > 0 && raw.h > 0) {
       const aspect = raw.w / raw.h
-      const badgeW = badge ? sizes.place * BADGE_RATIO + BADGE_GAP : 0
+      const badgeW = badge ? sizes.place * BADGE_RATIO * (options?.badgeScale ?? 1) + BADGE_GAP : 0
       const maxW = maxColW - badgeW - 8
       const natW = sizes.place * CALLI_RATIO * raw.scale * aspect
       const sizeScale = natW > maxW ? raw.scale * (maxW / natW) : raw.scale
@@ -491,10 +502,10 @@ export function computeLabelLayout(
   /** 按指定列宽重算一个省的换行结果与行数/行高倍率 */
   const wrapAt = (item: SideItem, w: number) => {
     item.wrapped = item.parts.map((p) =>
-      wrapStudentLine(p, { person: sizes.person, place: sizes.place }, options?.measure, w),
+      wrapStudentLine(p, { person: sizes.person, place: sizes.place, badgeScale: options?.badgeScale ?? 1 }, options?.measure, w),
     )
     item.rowCount = item.wrapped.reduce((n, ln) => n + studentRowCount(ln), 0)
-    item.rowBoost = item.wrapped.reduce((b, ln) => Math.max(b, studentRowBoost(ln, sizes.place)), 1)
+    item.rowBoost = item.wrapped.reduce((b, ln) => Math.max(b, studentRowBoost(ln, sizes.place, options?.badgeScale ?? 1)), 1)
   }
 
   const items: SideItem[] = []
@@ -548,7 +559,7 @@ export function computeLabelLayout(
     // 该省最长单行内容宽度（学生行与卡片标题取大者）
     const oneLineW = Math.max(
       textEms(title) * sizes.province,
-      ...parts.map((p) => oneLineWidth(p, { person: sizes.person, place: sizes.place }, options?.measure)),
+      ...parts.map((p) => oneLineWidth(p, { person: sizes.person, place: sizes.place, badgeScale: options?.badgeScale ?? 1 }, options?.measure)),
     )
     items.push({
       province,
@@ -660,6 +671,7 @@ export function computeLabelLayout(
           headerSize,
           personSize,
           placeSize,
+          badgeScale: options?.badgeScale ?? 1,
           // 引线接入点：卡片顶边中点（定位点在卡片上方）
           centerY: cardY,
           edgeX: cardX + p.cardW / 2,
@@ -809,6 +821,7 @@ export function computeLabelLayout(
           headerSize,
           personSize,
           placeSize,
+          badgeScale: options?.badgeScale ?? 1,
           centerY: y + h / 2,
           edgeX,
           centroidX: cx,
@@ -990,6 +1003,7 @@ export function computeLabelLayout(
           headerSize,
           personSize,
           placeSize,
+          badgeScale: options?.badgeScale ?? 1,
           centerY: 0,
           edgeX: 0,
           centroidX: cx,

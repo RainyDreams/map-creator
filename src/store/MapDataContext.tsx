@@ -245,6 +245,11 @@ function normalizeData(raw: unknown): MapData | null {
       typeof d.badgeSize === 'number' && Number.isFinite(d.badgeSize)
         ? Math.min(96, Math.max(24, Math.round(d.badgeSize)))
         : 48,
+    // v1.24.1 迁移：旧数据无 badgeScale 字段时回退默认 1（夹在 0.5–2）
+    badgeScale:
+      typeof d.badgeScale === 'number' && Number.isFinite(d.badgeScale)
+        ? Math.min(2, Math.max(0.5, d.badgeScale))
+        : 1,
   }
 }
 
