@@ -20,8 +20,11 @@ export interface LabelColumnsProps {
   right: LabelBlock[]
   /** 拖动实时偏移上报（null = 拖动结束）：驱动上层画布 viewBox 自动扩大 */
   onLiveDrag?: (drag: { province: string; dx: number; dy: number } | null) => void
-  /** 调整大小实时上报（null = 结束）：驱动上层画布 viewBox 随卡片尺寸扩缩 */
-  onLiveResize?: (resize: { province: string; w: number; h: number } | null) => void
+  /** 调整大小实时上报（null = 结束）：驱动上层画布 viewBox 随卡片尺寸扩缩；
+      sx/sy = 从西/北边缘拖时卡片的实时平移量 */
+  onLiveResize?: (
+    resize: { province: string; w: number; h: number; sx?: number; sy?: number } | null,
+  ) => void
   /** 卡片 z 序（省份 → 层级序号，越大越靠上）：点击/拖动卡片时自动上移，避免被其他卡片盖住 */
   zRanks?: Record<string, number>
   /** 卡片被点击/选中时上报：上层为其分配更高的 z 序 */
@@ -54,8 +57,14 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
   const [selectedProv, setSelectedProv] = useState<string | null>(null)
   /** 拖动中的实时偏移（提交前不落库） */
   const [dragState, setDragState] = useState<{ province: string; dx: number; dy: number } | null>(null)
-  /** 调整大小中的实时尺寸（提交前不落库） */
-  const [resizeState, setResizeState] = useState<{ province: string; w: number; h: number } | null>(null)
+  /** 调整大小中的实时尺寸与位移（提交前不落库）；sx/sy = 从西/北边缘拖时卡片的平移量（保持对侧边缘不动） */
+  const [resizeState, setResizeState] = useState<{
+    province: string
+    w: number
+    h: number
+    sx: number
+    sy: number
+  } | null>(null)
   const resizeRef = useRef<{
     province: string
     pointerId: number
@@ -68,6 +77,12 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
     /** 内容自然尺寸（最小值，不允许缩到裁掉文字） */
     natW: number
     natH: number
+    /** 拖动方向：x/y 各取 -1（西/北边缘）| 0（该轴不动）| 1（东/南边缘） */
+    mx: -1 | 0 | 1
+    my: -1 | 0 | 1
+    /** 按下时的持久化偏移：西/北边缘调整产生的位移在落库时并入 provinceOffsets */
+    baseOffX: number
+    baseOffY: number
   } | null>(null)
 
   /** 卡片有效宽/高：max(内容自然尺寸, 手动覆盖/实时调整值)——只允许放大或缩回自然尺寸 */
@@ -333,12 +348,18 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
     })
   }
 
-  /* ---------------- 卡片调整大小（选中后右下角手柄） ---------------- */
-  const onResizePointerDown = (e: React.PointerEvent, b: LabelBlock) => {
+  /* ---------------- 卡片调整大小（选中后四边中点 + 四角共 8 个手柄） ---------------- */
+  const onResizePointerDown = (
+    e: React.PointerEvent,
+    b: LabelBlock,
+    mx: -1 | 0 | 1,
+    my: -1 | 0 | 1,
+  ) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     e.stopPropagation()
     onCardActivate?.(b.province)
     const ctm = rootRef.current?.ownerSVGElement?.getScreenCTM()
+    const off = offsetOf(b.province)
     resizeRef.current = {
       province: b.province,
       pointerId: e.pointerId,
@@ -350,6 +371,10 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
       baseH: effH(b),
       natW: b.cardW,
       natH: b.cardH,
+      mx,
+      my,
+      baseOffX: off.dx,
+      baseOffY: off.dy,
     }
     ;(e.target as Element).setPointerCapture?.(e.pointerId)
   }
@@ -358,9 +383,23 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
     const r = resizeRef.current
     if (!r || r.province !== prov || r.pointerId !== e.pointerId) return
     // 固定坐标系换算（与拖动一致）：屏幕位移 ÷ 按下时缩放，不受 viewBox 扩缩反馈影响
-    const w = Math.min(r.natW + 600, Math.max(r.natW, r.baseW + (e.clientX - r.startClientX) / r.scaleX))
-    const h = Math.min(r.natH + 600, Math.max(r.natH, r.baseH + (e.clientY - r.startClientY) / r.scaleY))
-    const next = { province: prov, w, h }
+    const dX = (e.clientX - r.startClientX) / r.scaleX
+    const dY = (e.clientY - r.startClientY) / r.scaleY
+    let w = r.baseW
+    let h = r.baseH
+    let sx = 0
+    let sy = 0
+    if (r.mx === 1) w = Math.min(r.natW + 600, Math.max(r.natW, r.baseW + dX))
+    else if (r.mx === -1) {
+      w = Math.min(r.natW + 600, Math.max(r.natW, r.baseW - dX))
+      sx = r.baseW - w // 西边缘移动：卡片右缘保持不动
+    }
+    if (r.my === 1) h = Math.min(r.natH + 600, Math.max(r.natH, r.baseH + dY))
+    else if (r.my === -1) {
+      h = Math.min(r.natH + 600, Math.max(r.natH, r.baseH - dY))
+      sy = r.baseH - h // 北边缘移动：卡片下缘保持不动
+    }
+    const next = { province: prov, w, h, sx, sy }
     setResizeState(next)
     onLiveResize?.(next)
   }
@@ -374,12 +413,22 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
       if (cur && cur.province === prov) {
         const w = Math.round(cur.w)
         const h = Math.round(cur.h)
+        const ndx = Math.round(r.baseOffX + cur.sx)
+        const ndy = Math.round(r.baseOffY + cur.sy)
         setData((prev) => {
           const next = { ...prev.cardSizes }
           // 缩回自然尺寸（±2px 内）时清除覆盖记录，回到完全自动
           if (w <= r.natW + 2 && h <= r.natH + 2) delete next[prov]
           else next[prov] = { w, h }
-          return { ...prev, cardSizes: next }
+          // 从东/南边缘调整且无既有偏移：只改尺寸，不动布局模式
+          if (!prev.customPosition && ndx === 0 && ndy === 0) {
+            return { ...prev, cardSizes: next }
+          }
+          // 从西/北边缘调整（或已在自定义模式）：位移并入拖动偏移，自动切自定义位置模式
+          const offsets = prev.customPosition ? { ...prev.provinceOffsets } : {}
+          if (ndx === 0 && ndy === 0) delete offsets[prov]
+          else offsets[prov] = { dx: ndx, dy: ndy }
+          return { ...prev, cardSizes: next, provinceOffsets: offsets, customPosition: true }
         })
       }
       return null
@@ -652,8 +701,12 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
         const off = offsetOf(b.province)
         const w = effW(b)
         const h = effH(b)
-        const ex = Math.min(Math.max(b.centroidX, b.cardX + off.dx), b.cardX + off.dx + w)
-        const ey = Math.min(Math.max(b.centroidY, b.cardY + off.dy), b.cardY + off.dy + h)
+        // 西/北边缘调整大小时卡片实时平移（保持对侧边缘不动），引线端点跟着走
+        const rs = resizeState && resizeState.province === b.province ? resizeState : null
+        const ldx = off.dx + (rs?.sx ?? 0)
+        const ldy = off.dy + (rs?.sy ?? 0)
+        const ex = Math.min(Math.max(b.centroidX, b.cardX + ldx), b.cardX + ldx + w)
+        const ey = Math.min(Math.max(b.centroidY, b.cardY + ldy), b.cardY + ldy + h)
         const midX = (b.centroidX + ex) / 2
         const midY = (b.centroidY + ey) / 2
         return (
@@ -675,11 +728,15 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
         const selected = selectedProv === b.province
         const w = effW(b)
         const h = effH(b)
+        // 西/北边缘调整大小时整块实时平移（保持对侧边缘不动）
+        const rs = resizeState && resizeState.province === b.province ? resizeState : null
+        const tdx = off.dx + (rs?.sx ?? 0)
+        const tdy = off.dy + (rs?.sy ?? 0)
         let rowOffset = 0
         return (
           <g
             key={b.province}
-            transform={off.dx !== 0 || off.dy !== 0 ? `translate(${off.dx},${off.dy})` : undefined}
+            transform={tdx !== 0 || tdy !== 0 ? `translate(${tdx},${tdy})` : undefined}
             onPointerDown={(e) => onBlockPointerDown(e, b.province)}
             onPointerMove={(e) => onBlockPointerMove(e, b.province)}
             onPointerUp={(e) => finishDrag(e, b.province)}
@@ -727,50 +784,73 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
                 strokeDasharray="4 3"
               />
             )}
-            {/* 人数角标：卡片右上角骑缝 pill，显示该卡学生数（同校合并也按人头计） */}
-            {data.showCardCount && b.studentCount > 0 && (
-              <g pointerEvents="none" transform={`translate(${b.cardX + w}, ${b.cardY})`}>
-                <rect
-                  x={-(10 + String(b.studentCount).length * 6.5) / 2}
-                  y={-7.5}
-                  width={10 + String(b.studentCount).length * 6.5}
-                  height={15}
-                  rx={7.5}
-                  fill={theme.accent}
-                  stroke="#ffffff"
-                  strokeWidth={1}
-                />
-                <text
-                  x={0}
-                  y={3.5}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fontWeight={600}
-                  fill="#ffffff"
-                  style={{ fontFamily: personFont }}
-                >
-                  {b.studentCount}
-                </text>
-              </g>
-            )}
-            {/* 调整大小手柄：仅选中态显示，右下角斜纹握把，按住拖动改卡片宽/高 */}
+            {/* 人数小块：卡片内部左上/右上角（可选，默认关闭），主题色浅底圆角小块 + 主题色数字，
+                显示该卡学生数（同校合并也按人头计）；精巧不抢戏，不骑缝、不压卡片边缘 */}
+            {data.showCardCount &&
+              b.studentCount > 0 &&
+              (() => {
+                const cw = 10 + String(b.studentCount).length * 6
+                const ch = 12.5
+                const pad = 5
+                const cx =
+                  data.cardCountPos === 'left' ? b.cardX + pad : b.cardX + w - pad - cw
+                const cy = b.cardY + pad
+                return (
+                  <g pointerEvents="none">
+                    <rect x={cx} y={cy} width={cw} height={ch} rx={3.5} fill={theme.accent} opacity={0.13} />
+                    <text
+                      x={cx + cw / 2}
+                      y={cy + ch / 2 + 3.2}
+                      textAnchor="middle"
+                      fontSize={9}
+                      fontWeight={600}
+                      fill={theme.accent}
+                      style={{ fontFamily: personFont }}
+                    >
+                      {b.studentCount}
+                    </text>
+                  </g>
+                )
+              })()}
+            {/* 调整大小手柄：仅选中态显示，四边中点 + 四角共 8 个，按住拖动改卡片宽/高；
+                从西/北边缘拖时对侧边缘保持不动（位移落库时并入拖动偏移） */}
             {selected && (
-              <g
-                transform={`translate(${b.cardX + w}, ${b.cardY + h})`}
-                style={{ cursor: 'nwse-resize', touchAction: 'none' }}
-                onPointerDown={(e) => onResizePointerDown(e, b)}
-                onPointerMove={(e) => onResizePointerMove(e, b.province)}
-                onPointerUp={(e) => finishResize(e, b.province)}
-                onPointerCancel={(e) => finishResize(e, b.province)}
-              >
-                {/* 热区略大于可视握把，方便点按 */}
-                <rect x={-16} y={-16} width={16} height={16} fill="transparent" />
-                <path
-                  d="M-3,-11 L-11,-3 M-3,-6.5 L-6.5,-3"
-                  stroke={theme.accent}
-                  strokeWidth={1.6}
-                  strokeLinecap="round"
-                />
+              <g>
+                {(
+                  [
+                    { mx: 0, my: -1, hx: w / 2, hy: 0, cursor: 'ns-resize' },
+                    { mx: 0, my: 1, hx: w / 2, hy: h, cursor: 'ns-resize' },
+                    { mx: -1, my: 0, hx: 0, hy: h / 2, cursor: 'ew-resize' },
+                    { mx: 1, my: 0, hx: w, hy: h / 2, cursor: 'ew-resize' },
+                    { mx: -1, my: -1, hx: 0, hy: 0, cursor: 'nwse-resize' },
+                    { mx: 1, my: -1, hx: w, hy: 0, cursor: 'nesw-resize' },
+                    { mx: -1, my: 1, hx: 0, hy: h, cursor: 'nesw-resize' },
+                    { mx: 1, my: 1, hx: w, hy: h, cursor: 'nwse-resize' },
+                  ] as const
+                ).map((hd) => (
+                  <g
+                    key={`${hd.mx},${hd.my}`}
+                    transform={`translate(${b.cardX + hd.hx}, ${b.cardY + hd.hy})`}
+                    style={{ cursor: hd.cursor, touchAction: 'none' }}
+                    onPointerDown={(e) => onResizePointerDown(e, b, hd.mx, hd.my)}
+                    onPointerMove={(e) => onResizePointerMove(e, b.province)}
+                    onPointerUp={(e) => finishResize(e, b.province)}
+                    onPointerCancel={(e) => finishResize(e, b.province)}
+                  >
+                    {/* 热区略大于可视方块，方便点按 */}
+                    <rect x={-8} y={-8} width={16} height={16} fill="transparent" />
+                    <rect
+                      x={-3.5}
+                      y={-3.5}
+                      width={7}
+                      height={7}
+                      rx={2}
+                      fill="#ffffff"
+                      stroke={theme.accent}
+                      strokeWidth={1.4}
+                    />
+                  </g>
+                ))}
               </g>
             )}
             <text

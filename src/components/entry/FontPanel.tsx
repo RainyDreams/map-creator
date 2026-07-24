@@ -494,18 +494,53 @@ export function FontPanel() {
           aria-label="省份名单卡片背景"
         />
       </div>
-      {/* 人数角标：每张省份卡片右上角显示该卡人数 */}
+      {/* 人数统计：每张省份卡片内部角落显示该卡人数的精巧小块（默认关闭，位置可选左上/右上） */}
       <div className="mt-2 flex items-center justify-between">
         <Label htmlFor="card-count-toggle" className="text-xs text-stone-500">
-          卡片右上角人数角标
+          卡片内人数统计小块
         </Label>
         <Switch
           id="card-count-toggle"
           checked={data.showCardCount}
           onCheckedChange={(v) => setData((prev) => ({ ...prev, showCardCount: v }))}
-          aria-label="卡片右上角人数角标"
+          aria-label="卡片内人数统计小块"
         />
       </div>
+      {data.showCardCount && (
+        <div className="mt-1.5 flex items-center justify-between">
+          <span className="text-xs text-stone-500">小块位置</span>
+          <div
+            role="radiogroup"
+            aria-label="人数小块位置"
+            className="inline-flex rounded-lg border border-stone-200 bg-stone-100 p-0.5"
+          >
+            {(
+              [
+                { value: 'right', label: '右上' },
+                { value: 'left', label: '左上' },
+              ] as const
+            ).map(({ value, label }) => {
+              const active = data.cardCountPos === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setData((prev) => ({ ...prev, cardCountPos: value }))}
+                  className={
+                    active
+                      ? 'rounded-md bg-white px-2.5 py-0.5 text-xs text-stone-800 shadow-sm'
+                      : 'rounded-md px-2.5 py-0.5 text-xs text-stone-500 hover:text-stone-700'
+                  }
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {data.labelCardBg && (
         <>

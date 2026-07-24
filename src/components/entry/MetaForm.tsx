@@ -20,6 +20,7 @@ import type { MapData } from '@/types'
 
 /** 标题字号档位（px，以 1500px 宽画布为基准） */
 const TITLE_SIZE_OPTIONS = [20, 24, 28, 30, 32, 36, 40, 44, 48, 52, 56] as const
+const SUBTITLE_SIZE_OPTIONS = [10, 11, 12, 13, 14, 16, 18, 20, 24, 28] as const
 
 /** 图片压缩为 128px 内的 PNG dataURL（localStorage 友好） */
 function fileToBadgeDataUrl(file: File): Promise<string> {
@@ -151,6 +152,19 @@ export default function MetaForm() {
             placeholder="如：CLASS OF 2026"
             className="h-8 border-transparent bg-stone-50 text-xs hover:bg-stone-100 focus-visible:ring-stone-300 md:h-9 md:text-sm"
           />
+        </div>
+
+        {/* 副标题字号（px 下拉，与标题字号同一控件） */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-stone-600 md:text-sm">副标题字号</Label>
+          <div className="flex items-center">
+            <SizeSelect
+              value={data.subtitleSize}
+              options={SUBTITLE_SIZE_OPTIONS}
+              onChange={(px) => setData((prev) => ({ ...prev, subtitleSize: px }))}
+              ariaLabel="副标题字号"
+            />
+          </div>
         </div>
 
         <div className="space-y-1.5">

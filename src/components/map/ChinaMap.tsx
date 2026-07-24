@@ -83,8 +83,15 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
   /** 拖动中的省份块实时偏移（LabelColumns 上报）：用于画布 viewBox 实时扩大，
       拖到边缘的卡片不会被裁剪，也不会被上方标题区盖住 */
   const [liveDrag, setLiveDrag] = useState<{ province: string; dx: number; dy: number } | null>(null)
-  /** 调整大小中的实时尺寸（null = 未在调整）：驱动 viewBox 随卡片尺寸扩缩 */
-  const [liveResize, setLiveResize] = useState<{ province: string; w: number; h: number } | null>(null)
+  /** 调整大小中的实时尺寸与位移（null = 未在调整）：驱动 viewBox 随卡片尺寸扩缩；
+      sx/sy = 从西/北边缘拖时卡片的平移量（保持对侧边缘不动） */
+  const [liveResize, setLiveResize] = useState<{
+    province: string
+    w: number
+    h: number
+    sx?: number
+    sy?: number
+  } | null>(null)
 
   /** 卡片 z 序：点击/拖动某省份卡片时分配递增序号，渲染时序号大的绘制在上层（SVG 无 z-index，
       以绘制顺序实现「点谁谁上移」）。会话级状态，不落库 */
@@ -253,16 +260,17 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       const dx = off?.dx ?? 0
       const dy = off?.dy ?? 0
       // 有效尺寸：max(自然尺寸, 手动覆盖/实时调整)——卡片被拉大时画布同样自动扩大
-      const so =
-        liveResize && liveResize.province === b.province
-          ? liveResize
-          : (data.cardSizes[b.province] ?? null)
+      const isLive = liveResize !== null && liveResize.province === b.province
+      const so = isLive ? liveResize : (data.cardSizes[b.province] ?? null)
       const bw = Math.max(b.cardW, so?.w ?? 0)
       const bh = Math.max(b.cardH, so?.h ?? 0)
-      minX = Math.min(minX, b.cardX + dx)
-      maxX = Math.max(maxX, b.cardX + bw + dx)
-      minY = Math.min(minY, b.cardY + dy - PAD)
-      maxY = Math.max(maxY, b.cardY + bh + dy + BOTTOM)
+      // 西/北边缘调整大小时的实时平移（保持对侧边缘不动），画布边界跟着卡片走
+      const rsx = isLive ? (liveResize?.sx ?? 0) : 0
+      const rsy = isLive ? (liveResize?.sy ?? 0) : 0
+      minX = Math.min(minX, b.cardX + dx + rsx)
+      maxX = Math.max(maxX, b.cardX + bw + dx + rsx)
+      minY = Math.min(minY, b.cardY + dy + rsy - PAD)
+      maxY = Math.max(maxY, b.cardY + bh + dy + rsy + BOTTOM)
     }
     // 底部覆盖层预留（老师/海外/未定位块）叠在实际内容底之下：
     // 老师块未上拖时 reserve>0，画布加出它占的那一块；上拖耗尽后 reserve=0，底部自然收紧

@@ -177,6 +177,11 @@ function normalizeData(raw: unknown): MapData | null {
     titleAlign:
       d.titleAlign === 'center' ? 'center' : d.titleAlign === 'right' ? 'right' : 'left',
     subtitle: typeof d.subtitle === 'string' ? d.subtitle : '',
+    // v1.26 迁移：旧数据无 subtitleSize 字段时默认 14px
+    subtitleSize:
+      typeof d.subtitleSize === 'number' && d.subtitleSize >= 10 && d.subtitleSize <= 32
+        ? Math.round(d.subtitleSize)
+        : 14,
     labelSizes: {
       province: px(ls.province, 16, 10, 28),
       person: px(ls.person, 13, 9, 22),
@@ -198,8 +203,9 @@ function normalizeData(raw: unknown): MapData | null {
     mergeSameSchool: d.mergeSameSchool === true,
     // v1.24.3 迁移：旧数据无 uniformCardWidth 字段时默认关闭（各卡片按内容定宽）
     uniformCardWidth: d.uniformCardWidth === true,
-    // v1.25 迁移：人数角标默认开启；统计表默认关闭；卡片尺寸覆盖逐项校验（w 60–1200 / h 20–1600 取整）
-    showCardCount: d.showCardCount !== false,
+    // v1.26 迁移：人数小块默认关闭（v1.25 曾默认开启，v1.26 起改为用户主动开启），位置默认卡片内右上角
+    showCardCount: d.showCardCount === true,
+    cardCountPos: d.cardCountPos === 'left' ? 'left' : 'right',
     showStats: d.showStats === true,
     cardSizes: (() => {
       const raw = d.cardSizes

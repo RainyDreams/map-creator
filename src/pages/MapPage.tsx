@@ -576,8 +576,12 @@ export default function MapPage() {
                 </div>
                 {data.subtitle.trim() !== '' && (
                   <p
-                    className="mt-1 text-sm tracking-[0.25em] uppercase opacity-70"
-                    style={{ fontFamily: latinFont, color: theme.titleColor }}
+                    className="mt-1 tracking-[0.25em] uppercase opacity-70"
+                    style={{
+                      fontFamily: latinFont,
+                      color: theme.titleColor,
+                      fontSize: `${data.subtitleSize}px`,
+                    }}
                   >
                     {data.subtitle}
                   </p>
@@ -652,7 +656,8 @@ export default function MapPage() {
                 本图片由
                 <span
                   style={{
-                    backgroundColor: '#000',
+                    // 主题感深色块：以主题正文色压向纯黑，不再是写死的纯黑，各主题下都协调
+                    backgroundColor: `color-mix(in srgb, ${theme.textColor} 82%, #000)`,
                     color: '#fff',
                     borderRadius: Math.max(4, Math.round(footerPx * 0.4)),
                     padding: `${Math.round(footerPx * 0.15)}px ${Math.round(footerPx * 0.6)}px`,

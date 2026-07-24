@@ -75,6 +75,8 @@ export interface MapData {
   titleAlign: 'left' | 'center' | 'right'
   /** 英文副标题（可选，显示在标题下方） */
   subtitle: string
+  /** 英文副标题字号（px，画布基准，10–32，默认 14） */
+  subtitleSize: number
   /** 地图标注三个模块的字号（px，画布基准） */
   labelSizes: LabelSizes
   /** 每侧标注列数：1（默认）或 2（人多时更宽松，文字列宽减半）。自定义位置模式下作为基础布局 */
@@ -94,8 +96,10 @@ export interface MapData {
   mergeSameSchool: boolean
   /** 统一卡片宽度（v1.24.3）：开启后所有省份卡片都与最宽卡片同宽（文字仍按原对齐方式排布） */
   uniformCardWidth: boolean
-  /** 卡片人数角标（v1.25）：开启后每张省份卡片右上角显示该卡人数 */
+  /** 卡片人数统计（v1.25）：开启后每张省份卡片内部角落显示该卡人数的精巧小块（默认关闭） */
   showCardCount: boolean
+  /** 人数小块位置（v1.26）：卡片内部左上角 / 右上角（默认右上） */
+  cardCountPos: 'left' | 'right'
   /** 分布统计表（v1.25）：开启后画布下方（页脚之上）显示全班各地人数分布统计 */
   showStats: boolean
   /**
@@ -162,13 +166,15 @@ export const EMPTY_MAP_DATA: MapData = {
   badgeScale: 1,
   titleAlign: 'left',
   subtitle: '',
+  subtitleSize: 14,
   labelSizes: DEFAULT_LABEL_SIZES,
   labelColumns: 1,
   labelLayout: 'columns',
   customPosition: false,
   mergeSameSchool: false,
   uniformCardWidth: false,
-  showCardCount: true,
+  showCardCount: false,
+  cardCountPos: 'right',
   showStats: false,
   cardSizes: {},
   labelCardBg: true,
