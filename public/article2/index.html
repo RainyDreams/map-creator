@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- 建议标题（发布时由你自行填写）：星图重绘，众星归位｜蹭饭图生成器更新记 -->
+<title>星图重绘，众星归位｜蹭饭图生成器更新记 · 零本</title>
+</head>
+<body style="margin:0;padding:24px 12px;background:#f5f4f1;">
+
+<!-- ==================== 推文正文（在控制台执行 copy() 即可复制全文） ==================== -->
+<section id="article" style="max-width:677px;margin:0 auto;background:#ffffff;padding:32px 20px;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;color:#3f3a33;font-size:16px;line-height:1.85;letter-spacing:0.02em;">
+
+  <!-- 引言 -->
+  <blockquote style="margin:0 0 24px;padding:12px 16px;border-left:3px solid #d8cfc0;background:#faf8f4;color:#6b6357;font-size:15px;">
+    海内存知己，天涯若比邻。
+  </blockquote>
+
+  <img src="images/cover.jpg" alt="墨点与金线：每一颗星都有自己的位置" style="width:100%;display:block;margin:0 0 28px;border-radius:6px;" />
+
+  <p style="margin:0 0 16px;">上一次和大家见面，「蹭饭图生成器」刚刚上线。那之后，它并没有停下来。</p>
+
+  <p style="margin:0 0 16px;">这段时间里，我们收到了很多班级真实使用后的反馈：一个省去了十几个人，一张卡片排不下；同寝室的四个人考进了同一所大学，校名重复写了四遍；拖一拖卡片，画布边上留下一大片空白。这些声音，我们都记下了。</p>
+
+  <p style="margin:0 0 24px;">今天，十余个版本的更新一起和大家见面。打开 <strong style="color:#2b6cb0;">map.linkbrain.top</strong>，你现在看到的，已经是一幅全新的星图。</p>
+
+  <img src="images/map-full.jpg" alt="示例：现在的蹭饭图全貌（人物均为虚构）" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">示例：一幅 28 人的蹭饭图——广东拆成两张卡、浙大四人合并、右下角是海外的同学（图中人物均为虚构）</p>
+
+  <!-- 拆分 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 一个省装不下，就拆成几张卡</p>
+  <p style="margin:0 0 16px;">有些班级，半个班都留在了本省。过去所有人挤在一张卡片里，名单越拉越长。现在，任何一个省份都可以<strong>拆成多张卡片</strong>：可以一键「按城市拆分」，广州一张、深圳一张；也可以随手拆，拆几张都行。</p>
+  <p style="margin:0 0 24px;">拆分之后，每张卡片在地图上各自独立：独立拖动位置，各自引线到卡内同学的城市，同学可以在卡片之间自由分配——电脑端直接拖过去，手机端用上下按钮越过卡片边界自然滑入相邻的一张。想回到从前，点一下「合并为一张卡」即可。</p>
+
+  <img src="images/split-modal.jpg" alt="录入面板：广东省已拆分为广州、深圳两张卡片" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">录入面板：广东省拆成了「广州」「深圳」两张卡，下方还能看到未拆分省份的拆分入口</p>
+
+  <!-- 同校合并 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 同校的人，站成一队</p>
+  <p style="margin:0 0 16px;">最好的消息，莫过于好朋友考进了同一所大学。过去这样的同学会在图上重复显示四遍校名；现在开启<strong>「同校合并」</strong>，同一所大学的同学姓名一人一行竖排，校徽和校名只出现一次——</p>
+  <p style="margin:0 0 24px;">谁和谁又成了校友，一眼就能看见。这是本次更新里，我们自己最喜欢的一个小功能。</p>
+
+  <img src="images/merge-closeup.jpg" alt="同校合并：四位同学并列，浙江大学只显示一次" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">同校合并：四个名字站成一队，「浙江大学 · 杭州」只写一遍（示例人物均为虚构）</p>
+
+  <!-- 画布 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 会呼吸的画布</p>
+  <p style="margin:0 0 16px;">画布不再是一块固定的板子。卡片向外拖，画布跟着长大；卡片向里收，边界跟着收紧——左右两侧各自贴合本侧的内容，不再强求对称，也不会再留下一大片空白。边界和最外侧的卡片之间，始终保留一段刚刚好的呼吸距离。</p>
+  <p style="margin:0 0 16px;">拖动也有了「手感」：拖动任意卡片时，会亮起对齐辅助线，靠近其他卡片的顶、中、底或左右边缘时轻轻吸附，像磁石一样。左列的卡片，现在也能和右列对齐了。</p>
+  <p style="margin:0 0 24px;">名单的排布方式也更自由：一列、两列、自定义位置三种模式随时切换；每张卡片的颜色、透明度、羽化、圆角、文字对齐，都可以单独调整。点哪张卡片，哪张就浮到最上层。</p>
+
+  <img src="images/align-guides.jpg" alt="拖动卡片时的对齐辅助线" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">拖动中的对齐辅助线：横竖两条基准线，靠近即吸附</p>
+
+  <!-- 海外 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 走得更远的人，也有位置</p>
+  <p style="margin:0 0 16px;">有同学去了大洋彼岸。中国地图装不下他们，但蹭饭图不能没有他们。</p>
+  <p style="margin:0 0 24px;">现在，把同学的省份选为「海外 / 境外」，TA 就会出现在地图右下角的专属区块里，标注所在的国家或地区，不再强行指向地图上的某个点。用 Excel 批量导入时，填上国家名也能自动识别。飞得再远，也在这张图上。</p>
+
+  <!-- ZIP -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 打包一切，随时搬走</p>
+  <p style="margin:0 0 16px;">名单、主题、六个字体槽位、每一张卡片的位置、班徽、毛笔字、自定义校徽、自定义字体——现在可以<strong>完整地打包成一个 ZIP</strong>。这是蹭饭图的「全量备份」：换电脑、换浏览器，导入即还原，连卡片拖过的位置都分毫不差。</p>
+  <p style="margin:0 0 16px;">导入 ZIP 前会先给你一份摘要：这份备份里有几个人、带了哪些资源，确认后再作为新画布载入，不会覆盖你手上的任何一张图。</p>
+  <p style="margin:0 0 24px;">导出图片也更顺手了：地图页点「导出」直接生成超清 PNG（不少于 4000px 宽），不再弹窗；导出过程随时可以取消，进度条会告诉你还需要几秒。</p>
+
+  <img src="images/export-zip.jpg" alt="导出面板：导出 ZIP（全量备份）" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">导出面板：图片、Excel、JSON、ZIP 全量备份，各就各位</p>
+
+  <!-- 细节 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 那些不容易看见的地方</p>
+  <p style="margin:0 0 16px;">还有一些更新，藏在界面背后。</p>
+  <p style="margin:0 0 16px;">打开页面的瞬间，骨架屏会先勾勒出页面的轮廓；地图轮廓数据从代码包里挪了出去，字体按用到的字符区间分片并行加载——首屏快了一截。城市坐标的查询做了合并与缓存，一次打开名单，不再重复请求。</p>
+  <p style="margin:0 0 16px;">老师名单也有了更多自由：块标题可以改成任何你想写的话（比如「我们的引路人」），字号可调，整块名单可以在画布上自由拖动。在手机上拖卡片如果检测到卡顿，页面会轻声提示你：推荐到电脑端进行，并告诉你怎样把这张画布带过去。</p>
+  <p style="margin:0 0 24px;">页脚也多了一个小小的入口：「微信公众号 · 零本」。鼠标悬停或点按，就能看到我们的二维码——之后所有的更新，都会在那里第一时间告诉你。</p>
+
+  <img src="images/align-toggle.jpg" alt="卡片文字对齐切换" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">细节之一：每张卡片的文字对齐方式，都可以单独定义</p>
+
+  <img src="images/footer-qrcode.jpg" alt="页脚的公众号入口" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">页脚新增「微信公众号 · 零本」，悬停即见二维码</p>
+
+  <!-- 尾声 -->
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 写在后面</p>
+  <p style="margin:0 0 16px;">这个小工具依然免费，依然没有账号体系，所有数据依然只保存在你自己的浏览器里。它还很年轻，也还有很多不够好的地方——好在每一条反馈，我们都认真在读。</p>
+
+  <p style="margin:0 0 24px;">如果你已经把蹭饭图发进了班级群，欢迎回来告诉我们大家的第一反应；如果你才刚刚开始做，愿它陪你把这个夏天收藏好。散作满天星，聚是一顿饭——记得常回来蹭饭。</p>
+
+  <!-- 结尾入口 -->
+  <section style="margin:0 0 8px;padding:16px;background:#faf8f4;border-radius:8px;text-align:center;">
+    <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#2b2620;">立即生成你们班的蹭饭图</p>
+    <p style="margin:0;font-size:15px;color:#2b6cb0;font-weight:700;">map.linkbrain.top</p>
+    <p style="margin:8px 0 0;font-size:12px;color:#a39e94;">点击公众号名片关注《零本》，回复「蹭饭图」获取直达链接</p>
+  </section>
+
+  <!-- 编辑 / 监制 -->
+  <p style="margin:20px 0 0;font-size:11px;line-height:1.9;color:#c9c3b8;text-align:center;">编辑：张新越<br>监制：李翼安&ensp;刘轩博</p>
+
+</section>
+<!-- ==================== 推文正文结束 ==================== -->
+
+<script>
+// 在控制台执行 copy() 即可把全文复制到剪贴板（再粘贴到公众号编辑器）
+window.copy = function () {
+  var el = document.getElementById('article')
+  var range = document.createRange()
+  range.selectNode(el)
+  var sel = window.getSelection()
+  sel.removeAllRanges()
+  sel.addRange(range)
+  try {
+    document.execCommand('copy')
+    console.log('已复制 ✓ 去公众号编辑器粘贴吧（标题和作者请自行填写）')
+  } catch (e) {
+    console.log('自动复制失败，已为你全选正文，请按 Ctrl+C')
+  }
+}
+console.log('这是《零本》的文章页。需要复制全文时，在控制台执行 copy() 即可。')
+</script>
+</body>
+</html>
