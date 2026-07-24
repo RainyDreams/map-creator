@@ -223,7 +223,29 @@ function normalizeData(raw: unknown): MapData | null {
       : [],
     calligraphy: normalizeCalligraphy(d.calligraphy),
     badgeOverrides: normalizeBadgeOverrides(d.badgeOverrides),
+    // v1.22 迁移：旧数据无 provinceSplits 字段时回退空表
+    provinceSplits: normalizeProvinceSplits(d.provinceSplits),
   }
+}
+
+/** v1.22 迁移：逐项校验省份卡片拆分结构（至少两张卡；跨卡去重；全空卡视为未拆分） */
+function normalizeProvinceSplits(raw: unknown): MapData['provinceSplits'] {
+  const out: MapData['provinceSplits'] = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [prov, cards] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(cards) || cards.length < 2) continue
+    const seen = new Set<string>()
+    const clean = cards.map((c) => {
+      if (!Array.isArray(c)) return []
+      return c.filter((id): id is string => {
+        if (typeof id !== 'string' || seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+    })
+    if (clean.some((c) => c.length > 0)) out[prov] = clean
+  }
+  return out
 }
 
 /** v1.13 迁移：旧数据无 provinceOffsets 字段时回退空表；逐项校验结构并限制偏移幅度 */

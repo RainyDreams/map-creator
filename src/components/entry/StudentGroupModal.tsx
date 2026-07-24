@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownUp, Brush, ChevronDown, ChevronUp, GripVertical, ImagePlus, MapPinOff, Plane, Plus, RotateCcw, Shield, Trash2 } from 'lucide-react'
+import { ArrowDownUp, Brush, ChevronDown, ChevronUp, Combine, GripVertical, ImagePlus, MapPinOff, Plane, Plus, RotateCcw, Shield, Split, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,7 +14,7 @@ import CityPicker from '@/components/entry/CityPicker'
 import { useMapData } from '@/store/MapDataContext'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
 import { getUniInfoSync, prefetchUniversities, schoolBadgeUrl } from '@/utils/universities'
-import { newId, type CalligraphyAsset, type StudentBadge, type StudentEntry } from '@/types'
+import { newId, type CalligraphyAsset, type MapData, type StudentBadge, type StudentEntry } from '@/types'
 
 /** 未定位条目的虚拟分组键 */
 const UNLOCATED = '__unlocated__'
@@ -232,6 +232,188 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     }))
   }
 
+  /* ---------- 省份卡片拆分 ---------- */
+
+  /** 拆分省份的卡片成员（与 applyProvinceSplits 同规则清洗：已删 id 丢弃、未入卡的学生补到第一张卡） */
+  const cardsOf = (prov: string, members: StudentEntry[]): StudentEntry[][] | null => {
+    const raw = data.provinceSplits[prov]
+    if (!raw || raw.length < 2) return null
+    const byId = new Map(members.map((m) => [m.id, m]))
+    const seen = new Set<string>()
+    const cards = raw.map((ids) => {
+      const list: StudentEntry[] = []
+      for (const id of ids) {
+        const s = byId.get(id)
+        if (s && !seen.has(id)) {
+          seen.add(id)
+          list.push(s)
+        }
+      }
+      return list
+    })
+    for (const m of members) if (!seen.has(m.id)) cards[0].push(m)
+    return cards
+  }
+
+  /** 小卡标题：卡内学生城市全相同 → 城市名；否则「卡片 N」 */
+  const cardTitle = (members: StudentEntry[], idx: number): string => {
+    const cities = new Set(members.map((m) => m.city.trim()).filter((c) => c !== ''))
+    return cities.size === 1 ? [...cities][0] : `卡片 ${idx + 1}`
+  }
+
+  /** 拆分/跨卡拖动后该省转为手动顺序（不再按软科排名重排） */
+  const markCustom = (prev: MapData, prov: string): string[] =>
+    prev.customOrderProvinces.includes(prov)
+      ? prev.customOrderProvinces
+      : [...prev.customOrderProvinces, prov]
+
+  /** 拆分卡片：当前顺序整体留在第一张卡，新增一张空卡 */
+  const splitProvince = (prov: string) => {
+    setData((prev) => {
+      const members = groups.get(prov) ?? []
+      if (members.length === 0) return prev
+      return {
+        ...prev,
+        provinceSplits: { ...prev.provinceSplits, [prov]: [members.map((m) => m.id), []] },
+        customOrderProvinces: markCustom(prev, prov),
+      }
+    })
+  }
+
+  /** 按城市拆分：每个城市一张卡（城市为空的同学单独一张卡） */
+  const splitByCity = (prov: string) => {
+    setData((prev) => {
+      const members = groups.get(prov) ?? []
+      const byCity = new Map<string, string[]>()
+      for (const m of members) {
+        const c = m.city.trim()
+        const list = byCity.get(c)
+        if (list) list.push(m.id)
+        else byCity.set(c, [m.id])
+      }
+      if (byCity.size < 2) return prev
+      return {
+        ...prev,
+        provinceSplits: { ...prev.provinceSplits, [prov]: [...byCity.values()] },
+        customOrderProvinces: markCustom(prev, prov),
+      }
+    })
+  }
+
+  /** 末尾追加一张空卡 */
+  const addCard = (prov: string) => {
+    setData((prev) => {
+      const raw = prev.provinceSplits[prov]
+      if (!raw) return prev
+      return { ...prev, provinceSplits: { ...prev.provinceSplits, [prov]: [...raw, []] } }
+    })
+  }
+
+  /** 合并为一张卡：按卡片顺序展开回填全局 students 顺序（手动顺序保留），并移除拆分 */
+  const mergeCards = (prov: string) => {
+    setData((prev) => {
+      const raw = prev.provinceSplits[prov]
+      if (!raw) return prev
+      const members = groups.get(prov) ?? []
+      const byId = new Map(members.map((m) => [m.id, m]))
+      const seen = new Set<string>()
+      const orderedIds: string[] = []
+      for (const ids of raw) {
+        for (const id of ids) {
+          if (byId.has(id) && !seen.has(id)) {
+            seen.add(id)
+            orderedIds.push(id)
+          }
+        }
+      }
+      for (const m of members) if (!seen.has(m.id)) orderedIds.push(m.id)
+      const queue = [...orderedIds]
+      const fullById = new Map(prev.students.map((s) => [s.id, s]))
+      const peerSet = new Set(members.map((m) => m.id))
+      const nextStudents = prev.students.map((s) =>
+        peerSet.has(s.id) ? (fullById.get(queue.shift()!) ?? s) : s,
+      )
+      const provinceSplits = { ...prev.provinceSplits }
+      delete provinceSplits[prov]
+      return { ...prev, students: nextStudents, provinceSplits }
+    })
+  }
+
+  /**
+   * 拆分省内的移动：toId 非空时把 fromId 插到 toId 原位置（同卡与 reorderWithin 语义一致，跨卡=插入其前）；
+   * toId 为 null 时追加到 toCardIdx 卡末尾（拖到空卡占位区）
+   */
+  const moveInSplits = (prov: string, fromId: string, toId: string | null, toCardIdx: number) => {
+    if (toId === fromId) return
+    setData((prev) => {
+      const raw = prev.provinceSplits[prov]
+      if (!raw || raw.length < 2) return prev
+      const members = groups.get(prov) ?? []
+      const memberSet = new Set(members.map((m) => m.id))
+      // 先按 cardsOf 同规则清洗，保证拖动基于当前真实成员
+      const cards = raw.map((c) => c.filter((id) => memberSet.has(id)))
+      const seen = new Set(cards.flat())
+      for (const m of members) if (!seen.has(m.id)) cards[0].push(m.id)
+      let fromCard = -1
+      let fromPos = -1
+      cards.forEach((c, i) => {
+        const p = c.indexOf(fromId)
+        if (p >= 0) {
+          fromCard = i
+          fromPos = p
+        }
+      })
+      if (fromCard < 0) return prev
+      let insertCard = Math.min(toCardIdx, cards.length - 1)
+      let insertPos = cards[insertCard].length
+      if (toId !== null) {
+        let tc = -1
+        let tp = -1
+        cards.forEach((c, i) => {
+          const p = c.indexOf(toId)
+          if (p >= 0) {
+            tc = i
+            tp = p
+          }
+        })
+        if (tc < 0) return prev
+        insertCard = tc
+        insertPos = tp
+      }
+      cards[fromCard].splice(fromPos, 1)
+      cards[insertCard].splice(insertPos, 0, fromId)
+      return {
+        ...prev,
+        provinceSplits: { ...prev.provinceSplits, [prov]: cards },
+        customOrderProvinces: markCustom(prev, prov),
+      }
+    })
+  }
+
+  /** 移动端上/下移（拆分省）：卡内移动；到顶再点上移 → 进上一张卡末尾，到底再点下移 → 进下一张卡开头 */
+  const moveAcrossCards = (
+    prov: string,
+    id: string,
+    dir: -1 | 1,
+    cardIdx: number,
+    cards: StudentEntry[][],
+  ) => {
+    const card = cards[cardIdx]
+    const idx = card.findIndex((m) => m.id === id)
+    if (idx < 0) return
+    const target = idx + dir
+    if (target >= 0 && target < card.length) {
+      moveInSplits(prov, id, card[target].id, cardIdx)
+      return
+    }
+    if (dir === -1 && cardIdx > 0) {
+      moveInSplits(prov, id, null, cardIdx - 1)
+    } else if (dir === 1 && cardIdx < cards.length - 1) {
+      const first = cards[cardIdx + 1][0]
+      moveInSplits(prov, id, first ? first.id : null, cardIdx + 1)
+    }
+  }
+
   const endDrag = () => {
     dragRef.current = null
     setDraggingId(null)
@@ -385,6 +567,8 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
         const isUnlocated = prov === UNLOCATED
         const isOverseas = prov === OVERSEAS
         const isManual = !isUnlocated && !isOverseas && manual.has(prov)
+        const cards = isUnlocated || isOverseas ? null : cardsOf(prov, members)
+        const cityCount = new Set(members.map((m) => m.city.trim()).filter((c) => c !== '')).size
         return (
           <section key={prov} className="space-y-1.5">
             <header className="flex items-center gap-2">
@@ -397,9 +581,9 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
               </h3>
               <span className="text-xs text-stone-400">{members.length} 人</span>
               {!isUnlocated && !isOverseas && (
-                <span className="ml-auto flex items-center gap-1 text-[11px] text-stone-400">
-                  {isManual ? '手动顺序' : '按软科排名'}
-                  {isManual && (
+                <span className="ml-auto flex flex-wrap items-center gap-1 text-[11px] text-stone-400">
+                  {cards !== null ? '已拆分' : isManual ? '手动顺序' : '按软科排名'}
+                  {isManual && cards === null && (
                     <button
                       type="button"
                       onClick={() => resetOrder(prov)}
@@ -410,12 +594,63 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                       恢复排名
                     </button>
                   )}
+                  {cards === null ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => splitProvince(prov)}
+                        title="把这个省拆成两张卡片，同学可在卡片之间拖动分配"
+                        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+                      >
+                        <Split className="h-3 w-3" />
+                        拆分卡片
+                      </button>
+                      {members.length >= 2 && cityCount >= 2 && (
+                        <button
+                          type="button"
+                          onClick={() => splitByCity(prov)}
+                          title="按城市自动分卡：每个城市一张卡"
+                          className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+                        >
+                          <Split className="h-3 w-3" />
+                          按城市拆分
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => addCard(prov)}
+                        title="末尾新增一张空卡片"
+                        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+                      >
+                        <Plus className="h-3 w-3" />
+                        新建卡片
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => mergeCards(prov)}
+                        title="取消拆分，合并回一张卡片（保留当前顺序）"
+                        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+                      >
+                        <Combine className="h-3 w-3" />
+                        合并为一张卡
+                      </button>
+                    </>
+                  )}
                 </span>
               )}
             </header>
 
-            <ul className="space-y-1">
-              {members.map((s, index) => {
+            {(() => {
+              /** 渲染一名学生的行（未拆分组 / 拆分卡内共用） */
+              const renderRow = (
+                s: StudentEntry,
+                index: number,
+                groupLen: number,
+                split: { cards: StudentEntry[][]; cardIdx: number } | null,
+              ) => {
                 const uniKey = s.university.trim()
                 const calli = uniKey !== '' ? data.calligraphy[uniKey] : undefined
                 const calliOpen = calliOpenId === s.id
@@ -437,7 +672,9 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                     e.preventDefault()
                     const drag = dragRef.current
                     endDrag()
-                    if (drag && drag.group === prov) reorderWithin(prov, drag.id, s.id)
+                    if (!drag || drag.group !== prov) return
+                    if (split) moveInSplits(prov, drag.id, s.id, split.cardIdx)
+                    else reorderWithin(prov, drag.id, s.id)
                   }}
                   className={`rounded-md border px-1.5 py-1 transition-colors ${
                     isUnlocated ? 'border-amber-300/70 bg-amber-50/50' : 'border-stone-200 bg-stone-50/50'
@@ -466,8 +703,12 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                   <span className="flex shrink-0 flex-col md:hidden">
                     <button
                       type="button"
-                      disabled={index === 0}
-                      onClick={() => moveWithin(prov, s.id, -1)}
+                      disabled={split ? split.cardIdx === 0 && index === 0 : index === 0}
+                      onClick={() =>
+                        split
+                          ? moveAcrossCards(prov, s.id, -1, split.cardIdx, split.cards)
+                          : moveWithin(prov, s.id, -1)
+                      }
                       aria-label={`上移 ${s.name || '该行'}`}
                       className="rounded-sm p-0.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 disabled:opacity-30"
                     >
@@ -475,8 +716,17 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                     </button>
                     <button
                       type="button"
-                      disabled={index === members.length - 1}
-                      onClick={() => moveWithin(prov, s.id, 1)}
+                      disabled={
+                        split
+                          ? split.cardIdx === split.cards.length - 1 &&
+                            index === split.cards[split.cardIdx].length - 1
+                          : index === groupLen - 1
+                      }
+                      onClick={() =>
+                        split
+                          ? moveAcrossCards(prov, s.id, 1, split.cardIdx, split.cards)
+                          : moveWithin(prov, s.id, 1)
+                      }
                       aria-label={`下移 ${s.name || '该行'}`}
                       className="rounded-sm p-0.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 disabled:opacity-30"
                     >
@@ -711,8 +961,50 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                   )}
                 </li>
                 )
-              })}
-            </ul>
+              }
+              if (cards === null) {
+                return (
+                  <ul className="space-y-1">
+                    {members.map((s, index) => renderRow(s, index, members.length, null))}
+                  </ul>
+                )
+              }
+              return (
+                <div className="space-y-1.5">
+                  {cards.map((cardMembers, ci) => (
+                    <div key={ci} className="rounded-md border border-stone-200 bg-white/70 p-1.5">
+                      <p className="px-1 pb-1 text-[11px] font-medium text-stone-500">
+                        {cardTitle(cardMembers, ci)}
+                      </p>
+                      {cardMembers.length === 0 ? (
+                        <div
+                          onDragOver={(e) => {
+                            if (!dragRef.current || dragRef.current.group !== prov) return
+                            e.preventDefault()
+                            e.dataTransfer.dropEffect = 'move'
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            const drag = dragRef.current
+                            endDrag()
+                            if (drag && drag.group === prov) moveInSplits(prov, drag.id, null, ci)
+                          }}
+                          className="rounded border border-dashed border-stone-300 px-2 py-2.5 text-center text-[11px] text-stone-400"
+                        >
+                          把同学拖到这里
+                        </div>
+                      ) : (
+                        <ul className="space-y-1">
+                          {cardMembers.map((s, index) =>
+                            renderRow(s, index, cardMembers.length, { cards, cardIdx: ci }),
+                          )}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
           </section>
         )
       })}

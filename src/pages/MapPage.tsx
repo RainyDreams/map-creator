@@ -14,6 +14,7 @@ import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { OverseasBlock } from '@/components/map/OverseasBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
 import type { UniEnrichment } from '@/components/map/labels'
+import { applyProvinceSplits } from '@/components/map/labels'
 import '@/components/map/fonts.css'
 import type { StudentEntry } from '@/types'
 
@@ -321,14 +322,14 @@ export default function MapPage() {
         else g.set(province, [s])
       }
     }
-    return { groups: g, unlocated: u, overseas: o }
-  }, [displayStudents])
+    return { groups: applyProvinceSplits(g, data.provinceSplits), unlocated: u, overseas: o }
+  }, [displayStudents, data.provinceSplits])
 
   const hasHeader = data.title.trim() !== '' || data.subtitle.trim() !== ''
-  /** 省内手动排序的省份集合（录入弹窗中拖动过顺序的省份） */
+  /** 省内手动排序的省份集合（录入弹窗中拖动过顺序的省份 + 已拆分卡片的省份，拆分省不按软科排名重排） */
   const manualProvinces = useMemo(
-    () => new Set(data.customOrderProvinces),
-    [data.customOrderProvinces],
+    () => new Set([...data.customOrderProvinces, ...Object.keys(data.provinceSplits)]),
+    [data.customOrderProvinces, data.provinceSplits],
   )
 
   /** 老师块上拖/下拖的实时纵向偏移（设计 px）：拖动中即生效，画布与拖动同步伸缩 */

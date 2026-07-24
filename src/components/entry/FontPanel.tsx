@@ -13,7 +13,7 @@ import {
 } from '@/utils/fonts'
 import { FontSelect } from '@/components/entry/FontSelect'
 import { SizeSelect } from '@/components/entry/SizeSelect'
-import { recommendFontSizes, recommendLabelFit } from '@/components/map/labels'
+import { recommendFontSizes, recommendLabelFit, applyProvinceSplits } from '@/components/map/labels'
 import { isGeoReady, loadGeoFeatures } from '@/components/map/geo'
 import { resolveProvince } from '@/utils/geo'
 import { newId, type StudentEntry } from '@/types'
@@ -70,14 +70,14 @@ export function FontPanel() {
       if (list) list.push(s)
       else g.set(p, [s])
     }
-    return g
-  }, [data.students])
+    return applyProvinceSplits(g, data.provinceSplits)
+  }, [data.students, data.provinceSplits])
 
   const layoutOptions = useMemo(
     () => ({
       sizes: data.labelSizes,
       columnsPerSide: data.labelColumns,
-      manualProvinces: new Set(data.customOrderProvinces),
+      manualProvinces: new Set([...data.customOrderProvinces, ...Object.keys(data.provinceSplits)]),
       calligraphy: data.calligraphy,
       badgeOverrides: data.badgeOverrides,
       mergeSameSchool: data.mergeSameSchool,
@@ -87,6 +87,7 @@ export function FontPanel() {
       data.labelSizes,
       data.labelColumns,
       data.customOrderProvinces,
+      data.provinceSplits,
       data.calligraphy,
       data.badgeOverrides,
       data.mergeSameSchool,

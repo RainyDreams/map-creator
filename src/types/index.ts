@@ -113,6 +113,11 @@ export interface MapData {
   calligraphy: Record<string, CalligraphyAsset>
   /** 学生 id → 校徽覆盖设置（隐藏或自定义图片，优先于全局校徽开关与自动匹配） */
   badgeOverrides: Record<string, StudentBadge>
+  /**
+   * 省份卡片拆分：省份名 → 卡片数组（每张卡 = 该省学生 id 的有序列表，编辑期允许暂存空卡）。
+   * 缺省/{} = 一省一卡；拆分后该省按手动顺序处理（不再按软科排名重排）
+   */
+  provinceSplits: Record<string, string[][]>
 }
 
 export const EMPTY_MAP_DATA: MapData = {
@@ -138,6 +143,18 @@ export const EMPTY_MAP_DATA: MapData = {
   customOrderProvinces: [],
   calligraphy: {},
   badgeOverrides: {},
+  provinceSplits: {},
+}
+
+/** 拆分卡片键：`省份名#i`（0 起）；未拆分的省份直接用省份名作卡片键 */
+export function splitCardKey(province: string, index: number): string {
+  return `${province}#${index}`
+}
+
+/** 卡片键 → 基础省份名（去掉 `#数字` 后缀；未拆分键原样返回） */
+export function baseProvince(key: string): string {
+  const i = key.lastIndexOf('#')
+  return i > 0 && /^\d+$/.test(key.slice(i + 1)) ? key.slice(0, i) : key
 }
 
 export function newId(): string {

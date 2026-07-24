@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { CalligraphyAsset, StudentBadge, StudentEntry } from '@/types'
+import { baseProvince } from '@/types'
 import { useMapData } from '@/store/MapDataContext'
 import { prefetchCityCenters } from '@/utils/cities'
 import { slotFontFamily } from '@/utils/fonts'
@@ -97,7 +98,8 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
   const provincesKey = useMemo(() => [...groups.keys()].join('|'), [groups])
 
   useEffect(() => {
-    const provinces = provincesKey === '' ? [] : provincesKey.split('|')
+    const provinces =
+      provincesKey === '' ? [] : [...new Set(provincesKey.split('|').map(baseProvince))]
     if (provinces.length === 0) {
       setCityCenters(null)
       return
@@ -180,8 +182,11 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     const m = new Map<string, string>()
     const actives = theme.provinceActive
     let i = 0
+    // 拆分卡片（省份名#i）共用其基础省份的填色，只占一个色槽
     for (const name of groups.keys()) {
-      m.set(name, actives[i % actives.length])
+      const base = baseProvince(name)
+      if (m.has(base)) continue
+      m.set(base, actives[i % actives.length])
       i += 1
     }
     return m

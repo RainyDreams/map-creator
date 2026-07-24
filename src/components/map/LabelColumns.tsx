@@ -616,7 +616,7 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
               fill={theme.textColor}
               style={{ fontFamily: provinceFont }}
             >
-              {b.province}
+              {b.title ?? b.province}
             </text>
             {b.lines.map((ln, i) => {
               const { nodes, rows } = ln.groupNames

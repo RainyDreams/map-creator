@@ -15,11 +15,54 @@
  *   边缘接入点在文字锚点之外，保证引线不穿标注块
  */
 import type { CalligraphyAsset, StudentBadge, StudentEntry } from '@/types'
+import { baseProvince, splitCardKey } from '@/types'
 import { inferCityFromUniversity } from '@/utils/geo'
 import { buildGeom, getProvinceShape, MAP_W, TOP, BOTTOM, type MapGeom } from './geo'
 
+/**
+ * 应用省份卡片拆分：有拆分的省展开为 `省份名#i` 多个分组条目（卡片键即分组键）。
+ * 脏数据清洗：已删除的 id 丢弃；不在任何卡中的学生（新增/改城市来的）追加到第一张卡；
+ * 空卡保留在 splits 数据中（编辑期允许），但不产出分组条目（长度为 0 跳过）。
+ */
+export function applyProvinceSplits(
+  groups: Map<string, StudentEntry[]>,
+  splits: Record<string, string[][]> | undefined,
+): Map<string, StudentEntry[]> {
+  if (!splits) return groups
+  let changed = false
+  const out = new Map<string, StudentEntry[]>()
+  for (const [prov, students] of groups) {
+    const cards = splits[prov]
+    if (!cards || cards.length < 2) {
+      out.set(prov, students)
+      continue
+    }
+    changed = true
+    const byId = new Map(students.map((s) => [s.id, s]))
+    const seen = new Set<string>()
+    const cardLists: StudentEntry[][] = cards.map(() => [])
+    cards.forEach((ids, i) => {
+      for (const id of ids) {
+        const s = byId.get(id)
+        if (!s || seen.has(id)) continue
+        seen.add(id)
+        cardLists[i].push(s)
+      }
+    })
+    for (const s of students) {
+      if (!seen.has(s.id)) cardLists[0].push(s)
+    }
+    cardLists.forEach((list, i) => {
+      if (list.length > 0) out.set(splitCardKey(prov, i), list)
+    })
+  }
+  return changed ? out : groups
+}
+
 export interface LabelBlock {
   province: string
+  /** 卡片标题：未拆分 = 省份名；拆分卡 = 「省份 · 城市」（卡内同城）或「省份（N）」（1 起卡号） */
+  title: string
   /** 已排好版的学生行（含换行结果） */
   lines: StudentLineParts[]
   /** 文本锚点 x（左列右对齐 / 右列左对齐） */
@@ -336,6 +379,8 @@ const HEADER_WEIGHT = 2
 
 interface SideItem {
   province: string
+  /** 卡片标题（渲染用，见 LabelBlock.title） */
+  title: string
   students: StudentEntry[]
   /** 不换行的行部件（换行在列宽确定后进行） */
   parts: Array<Omit<StudentLineParts, 'placeLines' | 'ownLine'>>
@@ -451,13 +496,23 @@ export function computeLabelLayout(
   const items: SideItem[] = []
   for (const [province, students] of groups) {
     if (students.length === 0) continue
-    const shape = getProvinceShape(province)
+    // 拆分卡片键（省份名#i）取其基础省份查轮廓/质心
+    const base = baseProvince(province)
+    const shape = getProvinceShape(base)
     if (!shape?.centroid) continue
+    const manual = options?.manualProvinces?.has(base) ?? false
     // 省内按软科排名排序（未提供院校数据或该省被手动排序过时保持现有顺序；sort 稳定）
     const ordered =
-      uniInfo && !options?.manualProvinces?.has(province)
+      uniInfo && !manual
         ? [...students].sort((a, b) => rankOf(a) - rankOf(b))
         : students
+    // 卡片标题：拆分卡 —— 卡内学生城市全相同 →「省份 · 城市」，否则 →「省份（N）」（1 起卡号）
+    let title = province
+    if (base !== province) {
+      const cardNo = Number(province.slice(base.length + 1)) + 1
+      const cities = new Set(ordered.map((s) => s.city.trim()).filter((c) => c !== ''))
+      title = cities.size === 1 ? `${base} · ${[...cities][0]}` : `${base}（${cardNo}）`
+    }
     /** 同校合并：按大学分组（键 = trim 后校名），组内保持当前顺序；
         组间顺序——自动排序省按组内最优软科排名、手动省按首次出现顺序 */
     let parts: Array<Omit<StudentLineParts, 'placeLines' | 'ownLine'>>
@@ -470,7 +525,7 @@ export function computeLabelLayout(
         else byUni.set(key, [s])
       }
       let groups2 = [...byUni.values()]
-      if (uniInfo && !options?.manualProvinces?.has(province)) {
+      if (uniInfo && !manual) {
         const bestRank = (g: StudentEntry[]) => Math.min(...g.map((m) => rankOf(m)))
         groups2 = [...groups2].sort((a, b) => bestRank(a) - bestRank(b))
       }
@@ -486,13 +541,14 @@ export function computeLabelLayout(
     } else {
       parts = ordered.map(partsOf)
     }
-    // 该省最长单行内容宽度（学生行与省份名标题取大者）
+    // 该省最长单行内容宽度（学生行与卡片标题取大者）
     const oneLineW = Math.max(
-      textEms(province) * sizes.province,
+      textEms(title) * sizes.province,
       ...parts.map((p) => oneLineWidth(p, { person: sizes.person, place: sizes.place }, options?.measure)),
     )
     items.push({
       province,
+      title,
       students: ordered,
       parts,
       oneLineW,
@@ -521,8 +577,8 @@ export function computeLabelLayout(
   }
 
   /** 西南空白区候选省份（西藏/云南）：优先放入主图左下空白区，不参与左右分列 */
-  const swItems = items.filter((i) => SW_PROVINCES.has(i.province))
-  const mainland = items.filter((i) => !SW_PROVINCES.has(i.province))
+  const swItems = items.filter((i) => SW_PROVINCES.has(baseProvince(i.province)))
+  const mainland = items.filter((i) => !SW_PROVINCES.has(baseProvince(i.province)))
   /** 卡片背景开启时，子列间距需要把卡片内边距算进去 */
   const colGap = options?.cardBg === false ? COL2_GAP : COL2_GAP_CARD
 
@@ -617,6 +673,7 @@ export function computeLabelLayout(
         const cy = canvasPts.reduce((s, p) => s + p.y, 0) / canvasPts.length
         const block: LabelBlock = {
           province: i.province,
+          title: i.title,
           // 长校名已换行（不缩小、不省略），行数计入块高
           lines: i.wrapped,
           anchorX,
@@ -786,6 +843,7 @@ export function computeLabelLayout(
         const cy = canvasPts.reduce((s, p) => s + p.y, 0) / canvasPts.length
         const ok = placeBlockInZone({
           province: i.province,
+          title: i.title,
           lines: i.wrapped,
           anchorX: 0,
           textAnchor: 'start',
