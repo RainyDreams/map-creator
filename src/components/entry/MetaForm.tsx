@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Section } from '@/components/entry/Section'
 import {
   AlignCenter,
   AlignLeft,
@@ -70,14 +70,8 @@ export default function MetaForm() {
   }
 
   return (
-    <Card className="gap-4 rounded-xl border-stone-200 bg-white py-4 shadow-sm md:gap-6 md:py-6">
-      <CardHeader className="px-4 pb-0 md:px-6">
-        <CardTitle className="flex items-center gap-2 text-sm text-stone-700 md:text-base">
-          <PenLine className="h-4 w-4 text-stone-400" />
-          班级信息
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 px-4 md:space-y-4 md:px-6">
+    <Section icon={PenLine} title="班级信息">
+      <div className="space-y-3 md:space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="map-title" className="text-xs text-stone-600 md:text-sm">
             大标题
@@ -261,7 +255,7 @@ export default function MetaForm() {
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   )
 }

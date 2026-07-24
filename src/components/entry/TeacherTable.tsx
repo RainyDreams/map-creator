@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Section } from '@/components/entry/Section'
 import { BookOpen, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { useMapData } from '@/store/MapDataContext'
 import { newId, type TeacherEntry } from '@/types'
@@ -100,30 +100,29 @@ export default function TeacherTable() {
   }
 
   return (
-    <Card className="gap-4 rounded-xl border-stone-200 bg-white py-4 shadow-sm md:gap-6 md:py-6">
-      <CardHeader className="px-4 pb-0 md:px-6">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-sm text-stone-700 md:text-base">
-            <BookOpen className="h-4 w-4 text-stone-400" />
-            老师名单
-            <span className="text-xs font-normal text-stone-400">（可选填）</span>
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Label htmlFor="teacher-toggle" className="text-xs text-stone-500">
-              在地图上显示老师名单
-            </Label>
-            <Switch
-              id="teacher-toggle"
-              checked={show}
-              onCheckedChange={setShow}
-              aria-label="在地图上显示或隐藏老师名单"
-            />
-          </div>
-        </div>
-      </CardHeader>
+    <Section
+      icon={BookOpen}
+      title="老师名单"
+      titleHint="可选填"
+      summary={teachers.length > 0 ? `${teachers.length} 位` : undefined}
+      mobileOpen={teachers.length > 0}
+      headerExtra={
+        <>
+          <Label htmlFor="teacher-toggle" className="text-xs whitespace-nowrap text-stone-500">
+            地图上显示
+          </Label>
+          <Switch
+            id="teacher-toggle"
+            checked={show}
+            onCheckedChange={setShow}
+            aria-label="在地图上显示或隐藏老师名单"
+          />
+        </>
+      }
+    >
 
       {show && (
-        <CardContent className="space-y-2.5 px-4 md:space-y-3 md:px-6">
+        <div className="space-y-2.5 md:space-y-3">
           <div className="flex items-center gap-2">
             <Label htmlFor="teachers-title" className="shrink-0 text-xs text-stone-500">
               名单标题
@@ -210,8 +209,8 @@ export default function TeacherTable() {
             <Plus className="h-4 w-4" />
             添加一位老师
           </Button>
-        </CardContent>
+        </div>
       )}
-    </Card>
+    </Section>
   )
 }

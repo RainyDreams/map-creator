@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Section } from '@/components/entry/Section'
 import { Palette } from 'lucide-react'
 import { useMapData } from '@/store/MapDataContext'
 import { PRESET_THEMES, type ThemeConfig } from '@/utils/themes'
@@ -85,19 +85,13 @@ export default function ThemePicker() {
   const leaderHex = extractHex(theme.leaderLine, '#a8a29e')
 
   return (
-    <Card className="gap-4 rounded-xl border-stone-200 bg-white py-4 shadow-sm md:gap-6 md:py-6">
-      <CardHeader className="px-4 pb-0 md:px-6">
-        <CardTitle className="flex items-center gap-2 text-sm text-stone-700 md:text-base">
-          <Palette className="h-4 w-4 text-stone-400" />
-          画布风格
-          {theme.id === 'custom' && (
-            <span className="ml-auto rounded-md bg-stone-100 px-1.5 py-0.5 text-[11px] font-normal text-stone-500">
-              当前为自定义
-            </span>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 px-4 md:space-y-4 md:px-6">
+    <Section
+      icon={Palette}
+      title="画布风格"
+      summary={theme.id === 'custom' ? '自定义' : theme.name}
+      mobileOpen={false}
+    >
+      <div className="space-y-3 md:space-y-4">
         {/* 预设色板 */}
         <div className="grid grid-cols-2 gap-2">
           {PRESET_THEMES.map((preset) => {
@@ -179,7 +173,7 @@ export default function ThemePicker() {
             修改任意颜色即切换为「自定义」主题；省份色会自动生成 4 个深浅变体轮换使用
           </p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   )
 }

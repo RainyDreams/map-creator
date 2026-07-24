@@ -78,9 +78,14 @@ export default function EntryPage() {
 
         <Separator />
 
+        {/* 分组小标题：内容录入（班级信息 → 学生 → 老师，按填写顺序排列） */}
+        <p className="px-1 pt-1 text-[11px] font-medium tracking-wide text-stone-400">内容</p>
         <MetaForm />
         <StudentTable />
         <TeacherTable />
+
+        {/* 分组小标题：外观设计（主题风格 → 排版细节，从粗到细） */}
+        <p className="px-1 pt-2 text-[11px] font-medium tracking-wide text-stone-400">外观</p>
         <ThemePicker />
         <FontPanel />
 

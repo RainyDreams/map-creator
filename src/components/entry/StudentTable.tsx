@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Section } from '@/components/entry/Section'
 import { ChevronRight, GraduationCap, MapPinOff, PencilLine } from 'lucide-react'
 import {
   Dialog,
@@ -47,22 +46,12 @@ export default function StudentTable() {
   const hiddenCount = filledCount - preview.length
 
   return (
-    <Card className="gap-4 rounded-xl border-stone-200 bg-white py-4 shadow-sm md:gap-6 md:py-6">
-      <CardHeader className="px-4 pb-0 md:px-6">
-        <CardTitle className="flex items-center gap-2 text-sm text-stone-700 md:text-base">
-          <GraduationCap className="h-4 w-4 text-stone-400" />
-          学生名单
-          {filledCount > 0 && (
-            <Badge
-              variant="secondary"
-              className="ml-auto bg-stone-100 text-stone-600 hover:bg-stone-100"
-            >
-              已填 {filledCount} 人
-            </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 px-4 md:space-y-2.5 md:px-6">
+    <Section
+      icon={GraduationCap}
+      title="学生名单"
+      summary={filledCount > 0 ? `已填 ${filledCount} 人` : undefined}
+    >
+      <div className="space-y-2 md:space-y-2.5">
         {students.length === 0 && (
           <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-center text-xs text-stone-500 md:py-6 md:text-sm">
             还没有学生，点击下方按钮打开录入面板
@@ -131,7 +120,7 @@ export default function StudentTable() {
         <p className="text-center text-xs text-stone-400">
           仅预览前 {PREVIEW_COUNT} 位；完整名单的查看、编辑、排序均在录入面板中进行
         </p>
-      </CardContent>
+      </div>
 
       {/* 录入面板：按省份分组（与地图一致），支持增删改、组内拖动排序、新增同学、毛笔字图片 */}
       <Dialog open={modalOpen} onOpenChange={(v) => {
@@ -148,6 +137,6 @@ export default function StudentTable() {
           <StudentGroupModal focusStudentId={focusId} />
         </DialogContent>
       </Dialog>
-    </Card>
+    </Section>
   )
 }

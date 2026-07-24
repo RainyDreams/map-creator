@@ -14,6 +14,7 @@ import {
 } from '@/utils/fonts'
 import { FontSelect } from '@/components/entry/FontSelect'
 import { SizeSelect } from '@/components/entry/SizeSelect'
+import { Section } from '@/components/entry/Section'
 import { recommendFontSizes, recommendLabelFit, applyProvinceSplits } from '@/components/map/labels'
 import { isGeoReady, loadGeoFeatures } from '@/components/map/geo'
 import { resolveProvince } from '@/utils/geo'
@@ -166,13 +167,13 @@ export function FontPanel() {
   }
 
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-3 md:p-4">
-      <header className="mb-3 flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-stone-700">
-          <SlidersHorizontal className="h-4 w-4 text-stone-400" />
-          排版设计
-        </h2>
-        <div className="flex items-center gap-1.5">
+    <Section
+      icon={SlidersHorizontal}
+      title="排版设计"
+      summary={`${data.labelLayout === 'vertical' ? '竖版' : data.labelColumns === 2 ? '两列' : '一列'} · ${data.labelSizes.person}px`}
+      mobileOpen={false}
+      headerExtra={
+        <>
           {/* 上传入口刻意小巧：预设字体是主路径 */}
           <button
             type="button"
@@ -184,19 +185,20 @@ export function FontPanel() {
             <Upload className="h-3 w-3" />
             上传字体
           </button>
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".ttf,.otf,.woff,.woff2"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) handleUpload(f)
-            e.target.value = ''
-          }}
-        />
-      </header>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".ttf,.otf,.woff,.woff2"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) handleUpload(f)
+              e.target.value = ''
+            }}
+          />
+        </>
+      }
+    >
 
       <div className="space-y-2.5">
         {SLOTS.map((slot) => (
@@ -632,7 +634,7 @@ export function FontPanel() {
         </>
       )}
 
-    </section>
+    </Section>
   )
 }
 
