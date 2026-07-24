@@ -124,6 +124,19 @@ export default function TeacherTable() {
 
       {show && (
         <CardContent className="space-y-2.5 px-4 md:space-y-3 md:px-6">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="teachers-title" className="shrink-0 text-xs text-stone-500">
+              名单标题
+            </Label>
+            <Input
+              id="teachers-title"
+              value={data.teachersTitle}
+              onChange={(e) => setData((prev) => ({ ...prev, teachersTitle: e.target.value }))}
+              placeholder="相伴三年的老师们"
+              aria-label="老师名单块标题（留空则不显示标题）"
+              className="h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
+            />
+          </div>
           {teachers.length === 0 && (
             <p className="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-center text-xs text-stone-500 md:py-4 md:text-sm">
               留下想感谢的老师吧，留空则地图上不显示

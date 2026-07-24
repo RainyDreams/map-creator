@@ -63,6 +63,8 @@ export interface MapData {
   teachers: TeacherEntry[]
   /** 老师名单是否在地图上显示（关闭开关时图上隐藏，数据保留） */
   showTeachers: boolean
+  /** 老师名单块的标题（v1.22.2 起可自定义；空串 = 地图上不显示标题行） */
+  teachersTitle: string
   /** 校徽图片是否在地图上显示（关闭时图上不渲染校徽，大学文字照常） */
   showBadges: boolean
   /** 画布标题排布：居左 / 居中 / 居右 */
@@ -126,6 +128,7 @@ export const EMPTY_MAP_DATA: MapData = {
   students: [],
   teachers: [],
   showTeachers: true,
+  teachersTitle: '相伴三年的老师们',
   showBadges: true,
   titleAlign: 'left',
   subtitle: '',

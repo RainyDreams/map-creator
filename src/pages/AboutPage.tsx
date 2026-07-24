@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.22.2',
+    date: '2026-07-24',
+    items: [
+      '老师名单块的标题不再写死：「老师名单」录入区新增「名单标题」输入框，可改成任意文字（如「我们的引路人」），留空则地图上不显示标题行',
+    ],
+  },
+  {
     version: 'v1.22.1',
     date: '2026-07-24',
     items: [

@@ -10,7 +10,7 @@ const cqw = (px: number): string => `${(px / 15).toFixed(3)}cqw`
 const BOTTOM_GAP = 48
 
 /**
- * 左下角"相伴三年的老师们"名单；
+ * 左下角老师名单块（标题可在「老师名单 → 名单标题」自定义，默认"相伴三年的老师们"，留空不显示）；
  * 无老师数据或在录入页关闭"显示老师"时整块不渲染。
  * 字号跟随「字体设置 → 老师名单」（默认与学生姓名一致），标题比名单大 3px。
  * 字号/内边距用 cqw 随画布宽度缩放，避免窄画布（尤其移动端）上相对学生标注过大。
@@ -212,17 +212,19 @@ export function TeachersBlock({
         touchAction: isCoarse && !selected ? 'auto' : 'none',
       }}
     >
-      <p
-        className="mb-1 tracking-wide"
-        style={{
-          fontFamily: titleFont,
-          color: theme.titleColor,
-          fontSize: cqw(size + 3),
-          lineHeight: 1.4,
-        }}
-      >
-        相伴三年的老师们：
-      </p>
+      {data.teachersTitle.trim() !== '' && (
+        <p
+          className="mb-1 tracking-wide"
+          style={{
+            fontFamily: titleFont,
+            color: theme.titleColor,
+            fontSize: cqw(size + 3),
+            lineHeight: 1.4,
+          }}
+        >
+          {data.teachersTitle.trim()}：
+        </p>
+      )}
       <ul>
         {teachers.map((t) => (
           <li

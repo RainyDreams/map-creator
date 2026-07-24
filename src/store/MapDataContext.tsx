@@ -169,6 +169,9 @@ function normalizeData(raw: unknown): MapData | null {
     students: d.students,
     teachers: d.teachers,
     showTeachers: d.showTeachers !== false,
+    // v1.22.2 迁移：旧数据无 teachersTitle 字段时用默认标题；空串 = 不显示标题行
+    teachersTitle:
+      typeof d.teachersTitle === 'string' ? d.teachersTitle : '相伴三年的老师们',
     // v1.8 迁移：旧数据无 showBadges 字段时默认显示校徽
     showBadges: d.showBadges !== false,
     titleAlign:
