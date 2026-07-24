@@ -24,12 +24,12 @@ function hasConsented(): boolean {
 /**
  * 首访欢迎与协议同意弹窗：
  * - 仅在第一次打开主创作页时出现一次，点击「开始使用」后记住选择、之后不再打扰
- * - 在《用户协议》《隐私政策》《关于》页面不弹出——用户还没读到协议内容就要求同意，
- *   逻辑上是倒置的；阅读协议本身不需要先同意
+ * - 在《用户协议》《隐私政策》《关于》与「问题反馈」页面不弹出——用户还没读到协议内容就要求同意，
+ *   逻辑上是倒置的；阅读协议与浏览公开反馈板本身不需要先同意
  * - 内容刻意精简：一句话软件介绍 + 协议链接 + 一个按钮
  */
-/** 不弹同意窗的路径（阅读协议/隐私/关于不需要先同意协议） */
-const CONSENT_FREE_PATHS = new Set(['/agreement', '/privacy', '/about'])
+/** 不弹同意窗的路径（阅读协议/隐私/关于/反馈板不需要先同意协议） */
+const CONSENT_FREE_PATHS = new Set(['/agreement', '/privacy', '/about', '/feedback'])
 
 export function ConsentDialog() {
   const { pathname } = useLocation()

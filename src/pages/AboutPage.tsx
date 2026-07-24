@@ -5,6 +5,15 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.27.0',
+    date: '2026-07-25 00:51',
+    items: [
+      '新增「问题反馈」公开反馈板（页脚可达）：Bug 反馈 / 功能建议 / 使用体验三类可选，随机昵称本机生成，最新 50 条公开展示；服务端带同源校验、体积闸门、全局/单 IP 限流与列表缓存，记录 90 天自动删除（详见隐私政策第五条）',
+      '导入面板「下载模板」按钮改为黑底强调样式，与导出按钮视觉层级一致',
+      '页脚新增「问题反馈」入口（用户协议 · 隐私政策 · 关于 · 问题反馈 · 微信公众号 · 零本）',
+    ],
+  },
+  {
     version: 'v1.26.1',
     date: '2026-07-25 00:35',
     items: [
@@ -37,13 +46,6 @@ const changelog = [
     date: '2026-07-24 21:40',
     items: [
       '新增 JavaScript 错误自动反馈：页面运行错误（含资源加载失败、未处理 Promise 异常）匿名上报并聚合计数，帮助及时发现故障；服务端带同源校验、体积闸门、全局/单 IP 限流与新签名日配额，记录 30 天自动删除（详见隐私政策第五条）',
-    ],
-  },
-  {
-    version: 'v1.24.4',
-    date: '2026-07-24 19:50',
-    items: [
-      '移除微信内首次打开的「建议在浏览器中打开」引导弹窗，首次进入不再打扰（导出图片时的微信保存提示仍保留）',
     ],
   },
 ]
@@ -265,6 +267,9 @@ export default function AboutPage() {
           </Link>
           <Link to="/privacy" className="text-amber-700 underline-offset-2 hover:underline">
             隐私政策
+          </Link>
+          <Link to="/feedback" className="text-amber-700 underline-offset-2 hover:underline">
+            问题反馈
           </Link>
         </p>
       </section>

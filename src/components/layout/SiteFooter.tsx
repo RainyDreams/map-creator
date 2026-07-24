@@ -50,6 +50,10 @@ export default function SiteFooter() {
           关于
         </Link>
         <span aria-hidden className="text-stone-300">·</span>
+        <Link to="/feedback" className="transition-colors hover:text-stone-700">
+          问题反馈
+        </Link>
+        <span aria-hidden className="text-stone-300">·</span>
         {/* 公众号二维码：桌面悬浮展开、移动端点按展开；再次点击或移出即收起 */}
         <span
           className="group relative"

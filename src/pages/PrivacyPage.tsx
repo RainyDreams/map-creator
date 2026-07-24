@@ -5,7 +5,7 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 export default function PrivacyPage() {
   return (
     <StaticPageLayout title="隐私政策">
-      <p className="text-xs text-stone-400">版本 v2.1.0 · 生效日期：2026 年 7 月 21 日 · 最后更新：2026 年 7 月 21 日</p>
+      <p className="text-xs text-stone-400">版本 v2.2.0 · 生效日期：2026 年 7 月 21 日 · 最后更新：2026 年 7 月 25 日</p>
 
       <p className="flex items-start gap-2 rounded-xl border border-amber-200/70 bg-white/70 p-4 text-stone-600">
         <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-amber-600" />
@@ -118,6 +118,24 @@ export default function PrivacyPage() {
           <li>
             错误日志保存于 Cloudflare KV 存储中，<strong className="text-stone-700">30 天</strong>后自动删除；
             相同错误只聚合计数，我们不将其用于错误排查以外的任何目的。
+          </li>
+        </ul>
+        <p><strong className="text-stone-700">关于「问题反馈」页面的数据处理：</strong></p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            「问题反馈」是一块<strong className="text-stone-700">公开</strong>反馈板：您提交的反馈类别、
+            随机昵称与正文内容将向所有访问者展示，请勿在正文中填写姓名、联系方式等任何个人信息；
+          </li>
+          <li>
+            反馈昵称由您的浏览器在本地随机生成（形如「用户7865432」），仅保存于您设备的
+            localStorage 中，不代表任何真实身份；
+          </li>
+          <li>
+            反馈内容保存于 Cloudflare KV 存储中，<strong className="text-stone-700">90 天</strong>后自动删除；
+            IP 地址仅用于服务端限流计数（约 2 分钟后自动消失），不写入反馈记录；
+          </li>
+          <li>
+            反馈提交完全由您主动触发；除您主动提交的内容外，该功能不读取、不上传您的名单数据。
           </li>
         </ul>
         <p><strong className="text-stone-700">关于「分享为链接」功能的数据处理：</strong></p>

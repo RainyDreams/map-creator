@@ -423,7 +423,7 @@ export default function DataToolbar() {
                 size="sm"
                 disabled={excelBusy}
                 onClick={handleDownloadTemplate}
-                className="shrink-0 border-stone-200 bg-white text-xs text-stone-600 hover:bg-stone-100"
+                className="shrink-0 border-stone-900 bg-stone-900 text-xs text-white hover:bg-stone-700 hover:text-white"
               >
                 <Download className="size-3.5" />
                 {excelBusy ? '加载中…' : '下载模板'}

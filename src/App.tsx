@@ -18,6 +18,7 @@ import { ShareImportLanding } from '@/components/ShareImportLanding'
 const AgreementPage = lazy(() => import('@/pages/AgreementPage'))
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
+const FeedbackPage = lazy(() => import('@/pages/FeedbackPage'))
 
 /** 懒加载页面的占位骨架：与全站 stone 风格一致的脉冲占位块 */
 function PageSkeleton() {
@@ -311,6 +312,7 @@ export default function App() {
           <Route path="/agreement" element={<AgreementPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
         </Routes>
       </Suspense>
       {importPayload !== null && (
