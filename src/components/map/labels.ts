@@ -138,6 +138,8 @@ export interface LabelLayoutOptions {
   badgeOverrides?: Record<string, StudentBadge>
   /** 每侧标注列数：1（默认）或 2（人多时更宽松，每侧两个子列） */
   columnsPerSide?: 1 | 2
+  /** 标注排布模式：'columns'（默认，左右侧列）或 'vertical'（竖版——全部卡片在地图下方按行流式排布） */
+  layout?: 'columns' | 'vertical'
   /** 同校合并：同一大学的多名同学合并为一个块（姓名竖排，学校信息只显示一次） */
   mergeSameSchool?: boolean
   /** 卡片文字对齐覆盖：卡片键（含拆分卡「省份名#i」）→ 左/右对齐；缺省跟随所在侧 */
@@ -578,6 +580,127 @@ export function computeLabelLayout(
     }
   }
 
+  /* ---------------- 竖版排布（v1.24） ----------------
+   * 所有省份卡片集中到地图下方，按行流式排布（一行放不下就换行），每行整体水平居中；
+   * 卡片文字不折行：每张卡按自身 fit-content 宽度（夹在列宽档位内，极端长文本才在上限处换行）；
+   * 引线照常：渲染层会把引线端点夹到卡片包围盒上离定位点最近的点（卡片在地图下方，即卡片顶边），
+   * 与现有引线规则一致、不穿卡片文字；画布高度随卡片行数向下扩展，左右下角覆盖层预留照常叠加；
+   * 西藏/云南不走西南空白区，与其他省份一起排布。 */
+  if (options?.layout === 'vertical') {
+    const H_PAD = 24
+    const GAP_X = 14
+    const GAP_Y = 16
+    const TOP_GAP = 28
+    /** 画布设计宽上限：超出即换行（与整体 1500px 设计基准一致） */
+    const MAX_DESIGN_W = 1500
+    const minDesignW = MAP_W + H_PAD * 2
+    const headerH = BASE_HEADER_H * provPct
+    const headerSize = BASE_HEADER * provPct
+    const personSize = BASE_LINE * personPct
+    const placeSize = BASE_LINE * placePct
+    // 每张卡按自身最长单行内容实测宽度（fit-content），并预换行/算行高
+    const prepared = items.map((i) => {
+      const w = clampW(i.oneLineW)
+      wrapAt(i, w)
+      const lineH = BASE_LINE_H * linePct * i.rowBoost
+      const h = headerH + i.rowCount * lineH
+      return { i, lineH, cardW: w + CARD_PAD_X * 2, cardH: h + CARD_PAD_Y * 2 }
+    })
+    // 按质心经度西→东排序：引线更少交叉
+    prepared.sort((a, b) => a.i.lng - b.i.lng)
+    // 画布宽：一行能放下时贴合内容宽（至少容纳地图本体），放不下时封顶并换行
+    const rowTotalW =
+      prepared.reduce((s, p) => s + p.cardW, 0) + GAP_X * (prepared.length - 1)
+    const designW = Math.min(Math.max(minDesignW, rowTotalW + H_PAD * 2), MAX_DESIGN_W)
+    const availW = designW - H_PAD * 2
+    const geom = buildGeom(designW, (designW - MAP_W) / 2)
+    for (const i of items) {
+      i.cityPts = i.rawPts.map(([lng, lat]) => {
+        const [x, y] = geom.project(lng, lat)
+        return { x, y }
+      })
+    }
+    // 流式分行：当前行放不下就换行；记录每行宽度用于整体居中
+    const rows: Array<{ items: typeof prepared; w: number }> = []
+    let cur: typeof prepared = []
+    let curW = 0
+    for (const p of prepared) {
+      const addW = cur.length === 0 ? p.cardW : curW + GAP_X + p.cardW
+      if (cur.length > 0 && addW > availW) {
+        rows.push({ items: cur, w: curW })
+        cur = [p]
+        curW = p.cardW
+      } else {
+        cur.push(p)
+        curW = addW
+      }
+    }
+    if (cur.length > 0) rows.push({ items: cur, w: curW })
+    const blocks: LabelBlock[] = []
+    let y = TOP + geom.mapH + TOP_GAP
+    for (const row of rows) {
+      let x = (designW - row.w) / 2
+      let rowH = 0
+      for (const p of row.items) {
+        const { i } = p
+        const cardX = x
+        const cardY = y
+        const canvasPts = i.cityPts ?? [{ x: 0, y: 0 }]
+        const cx = canvasPts.reduce((s, pt) => s + pt.x, 0) / canvasPts.length
+        const cy = canvasPts.reduce((s, pt) => s + pt.y, 0) / canvasPts.length
+        const block: LabelBlock = {
+          province: i.province,
+          title: i.title,
+          lines: i.wrapped,
+          anchorX: cardX + CARD_PAD_X,
+          textAnchor: 'start',
+          headerBaseline: cardY + CARD_PAD_Y + headerH - 8,
+          firstLineBaseline: cardY + CARD_PAD_Y + headerH + p.lineH * 0.72,
+          lineH: p.lineH,
+          headerSize,
+          personSize,
+          placeSize,
+          // 引线接入点：卡片顶边中点（定位点在卡片上方）
+          centerY: cardY,
+          edgeX: cardX + p.cardW / 2,
+          centroidX: cx,
+          centroidY: cy,
+          cityPoints: canvasPts,
+          cardX,
+          cardY,
+          cardW: p.cardW,
+          cardH: p.cardH,
+        }
+        // 卡片文字对齐覆盖：竖版默认左对齐，可被「右对齐」覆盖
+        if (options?.cardTextAlign?.[i.province] === 'right') {
+          block.textAnchor = 'end'
+          block.anchorX = cardX + p.cardW - CARD_PAD_X
+        }
+        blocks.push(block)
+        x += p.cardW + GAP_X
+        rowH = Math.max(rowH, p.cardH)
+      }
+      y += rowH + GAP_Y
+    }
+    const cardsBottom = y - GAP_Y
+    const reserveL = options?.reserveLeftBottom ?? 0
+    const reserveR = options?.reserveRightBottom ?? 0
+    // 画布高度向下扩展容纳卡片；左右下角覆盖层（老师/海外/未定位块）预留照常叠加在内容之下
+    const svgHeight = Math.max(
+      TOP + geom.mapH + BOTTOM + Math.max(reserveL, reserveR),
+      cardsBottom + BOTTOM + Math.max(reserveL, reserveR),
+      120,
+    )
+    return {
+      left: blocks,
+      right: [],
+      svgHeight,
+      scale: 1,
+      geom,
+      maxColHeight1: cardsBottom - (TOP + geom.mapH),
+    }
+  }
+
   /** 西南空白区候选省份（西藏/云南）：优先放入主图左下空白区，不参与左右分列 */
   const swItems = items.filter((i) => SW_PROVINCES.has(baseProvince(i.province)))
   const mainland = items.filter((i) => !SW_PROVINCES.has(baseProvince(i.province)))
@@ -949,6 +1072,8 @@ export function recommendLabelFit(
   options?: LabelLayoutOptions,
 ): FitRecommendation | null {
   if (groups.size === 0) return null
+  // 竖版排布：画布向下自适应扩展，无列数/超高压仄问题，不给排版建议
+  if (options?.layout === 'vertical') return null
   const sizes = options?.sizes ?? { province: 16, person: 13, place: 13 }
   const cols = options?.columnsPerSide ?? 1
   const current = computeLabelLayout(groups, undefined, { ...options, columnsPerSide: cols })
@@ -1007,6 +1132,8 @@ export function recommendFontSizes(
   options?: LabelLayoutOptions,
 ): { sizes: { province: number; person: number; place: number }; direction: 'up' | 'down' } | null {
   if (groups.size === 0) return null
+  // 竖版排布：高度预算不约束字号（画布向下扩展），不给字号建议
+  if (options?.layout === 'vertical') return null
   const sizes = options?.sizes ?? { province: 16, person: 13, place: 13 }
   const layout = computeLabelLayout(groups, undefined, options)
   const target = layout.geom.mapH

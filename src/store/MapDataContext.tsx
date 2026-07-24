@@ -186,6 +186,8 @@ function normalizeData(raw: unknown): MapData | null {
     },
     // v1.11 迁移：旧数据无 labelColumns 字段时默认每侧一列
     labelColumns: d.labelColumns === 2 ? 2 : 1,
+    // v1.24 迁移：旧数据无 labelLayout 字段时回退左右侧列排布
+    labelLayout: d.labelLayout === 'vertical' ? 'vertical' : 'columns',
     // v1.15 迁移：旧数据无 customPosition 字段时默认自动布局；
     // 但旧数据若已有拖动偏移，说明用户摆过位置，直接进自定义位置模式
     customPosition:
@@ -238,6 +240,11 @@ function normalizeData(raw: unknown): MapData | null {
       }
       return out
     })(),
+    // v1.24 迁移：旧数据无 badgeSize 字段时回退默认 48px（夹在 24–96）
+    badgeSize:
+      typeof d.badgeSize === 'number' && Number.isFinite(d.badgeSize)
+        ? Math.min(96, Math.max(24, Math.round(d.badgeSize)))
+        : 48,
   }
 }
 

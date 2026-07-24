@@ -541,7 +541,8 @@ export default function MapPage() {
                       src={badge}
                       alt="班徽"
                       draggable={false}
-                      className="mb-0.5 h-12 w-12 rounded-full object-contain"
+                      className="mb-0.5 rounded-full object-contain"
+                      style={{ width: data.badgeSize, height: data.badgeSize }}
                     />
                   )}
                   {data.title.trim() !== '' && (
@@ -591,6 +592,7 @@ export default function MapPage() {
               uniInfo={uniInfo}
               labelSizes={data.labelSizes}
               labelColumns={data.labelColumns}
+              labelLayout={data.labelLayout}
               manualProvinces={manualProvinces}
               calligraphy={data.calligraphy}
               badgeOverrides={data.badgeOverrides}

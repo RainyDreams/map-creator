@@ -31,6 +31,8 @@ export interface ChinaMapProps {
   labelSizes?: { province: number; person: number; place: number }
   /** 每侧标注列数：1（默认）或 2（人多时更宽松） */
   labelColumns?: 1 | 2
+  /** 标注排布模式：'columns'（默认）或 'vertical'（竖版，卡片在地图下方按行排布） */
+  labelLayout?: 'columns' | 'vertical'
   /** 省内手动排序的省份（保持手动顺序，不按排名重排） */
   manualProvinces?: Set<string>
   /** 大学名 → 用户上传的毛笔字图片（提供后该校文字被图片替代） */
@@ -46,7 +48,7 @@ export interface ChinaMapProps {
  * 宽度自适应容器，高度按 viewBox 等比缩放；内部全部为 SVG 文本，导出 PNG 时清晰。
  * 定位点优先落到学生实际城市（/api/cities 提供坐标）；接口不可用时回退省份质心。
  */
-export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, calligraphy, badgeOverrides, onViewBoxW }: ChinaMapProps) {
+export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, labelLayout, manualProvinces, calligraphy, badgeOverrides, onViewBoxW }: ChinaMapProps) {
   const { theme, fontSlots, customFonts, data } = useMapData()
   const [cityCenters, setCityCenters] = useState<CityCenterMap | null>(null)
   /** 地图轮廓数据（/data/china.json）异步加载：未就绪时渲染同尺寸占位 SVG，避免布局跳动 */
@@ -165,6 +167,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         uniInfo,
         sizes: labelSizes,
         columnsPerSide: labelColumns,
+        layout: labelLayout,
         manualProvinces,
         measure,
         calligraphy,
@@ -176,7 +179,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // 注意：geoReady 必须在依赖里——computeLabelLayout 内部调用 getProvinceShape，
     // 地图数据未加载时算出的布局是空的；数据就绪后必须重算，否则标注永久丢失
-    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, manualProvinces, measure, fontTick, calligraphy, badgeOverrides, geoReady, data.mergeSameSchool, data.labelCardBg, data.cardTextAlign],
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, labelLayout, manualProvinces, measure, fontTick, calligraphy, badgeOverrides, geoReady, data.mergeSameSchool, data.labelCardBg, data.cardTextAlign],
   )
 
   const fillByName = useMemo(() => {

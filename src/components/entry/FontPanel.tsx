@@ -77,6 +77,7 @@ export function FontPanel() {
     () => ({
       sizes: data.labelSizes,
       columnsPerSide: data.labelColumns,
+      layout: data.labelLayout,
       manualProvinces: new Set([...data.customOrderProvinces, ...Object.keys(data.provinceSplits)]),
       calligraphy: data.calligraphy,
       badgeOverrides: data.badgeOverrides,
@@ -86,6 +87,7 @@ export function FontPanel() {
     [
       data.labelSizes,
       data.labelColumns,
+      data.labelLayout,
       data.customOrderProvinces,
       data.provinceSplits,
       data.calligraphy,
@@ -277,8 +279,9 @@ export function FontPanel() {
           <div className="flex overflow-hidden rounded-md border border-stone-200" role="radiogroup" aria-label="省份卡片位置">
             {(
               [
-                { key: '1', label: '一列', active: !data.customPosition && data.labelColumns === 1, apply: { labelColumns: 1 as const, customPosition: false } },
-                { key: '2', label: '两列', active: !data.customPosition && data.labelColumns === 2, apply: { labelColumns: 2 as const, customPosition: false } },
+                { key: '1', label: '一列', active: !data.customPosition && data.labelLayout === 'columns' && data.labelColumns === 1, apply: { labelLayout: 'columns' as const, labelColumns: 1 as const, customPosition: false } },
+                { key: '2', label: '两列', active: !data.customPosition && data.labelLayout === 'columns' && data.labelColumns === 2, apply: { labelLayout: 'columns' as const, labelColumns: 2 as const, customPosition: false } },
+                { key: 'vertical', label: '竖版', active: !data.customPosition && data.labelLayout === 'vertical', apply: { labelLayout: 'vertical' as const, customPosition: false } },
                 { key: 'custom', label: '自定义', active: data.customPosition, apply: { customPosition: true } },
               ] as const
             ).map((opt) => (
@@ -300,7 +303,13 @@ export function FontPanel() {
                       : { provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 } }),
                   }))
                 }
-                title={opt.key === 'custom' ? '从当前布局开始手动摆放（在地图上按住省份卡片即可拖动）' : undefined}
+                title={
+                  opt.key === 'custom'
+                    ? '从当前布局开始手动摆放（在地图上按住省份卡片即可拖动）'
+                    : opt.key === 'vertical'
+                      ? '所有省份卡片集中到地图下方按行排布'
+                      : undefined
+                }
                 className={
                   opt.active
                     ? 'bg-stone-900 px-2.5 py-1 text-[11px] text-white'

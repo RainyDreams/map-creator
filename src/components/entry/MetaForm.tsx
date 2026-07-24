@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
 import { FontSelect } from '@/components/entry/FontSelect'
 import { SizeSelect } from '@/components/entry/SizeSelect'
+import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import type { MapData } from '@/types'
 
@@ -230,6 +231,21 @@ export default function MetaForm() {
               }}
             />
           </div>
+          {/* 班徽大小：24–96px（默认 48），实时反映到地图页标题区 */}
+          {badge !== null && (
+            <div className="flex items-center gap-2 pt-1.5">
+              <span className="shrink-0 text-[11px] text-stone-500">大小</span>
+              <Slider
+                value={data.badgeSize}
+                min={24}
+                max={96}
+                step={2}
+                format={(v) => `${v}px`}
+                aria-label="班徽大小"
+                onChange={(v) => setData((prev) => ({ ...prev, badgeSize: v }))}
+              />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

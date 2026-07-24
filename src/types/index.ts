@@ -76,6 +76,12 @@ export interface MapData {
   /** 每侧标注列数：1（默认）或 2（人多时更宽松，文字列宽减半）。自定义位置模式下作为基础布局 */
   labelColumns: 1 | 2
   /**
+   * 标注排布模式（v1.24）：'columns' = 左右侧列（一列/两列，由 labelColumns 决定）；
+   * 'vertical' = 竖版——所有省份卡片集中到地图下方按行流式排布。
+   * 与 labelColumns 互斥（竖版是独立模式）；自定义位置（customPosition）在两种模式下都以其当前布局为基准叠加偏移
+   */
+  labelLayout: 'columns' | 'vertical'
+  /**
    * 省份卡片位置模式（v1.15）：false = 一列/两列自动布局（忽略拖动偏移，偏移数据保留）；
    * true = 自定义位置（应用 provinceOffsets，卡片可拖动；拖动卡片会自动切到此模式）
    */
@@ -125,6 +131,8 @@ export interface MapData {
    * 缺省/{} = 一省一卡；拆分后该省按手动顺序处理（不再按软科排名重排）
    */
   provinceSplits: Record<string, string[][]>
+  /** 班徽显示大小（px，v1.24 起可调；范围 24–96，默认 48），渲染在地图页标题区 */
+  badgeSize: number
 }
 
 export const EMPTY_MAP_DATA: MapData = {
@@ -139,6 +147,7 @@ export const EMPTY_MAP_DATA: MapData = {
   subtitle: '',
   labelSizes: DEFAULT_LABEL_SIZES,
   labelColumns: 1,
+  labelLayout: 'columns',
   customPosition: false,
   mergeSameSchool: false,
   labelCardBg: true,
@@ -153,6 +162,7 @@ export const EMPTY_MAP_DATA: MapData = {
   badgeOverrides: {},
   provinceSplits: {},
   cardTextAlign: {},
+  badgeSize: 48,
 }
 
 /** 拆分卡片键：`省份名#i`（0 起）；未拆分的省份直接用省份名作卡片键 */
