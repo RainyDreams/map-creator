@@ -29,16 +29,20 @@ try {
     _m.style.cssText =
       'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#f5f5f4;font-family:system-ui,sans-serif'
     _m.innerHTML =
-      '<p style="color:#44403c;font-size:15px">请访问 <a style="color:#b45309" target="_top" href="' +
+      '<div style="text-align:center;padding:24px"><p style="color:#78716c;font-size:13px;margin:0 0 8px">您当前访问的并非正版蹭饭图生成器</p><p style="color:#44403c;font-size:17px;font-weight:600;margin:0 0 6px">正版网址：<a style="color:#b45309" target="_top" href="' +
       _u +
       '">' +
       _t +
-      '</a></p>'
+      '</a></p><p style="color:#a8a29e;font-size:12px;margin:0">正在为您自动跳转…</p></div>'
     document.addEventListener('DOMContentLoaded', () => document.body.appendChild(_m))
-    // iframe 内不自动跳转（会死循环），只显示提示
-    if (window.top === window.self) {
-      window.setTimeout(() => window.location.replace(_u), 1500)
-    }
+    // 始终跳转顶层窗口：被 iframe 嵌套时直接把外层页面带往正版站（跳出嵌套，无死循环）
+    window.setTimeout(() => {
+      try {
+        window.top!.location.replace(_u)
+      } catch {
+        window.location.replace(_u)
+      }
+    }, 1500)
   }
 } catch {
   _allow = true
