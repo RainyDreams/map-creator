@@ -5,12 +5,20 @@ import Clarity from '@microsoft/clarity'
 import './index.css'
 import App from './App.tsx'
 import { useWechatShare } from './hooks/useWechatShare.ts'
+import { initErrorReporter } from './utils/errorReporter.ts'
 
 /** Microsoft Clarity 站点分析（仅初始化，不阻塞渲染） */
 try {
   Clarity.init('xprbe5s420')
 } catch {
   // 初始化失败不影响应用
+}
+
+/** JS 错误自动上报（匿名、仅生产环境；初始化失败静默） */
+try {
+  initErrorReporter()
+} catch {
+  // 不影响应用
 }
 
 let _allow = true

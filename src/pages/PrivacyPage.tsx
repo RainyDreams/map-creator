@@ -102,6 +102,24 @@ export default function PrivacyPage() {
           此外，本服务 /api/ 路径下的辅助接口（地图数据、微信分享签名）仅处理其功能所必需的
           请求参数（如省份名称、当前页面 URL），不涉及您的名单数据。
         </p>
+        <p><strong className="text-stone-700">关于错误日志的自动收集：</strong></p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            为及时发现并修复故障，当页面发生 JavaScript 运行错误（含资源加载失败、未处理的
+            Promise 异常）时，本服务会自动上报一份<strong className="text-stone-700">匿名</strong>错误日志，
+            内容仅限：错误类型与信息、错误堆栈、发生页面的路径（不含网址参数与锚点）、软件版本号、
+            浏览器 User-Agent；
+          </li>
+          <li>
+            错误日志<strong className="text-stone-700">不包含</strong>您录入的名单、画布内容、
+            分享链接数据或任何可识别个人身份的信息；IP 地址仅用于服务端限流计数（约 2 分钟后自动消失），
+            不写入错误记录；
+          </li>
+          <li>
+            错误日志保存于 Cloudflare KV 存储中，<strong className="text-stone-700">30 天</strong>后自动删除；
+            相同错误只聚合计数，我们不将其用于错误排查以外的任何目的。
+          </li>
+        </ul>
         <p><strong className="text-stone-700">关于「分享为链接」功能的数据处理：</strong></p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
