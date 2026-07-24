@@ -198,6 +198,25 @@ function normalizeData(raw: unknown): MapData | null {
     mergeSameSchool: d.mergeSameSchool === true,
     // v1.24.3 迁移：旧数据无 uniformCardWidth 字段时默认关闭（各卡片按内容定宽）
     uniformCardWidth: d.uniformCardWidth === true,
+    // v1.25 迁移：人数角标默认开启；统计表默认关闭；卡片尺寸覆盖逐项校验（w 60–1200 / h 20–1600 取整）
+    showCardCount: d.showCardCount !== false,
+    showStats: d.showStats === true,
+    cardSizes: (() => {
+      const raw = d.cardSizes
+      if (!raw || typeof raw !== 'object') return {}
+      const out: MapData['cardSizes'] = {}
+      for (const [k, v] of Object.entries(raw)) {
+        if (k.trim() === '' || !v || typeof v !== 'object') continue
+        const w = (v as { w?: unknown }).w
+        const h = (v as { h?: unknown }).h
+        if (typeof w !== 'number' || typeof h !== 'number' || !Number.isFinite(w) || !Number.isFinite(h)) continue
+        out[k] = {
+          w: Math.min(1200, Math.max(60, Math.round(w))),
+          h: Math.min(1600, Math.max(20, Math.round(h))),
+        }
+      }
+      return out
+    })(),
     labelCardBg: d.labelCardBg !== false,
     cardRadius: typeof d.cardRadius === 'number' && Number.isFinite(d.cardRadius)
       ? Math.min(24, Math.max(0, Math.round(d.cardRadius)))

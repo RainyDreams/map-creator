@@ -94,6 +94,8 @@ export interface LabelBlock {
   cardY: number
   cardW: number
   cardH: number
+  /** 卡片内学生人数（v1.25 人数角标；同校合并不减少计数——按人头不按行） */
+  studentCount: number
 }
 
 export interface LabelLayout {
@@ -693,6 +695,7 @@ export function computeLabelLayout(
           cardY,
           cardW: p.cardW,
           cardH: p.cardH,
+          studentCount: i.students.length,
         }
         // 卡片文字对齐覆盖：竖版默认左对齐，可被「右对齐」覆盖
         if (options?.cardTextAlign?.[i.province] === 'right') {
@@ -842,6 +845,7 @@ export function computeLabelLayout(
           cardY: y - CARD_PAD_Y,
           cardW,
           cardH: h + CARD_PAD_Y * 2,
+          studentCount: i.students.length,
         }
         y += h + gap
         // 卡片文字对齐覆盖（含拆分卡，键即 i.province）：缺省跟随所在侧
@@ -1040,6 +1044,7 @@ export function computeLabelLayout(
           cardY: 0,
           cardW,
           cardH,
+          studentCount: i.students.length,
         })
         if (!ok) return null
       }

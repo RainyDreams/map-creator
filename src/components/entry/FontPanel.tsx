@@ -294,7 +294,7 @@ export function FontPanel() {
             {fitRec?.twoColumns === true && data.labelColumns === 1 && (
               <button
                 type="button"
-                onClick={() => setData((prev) => ({ ...prev, labelColumns: 2, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 } }))}
+                onClick={() => setData((prev) => ({ ...prev, labelColumns: 2, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 }, cardSizes: {} }))}
                 title="内容较高，推荐切换为每侧两列（点击应用）"
                 className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
               >
@@ -304,7 +304,7 @@ export function FontPanel() {
             {fitRec?.oneColumn === true && data.labelColumns === 2 && (
               <button
                 type="button"
-                onClick={() => setData((prev) => ({ ...prev, labelColumns: 1, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 } }))}
+                onClick={() => setData((prev) => ({ ...prev, labelColumns: 1, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 }, cardSizes: {} }))}
                 title="一列也放得下，切回一列更简洁（点击应用）"
                 className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
               >
@@ -331,12 +331,12 @@ export function FontPanel() {
                     ...prev,
                     ...opt.apply,
                     // 位置语义（v1.16.3）：一切自定义都从「当前所见状态」开始——
-                    // · 切到一列/两列：重置全部自定义位置（省份卡片 + 老师块），回到纯净自动布局；
+                    // · 切到一列/两列：重置全部自定义位置（省份卡片 + 老师块 + 手动尺寸），回到纯净自动布局；
                     // · 切到自定义：清掉历史省份偏移，卡片停在当前自动布局的位置上，画面不跳。
                     // 老师块在「自定义」分支不清——它始终生效，当前位置就是它的「当前状态」
                     ...(opt.key === 'custom'
                       ? { provinceOffsets: {} }
-                      : { provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 } }),
+                      : { provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 }, cardSizes: {} }),
                   }))
                 }
                 title={
@@ -367,19 +367,21 @@ export function FontPanel() {
                   ...prev,
                   provinceOffsets: {},
                   teachersOffset: { dx: 0, dy: 0 },
+                  cardSizes: {},
                   customPosition: false,
                 }))
               }
-              title="清除所有手动位置（省份卡片 + 老师名单块），恢复自动排布"
+              title="清除所有手动位置与手动尺寸（省份卡片 + 老师名单块），恢复自动排布"
               className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
             >
               自动排布
             </button>
           </div>
         )}
-        {/* 位置重置：自动布局模式下仍存有手动偏移时，可一键清除 */}
+        {/* 位置重置：自动布局模式下仍存有手动偏移/手动尺寸时，可一键清除 */}
         {!data.customPosition &&
           (Object.keys(data.provinceOffsets).length > 0 ||
+            Object.keys(data.cardSizes).length > 0 ||
             data.teachersOffset.dx !== 0 ||
             data.teachersOffset.dy !== 0) && (
           <div className="mt-1.5 flex justify-end">
@@ -390,13 +392,14 @@ export function FontPanel() {
                   ...prev,
                   provinceOffsets: {},
                   teachersOffset: { dx: 0, dy: 0 },
+                  cardSizes: {},
                   customPosition: false,
                 }))
               }
-              title="清除所有省份卡片与老师名单块的手动位置，恢复自动布局"
+              title="清除所有省份卡片与老师名单块的手动位置/手动尺寸，恢复自动布局"
               className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] whitespace-nowrap text-stone-500 transition-colors hover:bg-stone-50 hover:text-stone-700"
             >
-              重置位置（已手动调整 {Object.keys(data.provinceOffsets).length} 个省
+              重置位置（已手动调整 {Object.keys(data.provinceOffsets).length + Object.keys(data.cardSizes).length} 个省
               {(data.teachersOffset.dx !== 0 || data.teachersOffset.dy !== 0) && ' + 老师块'}）
             </button>
           </div>
@@ -426,6 +429,19 @@ export function FontPanel() {
           checked={data.mergeSameSchool}
           onCheckedChange={(v) => setData((prev) => ({ ...prev, mergeSameSchool: v }))}
           aria-label="同校合并"
+        />
+      </div>
+
+      {/* 分布统计表：画布下方（页脚之上）展示全班各地人数分布，随导出进 PNG */}
+      <div className="mt-2.5 flex items-center justify-between">
+        <Label htmlFor="stats-toggle" className="text-xs text-stone-500">
+          画布下方分布统计表（各地人数，随图导出）
+        </Label>
+        <Switch
+          id="stats-toggle"
+          checked={data.showStats}
+          onCheckedChange={(v) => setData((prev) => ({ ...prev, showStats: v }))}
+          aria-label="画布下方分布统计表"
         />
       </div>
 
@@ -478,6 +494,19 @@ export function FontPanel() {
           aria-label="省份名单卡片背景"
         />
       </div>
+      {/* 人数角标：每张省份卡片右上角显示该卡人数 */}
+      <div className="mt-2 flex items-center justify-between">
+        <Label htmlFor="card-count-toggle" className="text-xs text-stone-500">
+          卡片右上角人数角标
+        </Label>
+        <Switch
+          id="card-count-toggle"
+          checked={data.showCardCount}
+          onCheckedChange={(v) => setData((prev) => ({ ...prev, showCardCount: v }))}
+          aria-label="卡片右上角人数角标"
+        />
+      </div>
+
       {data.labelCardBg && (
         <>
           <div className="mt-2 flex items-center gap-2">

@@ -83,6 +83,8 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
   /** 拖动中的省份块实时偏移（LabelColumns 上报）：用于画布 viewBox 实时扩大，
       拖到边缘的卡片不会被裁剪，也不会被上方标题区盖住 */
   const [liveDrag, setLiveDrag] = useState<{ province: string; dx: number; dy: number } | null>(null)
+  /** 调整大小中的实时尺寸（null = 未在调整）：驱动 viewBox 随卡片尺寸扩缩 */
+  const [liveResize, setLiveResize] = useState<{ province: string; w: number; h: number } | null>(null)
 
   /** 卡片 z 序：点击/拖动某省份卡片时分配递增序号，渲染时序号大的绘制在上层（SVG 无 z-index，
       以绘制顺序实现「点谁谁上移」）。会话级状态，不落库 */
@@ -250,10 +252,17 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
             : null
       const dx = off?.dx ?? 0
       const dy = off?.dy ?? 0
+      // 有效尺寸：max(自然尺寸, 手动覆盖/实时调整)——卡片被拉大时画布同样自动扩大
+      const so =
+        liveResize && liveResize.province === b.province
+          ? liveResize
+          : (data.cardSizes[b.province] ?? null)
+      const bw = Math.max(b.cardW, so?.w ?? 0)
+      const bh = Math.max(b.cardH, so?.h ?? 0)
       minX = Math.min(minX, b.cardX + dx)
-      maxX = Math.max(maxX, b.cardX + b.cardW + dx)
+      maxX = Math.max(maxX, b.cardX + bw + dx)
       minY = Math.min(minY, b.cardY + dy - PAD)
-      maxY = Math.max(maxY, b.cardY + b.cardH + dy + BOTTOM)
+      maxY = Math.max(maxY, b.cardY + bh + dy + BOTTOM)
     }
     // 底部覆盖层预留（老师/海外/未定位块）叠在实际内容底之下：
     // 老师块未上拖时 reserve>0，画布加出它占的那一块；上拖耗尽后 reserve=0，底部自然收紧
@@ -266,7 +275,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
       w: Math.ceil(maxX - Math.floor(minX)),
       h: Math.ceil(maxY - Math.floor(minY)),
     }
-  }, [layout, liveDrag, data.provinceOffsets, data.customPosition, geom.designW, geom.x0, geom.x1, geom.mapH, reserveLeftBottom, reserveRightBottom])
+  }, [layout, liveDrag, liveResize, data.provinceOffsets, data.cardSizes, data.customPosition, geom.designW, geom.x0, geom.x1, geom.mapH, reserveLeftBottom, reserveRightBottom])
 
   /** 视口宽度上报：footer 字号随「画布屏幕宽 / 视口宽」等比缩放（地图变大时版权条也适当变大） */
   const onViewBoxWRef = useRef(onViewBoxW)
@@ -436,6 +445,7 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         left={layout.left}
         right={layout.right}
         onLiveDrag={setLiveDrag}
+        onLiveResize={setLiveResize}
         zRanks={zRanks}
         onCardActivate={activateCard}
       />

@@ -20,6 +20,8 @@ export interface LabelColumnsProps {
   right: LabelBlock[]
   /** 拖动实时偏移上报（null = 拖动结束）：驱动上层画布 viewBox 自动扩大 */
   onLiveDrag?: (drag: { province: string; dx: number; dy: number } | null) => void
+  /** 调整大小实时上报（null = 结束）：驱动上层画布 viewBox 随卡片尺寸扩缩 */
+  onLiveResize?: (resize: { province: string; w: number; h: number } | null) => void
   /** 卡片 z 序（省份 → 层级序号，越大越靠上）：点击/拖动卡片时自动上移，避免被其他卡片盖住 */
   zRanks?: Record<string, number>
   /** 卡片被点击/选中时上报：上层为其分配更高的 z 序 */
@@ -40,7 +42,7 @@ export interface LabelColumnsProps {
  * 偏移量持久化在 data.provinceOffsets（viewBox 单位），块在列中的占位不变，
  * 卡片/文字/引线端点一起平移；拖回原位（偏移≈0）时自动清除记录。
  */
-export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }: LabelColumnsProps) {
+export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, onCardActivate }: LabelColumnsProps) {
   const { theme, fontSlots, customFonts, data, setData } = useMapData()
   const provinceFont = slotFontFamily('province', fontSlots, customFonts)
   const personFont = slotFontFamily('person', fontSlots, customFonts)
@@ -52,6 +54,33 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
   const [selectedProv, setSelectedProv] = useState<string | null>(null)
   /** 拖动中的实时偏移（提交前不落库） */
   const [dragState, setDragState] = useState<{ province: string; dx: number; dy: number } | null>(null)
+  /** 调整大小中的实时尺寸（提交前不落库） */
+  const [resizeState, setResizeState] = useState<{ province: string; w: number; h: number } | null>(null)
+  const resizeRef = useRef<{
+    province: string
+    pointerId: number
+    startClientX: number
+    startClientY: number
+    scaleX: number
+    scaleY: number
+    baseW: number
+    baseH: number
+    /** 内容自然尺寸（最小值，不允许缩到裁掉文字） */
+    natW: number
+    natH: number
+  } | null>(null)
+
+  /** 卡片有效宽/高：max(内容自然尺寸, 手动覆盖/实时调整值)——只允许放大或缩回自然尺寸 */
+  const effW = (b: LabelBlock): number => {
+    if (resizeState && resizeState.province === b.province) return Math.max(b.cardW, resizeState.w)
+    const o = data.cardSizes[b.province]
+    return o ? Math.max(b.cardW, o.w) : b.cardW
+  }
+  const effH = (b: LabelBlock): number => {
+    if (resizeState && resizeState.province === b.province) return Math.max(b.cardH, resizeState.h)
+    const o = data.cardSizes[b.province]
+    return o ? Math.max(b.cardH, o.h) : b.cardH
+  }
   const dragRef = useRef<{
     province: string
     pointerId: number
@@ -94,7 +123,7 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
   const SNAP_GAP = 8
   /** 拖动时激活的辅助对齐线（x = 垂直线位置，y = 水平线位置；仅吸附时显示） */
   const [guides, setGuides] = useState<{ x?: number; y?: number } | null>(null)
-  /** 辅助线绘制范围：所有卡片包围盒的边界，辅助线只在该范围内绘制 */
+  /** 辅助线绘制范围：所有卡片包围盒（含手动尺寸覆盖）的边界，辅助线只在该范围内绘制 */
   const guideBounds = useMemo(() => {
     if (allBlocks.length === 0) return null
     let minX = Infinity
@@ -103,12 +132,13 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
     let maxY = -Infinity
     for (const b of allBlocks) {
       minX = Math.min(minX, b.cardX)
-      maxX = Math.max(maxX, b.cardX + b.cardW)
+      maxX = Math.max(maxX, b.cardX + effW(b))
       minY = Math.min(minY, b.cardY)
-      maxY = Math.max(maxY, b.cardY + b.cardH)
+      maxY = Math.max(maxY, b.cardY + effH(b))
     }
     return { minX, maxX, minY, maxY }
-  }, [left, right])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [left, right, data.cardSizes, resizeState])
 
   /** 某省份当前生效的偏移：拖动中用实时值，否则用持久化值；
       一列/两列（自动布局）下偏移不生效——且切换过去时已被重置（见 FontPanel），
@@ -138,11 +168,13 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
     e.stopPropagation()
     // 点击/按住即把卡片提到最上层，避免被其他卡片盖住
     onCardActivate?.(prov)
-    // 移动端：未选中时这次点击只选中（出现虚线框），选中后才进入拖动
+    // 选中态（PC 与移动端一致）：选中后显示右下角调整大小手柄；
+    // 移动端第一次点击只选中（出现虚线框），选中后才进入拖动
     if (isCoarse && selectedProv !== prov) {
       setSelectedProv(prov)
       return
     }
+    setSelectedProv(prov)
     const loc = toSvgPoint(e)
     if (!loc) return
     const base = offsetOf(prov)
@@ -204,9 +236,10 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
       const allPeers = allBlocks.filter((b) => b.province !== prov)
       // X 吸附/预览：被拖卡片的 左缘/垂直中线/右缘 对到同侧卡片的 左/中/右缘，
       // 以及「回到列标准位置」（dx=0）；GUIDE_PX 内出垂直辅助线，SNAP_PX 内吸附
+      const bw = effW(block)
       const dL = block.cardX + dx
-      const dCX = block.cardX + block.cardW / 2 + dx
-      const dR = block.cardX + block.cardW + dx
+      const dCX = block.cardX + bw / 2 + dx
+      const dR = block.cardX + bw + dx
       type SnapHit = { target: number; edge: number; dist: number }
       const xHits: SnapHit[] = []
       const considerX = (target: number) => {
@@ -217,13 +250,14 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
       }
       // 列标准位置（home）：三缘各自归位等价于 dx=0
       considerX(block.cardX)
-      considerX(block.cardX + block.cardW / 2)
-      considerX(block.cardX + block.cardW)
+      considerX(block.cardX + bw / 2)
+      considerX(block.cardX + bw)
       for (const o of sidePeers) {
         const oo = offsetOf(o.province)
+        const ow = effW(o)
         considerX(o.cardX + oo.dx)
-        considerX(o.cardX + o.cardW / 2 + oo.dx)
-        considerX(o.cardX + o.cardW + oo.dx)
+        considerX(o.cardX + ow / 2 + oo.dx)
+        considerX(o.cardX + ow + oo.dx)
       }
       const nearestX = xHits.length > 0 ? xHits.reduce((a, b) => (b.dist < a.dist ? b : a)) : null
       if (nearestX) {
@@ -233,15 +267,17 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
         }
       }
       // Y 吸附/预览：遍历两侧全部卡片，找最近的吸附目标
+      const bh = effH(block)
       const dTop = block.cardY + dy
-      const dCen = block.centerY + dy
-      const dBot = block.cardY + block.cardH + dy
+      const dCen = block.cardY + bh / 2 + dy
+      const dBot = block.cardY + bh + dy
       let nearest: { target: number; edge: number; dist: number } | null = null
       for (const o of allPeers) {
         const oo = offsetOf(o.province)
+        const oh = effH(o)
         const oTop = o.cardY + oo.dy
-        const oCen = o.centerY + oo.dy
-        const oBot = o.cardY + o.cardH + oo.dy
+        const oCen = o.cardY + oh / 2 + oo.dy
+        const oBot = o.cardY + oh + oo.dy
         // 目标：对齐(顶/中/底) + 紧贴(0间隙) + 留间隙(SNAP_GAP)
         const ts = [oTop, oCen, oBot, oBot + SNAP_GAP, oTop - SNAP_GAP]
         for (const ed of [dTop, dCen, dBot]) {
@@ -291,6 +327,59 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
           else next[prov] = { dx, dy }
           // 拖动即意味着用户要自定义位置：自动切到自定义位置模式（偏移才会生效）
           return { ...prev, provinceOffsets: next, customPosition: true }
+        })
+      }
+      return null
+    })
+  }
+
+  /* ---------------- 卡片调整大小（选中后右下角手柄） ---------------- */
+  const onResizePointerDown = (e: React.PointerEvent, b: LabelBlock) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.stopPropagation()
+    onCardActivate?.(b.province)
+    const ctm = rootRef.current?.ownerSVGElement?.getScreenCTM()
+    resizeRef.current = {
+      province: b.province,
+      pointerId: e.pointerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      scaleX: ctm?.a || 1,
+      scaleY: ctm?.d || 1,
+      baseW: effW(b),
+      baseH: effH(b),
+      natW: b.cardW,
+      natH: b.cardH,
+    }
+    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+  }
+
+  const onResizePointerMove = (e: React.PointerEvent, prov: string) => {
+    const r = resizeRef.current
+    if (!r || r.province !== prov || r.pointerId !== e.pointerId) return
+    // 固定坐标系换算（与拖动一致）：屏幕位移 ÷ 按下时缩放，不受 viewBox 扩缩反馈影响
+    const w = Math.min(r.natW + 600, Math.max(r.natW, r.baseW + (e.clientX - r.startClientX) / r.scaleX))
+    const h = Math.min(r.natH + 600, Math.max(r.natH, r.baseH + (e.clientY - r.startClientY) / r.scaleY))
+    const next = { province: prov, w, h }
+    setResizeState(next)
+    onLiveResize?.(next)
+  }
+
+  const finishResize = (e: React.PointerEvent, prov: string) => {
+    const r = resizeRef.current
+    if (!r || r.province !== prov || r.pointerId !== e.pointerId) return
+    resizeRef.current = null
+    onLiveResize?.(null)
+    setResizeState((cur) => {
+      if (cur && cur.province === prov) {
+        const w = Math.round(cur.w)
+        const h = Math.round(cur.h)
+        setData((prev) => {
+          const next = { ...prev.cardSizes }
+          // 缩回自然尺寸（±2px 内）时清除覆盖记录，回到完全自动
+          if (w <= r.natW + 2 && h <= r.natH + 2) delete next[prov]
+          else next[prov] = { w, h }
+          return { ...prev, cardSizes: next }
         })
       }
       return null
@@ -561,8 +650,10 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
           （质心在卡片左侧接左缘、上方接上缘……不一定是左/右缘），随拖动偏移同步平移 */}
       {allBlocks.map((b) => {
         const off = offsetOf(b.province)
-        const ex = Math.min(Math.max(b.centroidX, b.cardX + off.dx), b.cardX + off.dx + b.cardW)
-        const ey = Math.min(Math.max(b.centroidY, b.cardY + off.dy), b.cardY + off.dy + b.cardH)
+        const w = effW(b)
+        const h = effH(b)
+        const ex = Math.min(Math.max(b.centroidX, b.cardX + off.dx), b.cardX + off.dx + w)
+        const ey = Math.min(Math.max(b.centroidY, b.cardY + off.dy), b.cardY + off.dy + h)
         const midX = (b.centroidX + ex) / 2
         const midY = (b.centroidY + ey) / 2
         return (
@@ -582,6 +673,8 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
       {sortedBlocks.map((b) => {
         const off = offsetOf(b.province)
         const selected = selectedProv === b.province
+        const w = effW(b)
+        const h = effH(b)
         let rowOffset = 0
         return (
           <g
@@ -601,16 +694,16 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
             <rect
               x={b.cardX}
               y={b.cardY}
-              width={b.cardW}
-              height={b.cardH}
+              width={w}
+              height={h}
               fill="transparent"
             />
             {showCard && (
               <rect
                 x={b.cardX}
                 y={b.cardY}
-                width={b.cardW}
-                height={b.cardH}
+                width={w}
+                height={h}
                 rx={cardRx}
                 fill={cardFill}
                 opacity={cardOpacity}
@@ -620,19 +713,65 @@ export function LabelColumns({ left, right, onLiveDrag, zRanks, onCardActivate }
                 filter={cardBlur > 0 ? 'url(#label-card-blur)' : undefined}
               />
             )}
-            {/* 移动端选中态：主题色虚线框提示「再次按住即可拖动」 */}
+            {/* 选中态：主题色虚线框（移动端提示「再次按住即可拖动」，PC 提示可调大小） */}
             {selected && (
               <rect
                 x={b.cardX - 2}
                 y={b.cardY - 2}
-                width={b.cardW + 4}
-                height={b.cardH + 4}
+                width={w + 4}
+                height={h + 4}
                 rx={cardRx + 2}
                 fill="none"
                 stroke={theme.accent}
                 strokeWidth={1.2}
                 strokeDasharray="4 3"
               />
+            )}
+            {/* 人数角标：卡片右上角骑缝 pill，显示该卡学生数（同校合并也按人头计） */}
+            {data.showCardCount && b.studentCount > 0 && (
+              <g pointerEvents="none" transform={`translate(${b.cardX + w}, ${b.cardY})`}>
+                <rect
+                  x={-(10 + String(b.studentCount).length * 6.5) / 2}
+                  y={-7.5}
+                  width={10 + String(b.studentCount).length * 6.5}
+                  height={15}
+                  rx={7.5}
+                  fill={theme.accent}
+                  stroke="#ffffff"
+                  strokeWidth={1}
+                />
+                <text
+                  x={0}
+                  y={3.5}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fontWeight={600}
+                  fill="#ffffff"
+                  style={{ fontFamily: personFont }}
+                >
+                  {b.studentCount}
+                </text>
+              </g>
+            )}
+            {/* 调整大小手柄：仅选中态显示，右下角斜纹握把，按住拖动改卡片宽/高 */}
+            {selected && (
+              <g
+                transform={`translate(${b.cardX + w}, ${b.cardY + h})`}
+                style={{ cursor: 'nwse-resize', touchAction: 'none' }}
+                onPointerDown={(e) => onResizePointerDown(e, b)}
+                onPointerMove={(e) => onResizePointerMove(e, b.province)}
+                onPointerUp={(e) => finishResize(e, b.province)}
+                onPointerCancel={(e) => finishResize(e, b.province)}
+              >
+                {/* 热区略大于可视握把，方便点按 */}
+                <rect x={-16} y={-16} width={16} height={16} fill="transparent" />
+                <path
+                  d="M-3,-11 L-11,-3 M-3,-6.5 L-6.5,-3"
+                  stroke={theme.accent}
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                />
+              </g>
             )}
             <text
               x={b.anchorX}

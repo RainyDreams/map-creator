@@ -94,6 +94,16 @@ export interface MapData {
   mergeSameSchool: boolean
   /** 统一卡片宽度（v1.24.3）：开启后所有省份卡片都与最宽卡片同宽（文字仍按原对齐方式排布） */
   uniformCardWidth: boolean
+  /** 卡片人数角标（v1.25）：开启后每张省份卡片右上角显示该卡人数 */
+  showCardCount: boolean
+  /** 分布统计表（v1.25）：开启后画布下方（页脚之上）显示全班各地人数分布统计 */
+  showStats: boolean
+  /**
+   * 省份卡片手动尺寸覆盖（v1.25）：卡片键 → {w, h}（viewBox 单位，绝对尺寸）。
+   * 选中卡片后拖动右下角手柄调整；实际生效尺寸 = max(内容自然尺寸, 覆盖值)——
+   * 只允许放大或缩回自然尺寸，不会裁掉文字
+   */
+  cardSizes: Record<string, { w: number; h: number }>
   /** 省份名单卡片背景：开启后每个省份块衬一个圆角底色卡片（引线被卡片遮住，不再穿过名单） */
   labelCardBg: boolean
   /** 省份卡片圆角（画布单位，0–24） */
@@ -158,6 +168,9 @@ export const EMPTY_MAP_DATA: MapData = {
   customPosition: false,
   mergeSameSchool: false,
   uniformCardWidth: false,
+  showCardCount: true,
+  showStats: false,
+  cardSizes: {},
   labelCardBg: true,
   cardRadius: 10,
   cardColor: '',

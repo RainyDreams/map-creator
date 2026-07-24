@@ -12,6 +12,7 @@ import { ChinaMap } from '@/components/map/ChinaMap'
 import { APP_VERSION } from '@/version'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { OverseasBlock } from '@/components/map/OverseasBlock'
+import { StatsBlock } from '@/components/map/StatsBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
 import type { UniEnrichment } from '@/components/map/labels'
 import { applyProvinceSplits } from '@/components/map/labels'
@@ -599,6 +600,11 @@ export default function MapPage() {
               onViewBoxW={handleViewBoxW}
             />
             </div>
+
+            {/* 分布统计表（可选，「排版设计 → 卡片样式」开启）：地图与页脚之间，随导出进 PNG */}
+            {data.showStats && data.students.length > 0 && (
+              <StatsBlock groups={groups} overseas={overseas} unlocated={unlocated} />
+            )}
 
             {/* 老师块向下拖出时撑开画布的占位（flow 之后、footer 之前，footer 仍在画布最底部） */}
             {teacherSpacerH > 0 && <div aria-hidden style={{ height: teacherSpacerH }} />}
