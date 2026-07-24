@@ -21,7 +21,7 @@ try {
     (_h === _t ||
       _h === ['loc', 'alhost'].join('') ||
       _h === ['127.0.0', '.1'].join('') ||
-      _h.slice(-10) === ['.pages.', 'dev'].join('')) &&
+      _h.slice(-22) === ['.cengfan', '-map.pages.', 'dev'].join('')) &&
     window.top === window.self
   if (!_allow) {
     const _u = ['ht', 'tps', '://'].join('') + _t
