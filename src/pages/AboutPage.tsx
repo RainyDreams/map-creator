@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.22.1',
+    date: '2026-07-24',
+    items: [
+      '「关于」页新增「关注《零本》」区块：公众号二维码与微信「搜一搜」入口并排展示，扫码即可关注',
+    ],
+  },
+  {
     version: 'v1.22.0',
     date: '2026-07-24',
     items: [
@@ -121,6 +128,34 @@ export default function AboutPage() {
             </a>
           </dd>
         </dl>
+      </section>
+
+      <section className="space-y-2">
+        <SectionTitle>关注《零本》</SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+          <figure className="flex flex-col items-center gap-2 rounded-xl border border-stone-200/80 bg-white/70 p-4">
+            <img
+              src="/images/qr-lingben-mp.jpg"
+              alt="公众号《零本》二维码"
+              className="h-32 w-32 rounded-lg"
+            />
+            <figcaption className="text-center text-xs leading-relaxed text-stone-500">
+              微信扫码
+              <br />
+              关注公众号《零本》
+            </figcaption>
+          </figure>
+          <figure className="flex flex-col items-center justify-center gap-2 rounded-xl border border-stone-200/80 bg-white/70 p-4">
+            <img
+              src="/images/qr-lingben-search.jpg"
+              alt="微信搜一搜「零本」"
+              className="w-full max-w-sm rounded-lg"
+            />
+            <figcaption className="text-center text-xs leading-relaxed text-stone-500">
+              或在微信「搜一搜」直接搜索「零本」
+            </figcaption>
+          </figure>
+        </div>
       </section>
 
       <section className="space-y-2">
