@@ -208,6 +208,8 @@ function normalizeData(raw: unknown): MapData | null {
     cardCountPos:
       d.cardCountPos === 'left' || d.cardCountPos === 'right' ? d.cardCountPos : 'auto',
     showStats: d.showStats === true,
+    // v1.27.1 迁移：名字一键隐私默认关闭（旧数据无该字段）
+    anonymizeNames: d.anonymizeNames === true,
     cardSizes: (() => {
       const raw = d.cardSizes
       if (!raw || typeof raw !== 'object') return {}

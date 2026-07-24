@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { Section } from '@/components/entry/Section'
 import { ChevronRight, GraduationCap, MapPinOff, PencilLine } from 'lucide-react'
 import {
@@ -34,7 +35,7 @@ function needsLocationHint(s: StudentEntry): boolean {
 /** 外部预览行数：只显示前几位，其余在录入面板中查看 */
 const PREVIEW_COUNT = 5
 export default function StudentTable() {
-  const { data } = useMapData()
+  const { data, setData } = useMapData()
   const students = data.students
   const [modalOpen, setModalOpen] = useState(false)
   /** 点击某行时，面板打开后滚动定位并高亮该学生 */
@@ -117,6 +118,22 @@ export default function StudentTable() {
           <PencilLine className="h-4 w-4" />
           {students.length === 0 ? '打开录入面板，添加同学' : '编辑名单 / 添加同学'}
         </Button>
+        {/* 名字一键隐私：仅影响地图与导出图片的显示，原始名单保留在本机 */}
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50/60 px-3 py-2">
+          <span className="min-w-0">
+            <span className="block text-xs font-medium text-stone-700 md:text-sm">
+              名字一键隐私
+            </span>
+            <span className="block text-[11px] leading-4 text-stone-400 md:text-xs">
+              地图与导出图片中显示为「姓+同学」，原始名单只保留在本机
+            </span>
+          </span>
+          <Switch
+            checked={data.anonymizeNames}
+            onCheckedChange={(v) => setData((prev) => ({ ...prev, anonymizeNames: v }))}
+            aria-label="名字一键隐私"
+          />
+        </label>
         <p className="text-center text-xs text-stone-400">
           仅预览前 {PREVIEW_COUNT} 位；完整名单的查看、编辑、排序均在录入面板中进行
         </p>

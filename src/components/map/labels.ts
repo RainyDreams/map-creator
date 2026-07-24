@@ -154,6 +154,8 @@ export interface LabelLayoutOptions {
   badgeScale?: number
   /** 统一卡片宽度（v1.24.3）：所有省份卡片与最宽卡片同宽（文字对齐方式不变） */
   uniformCardWidth?: boolean
+  /** 名字一键隐私（v1.27.1）：学生姓名渲染为「姓+同学」 */
+  anonymizeNames?: boolean
 }
 
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
@@ -196,8 +198,16 @@ export interface StudentLineParts {
   groupNames?: string[]
 }
 
-export function studentLineParts(s: StudentEntry): Omit<StudentLineParts, 'placeLines' | 'ownLine'> {
-  const name = s.name.trim() || '（未命名）'
+/** 名字一键隐私：只保留姓氏（复姓取首字），形如「张同学」；空名回退占位 */
+export function privacyName(name: string): string {
+  const t = name.trim()
+  if (t === '') return '（未命名）'
+  const first = Array.from(t)[0]
+  return `${first}同学`
+}
+
+export function studentLineParts(s: StudentEntry, anonymize?: boolean): Omit<StudentLineParts, 'placeLines' | 'ownLine'> {
+  const name = anonymize ? privacyName(s.name) : s.name.trim() || '（未命名）'
   const uni = s.university.trim() || '（未填大学）'
   const city = s.city.trim()
   return { person: name, place: city !== '' ? `${uni} · ${city}` : uni, uni: s.university.trim() }
@@ -472,7 +482,7 @@ export function computeLabelLayout(
 
   /** 学生行的部件（校徽/毛笔字处理完毕，不换行） */
   const partsOf = (s: StudentEntry): Omit<StudentLineParts, 'placeLines' | 'ownLine'> => {
-    const parts = studentLineParts(s)
+    const parts = studentLineParts(s, options?.anonymizeNames)
     const key = s.university.trim()
     const enrich = uniInfo?.get(key)
     let badge = enrich?.badge === true
@@ -558,7 +568,9 @@ export function computeLabelLayout(
         return {
           ...p,
           person: '',
-          groupNames: members.map((m) => m.name.trim() || '（未命名）'),
+          groupNames: members.map((m) =>
+            options?.anonymizeNames ? privacyName(m.name) : m.name.trim() || '（未命名）',
+          ),
         }
       })
     } else {

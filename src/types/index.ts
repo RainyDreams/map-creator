@@ -102,6 +102,9 @@ export interface MapData {
   cardCountPos: 'auto' | 'left' | 'right'
   /** 分布统计表（v1.25）：开启后画布下方（页脚之上）显示全班各地人数分布统计 */
   showStats: boolean
+  /** 名字一键隐私（v1.27.1）：开启后地图与导出图片中的学生姓名只显示「姓+同学」；
+      仅影响渲染，原始名单数据不变，录入/编辑界面仍显示全名 */
+  anonymizeNames: boolean
   /**
    * 省份卡片手动尺寸覆盖（v1.25）：卡片键 → {w, h}（viewBox 单位，绝对尺寸）。
    * 选中卡片后拖动右下角手柄调整；实际生效尺寸 = max(内容自然尺寸, 覆盖值)——
@@ -179,6 +182,7 @@ export const EMPTY_MAP_DATA: MapData = {
   showCardCount: false,
   cardCountPos: 'auto',
   showStats: false,
+  anonymizeNames: false,
   cardSizes: {},
   labelCardBg: true,
   cardRadius: 10,

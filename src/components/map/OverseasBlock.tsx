@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMapData } from '@/store/MapDataContext'
 import { slotFontFamily } from '@/utils/fonts'
+import { privacyName } from './labels'
 import type { StudentEntry } from '@/types'
 
 /** 画布按 1500px 设计：px 字号 ÷ 15 = cqw，使 HTML 覆盖层与 SVG 标注同比例缩放 */
@@ -219,7 +220,7 @@ export function OverseasBlock({
             style={{ color: theme.textColor, fontSize: cqw(size), lineHeight: 1.6 }}
           >
             <span className="font-semibold" style={{ fontFamily: personFont }}>
-              {s.name || '（未命名）'}
+              {data.anonymizeNames ? privacyName(s.name) : s.name || '（未命名）'}
             </span>
             {(s.university.trim() !== '' || s.city.trim() !== '') && (
               <span className="ml-1.5 opacity-80" style={{ fontFamily: placeFont }}>
