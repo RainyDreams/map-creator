@@ -176,11 +176,12 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
         cardBg: data.labelCardBg,
         cardTextAlign: data.cardTextAlign,
         badgeScale: data.badgeScale,
+        uniformCardWidth: data.uniformCardWidth,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // 注意：geoReady 必须在依赖里——computeLabelLayout 内部调用 getProvinceShape，
     // 地图数据未加载时算出的布局是空的；数据就绪后必须重算，否则标注永久丢失
-    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, labelLayout, manualProvinces, measure, fontTick, calligraphy, badgeOverrides, geoReady, data.mergeSameSchool, data.labelCardBg, data.cardTextAlign, data.badgeScale],
+    [groups, cityCenters, reserveLeftBottom, reserveRightBottom, uniInfo, labelSizes, labelColumns, labelLayout, manualProvinces, measure, fontTick, calligraphy, badgeOverrides, geoReady, data.mergeSameSchool, data.labelCardBg, data.cardTextAlign, data.badgeScale, data.uniformCardWidth],
   )
 
   const fillByName = useMemo(() => {

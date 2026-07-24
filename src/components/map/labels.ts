@@ -150,6 +150,8 @@ export interface LabelLayoutOptions {
   cardBg?: boolean
   /** 校徽显示大小倍率（0.5–2，默认 1；同时作用于自动匹配与用户上传的校徽） */
   badgeScale?: number
+  /** 统一卡片宽度（v1.24.3）：所有省份卡片与最宽卡片同宽（文字对齐方式不变） */
+  uniformCardWidth?: boolean
 }
 
 /** 城市名 → 经纬度 查找表（来自 prefetchCityCenters，含带"市"与不带"市"两种键） */
@@ -621,6 +623,11 @@ export function computeLabelLayout(
       const h = headerH + i.rowCount * lineH
       return { i, lineH, cardW: w + CARD_PAD_X * 2, cardH: h + CARD_PAD_Y * 2 }
     })
+    // 统一卡片宽度：全部卡片与最宽卡片同宽（换行已按各自宽度完成，放宽不影响行数）
+    if (options?.uniformCardWidth && prepared.length > 0) {
+      const maxCardW = Math.max(...prepared.map((p) => p.cardW))
+      for (const p of prepared) p.cardW = maxCardW
+    }
     // 按质心经度西→东排序：引线更少交叉
     prepared.sort((a, b) => a.i.lng - b.i.lng)
     // 画布宽：一行能放下时贴合内容宽（至少容纳地图本体），放不下时封顶并换行
@@ -871,6 +878,9 @@ export function computeLabelLayout(
       }
     }
 
+    /** 统一卡片宽度生效时的全局最宽列宽（pool 为空时保持 undefined，西南区按自身内容定宽） */
+    let uniformU: number | undefined
+
     if (pool.length > 0) {
       // 第一次换行用全体最宽内容的档位值（左右分列的负载均衡需要行数）
       const provisionalW = clampW(Math.max(...pool.map((i) => i.oneLineW)))
@@ -906,6 +916,17 @@ export function computeLabelLayout(
       }
       const leftWidths = leftCols.map(colWidth)
       const rightWidths = rightCols.map(colWidth)
+
+      // 统一卡片宽度（v1.24.3）：左右两侧所有子列与最宽列同宽；
+      // 换行已按各列原宽度完成，放宽只让卡片变宽、不影响行数与行高
+      if (options?.uniformCardWidth) {
+        const u = Math.max(...leftWidths, ...rightWidths)
+        if (Number.isFinite(u)) {
+          uniformU = u
+          for (let k = 0; k < leftWidths.length; k++) leftWidths[k] = u
+          for (let k = 0; k < rightWidths.length; k++) rightWidths[k] = u
+        }
+      }
 
       /** 一侧的标注区总宽：文字宽之和 + 子列间距 + 自适应留白（空侧取窄边距）。
           留白随内容宽度动态调整：窄列少留白、宽列多留白，左右间隙不要求相等 */
@@ -985,7 +1006,9 @@ export function computeLabelLayout(
       const headerSize = BASE_HEADER * scale1 * provPct
       const personSize = BASE_LINE * scale1 * personPct
       const placeSize = BASE_LINE * scale1 * placePct
-      const swW = clampW(Math.max(...swItems.map((i) => i.oneLineW)))
+      const swW = clampW(
+        Math.max(...swItems.map((i) => i.oneLineW), uniformU ?? 0),
+      )
       for (const i of swItems) wrapAt(i, swW)
       for (const i of swItems) {
         const lineH = BASE_LINE_H * scale1 * linePct * i.rowBoost

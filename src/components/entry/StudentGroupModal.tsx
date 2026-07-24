@@ -475,7 +475,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     try {
       const asset = await processCalliFile(file)
       setCalli(uni, asset)
-      // 字号协调建议已去弹窗化：统一由「字体设置」面板中的行内推荐标注给出（recommendFontSizes 并入毛笔字高度因素）
+      // 字号协调建议已去弹窗化：统一由「排版设计」面板中的行内推荐标注给出（recommendFontSizes 并入毛笔字高度因素）
     } catch {
       // 读取失败静默忽略（用户可重试）
     }

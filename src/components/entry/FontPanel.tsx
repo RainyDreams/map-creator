@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Type, Upload, X } from 'lucide-react'
+import { SlidersHorizontal, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
 import { Label } from '@/components/ui/label'
@@ -49,7 +49,11 @@ const CARD_COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
 ]
 
 /**
- * 字体设置面板：地图标注类槽位（省份名/姓名/城市大学）独立选字体（预设 + 用户上传），
+ * 排版设计面板（原「字体设置」，v1.24.3 起分组归类）：
+ * 「字体与字号」——地图标注类槽位（省份名/姓名/城市大学）独立选字体（预设 + 用户上传）+ 字号；
+ * 「卡片布局」——省份卡片位置、统一卡片宽度、同校合并；
+ * 「校徽」——显示开关与大小；
+ * 「卡片样式」——背景、圆角、颜色、不透明度、羽化。
  * 上传按钮刻意做小——主要路径是预设字体。
  */
 export function FontPanel() {
@@ -165,8 +169,8 @@ export function FontPanel() {
     <section className="rounded-xl border border-stone-200 bg-white p-3 md:p-4">
       <header className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-stone-700">
-          <Type className="h-4 w-4 text-stone-400" />
-          字体设置
+          <SlidersHorizontal className="h-4 w-4 text-stone-400" />
+          排版设计
         </h2>
         <div className="flex items-center gap-1.5">
           {/* 上传入口刻意小巧：预设字体是主路径 */}
@@ -249,9 +253,40 @@ export function FontPanel() {
         </div>
       </div>
 
+      {customFonts.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-stone-100 pt-2.5">
+          {customFonts.map((f) => (
+            <span
+              key={f.id}
+              className="flex items-center gap-1 rounded-full bg-stone-100 py-0.5 pr-1 pl-2.5 text-[11px] text-stone-600"
+              style={{ fontFamily: `"${customFontFamilyName(f)}"` }}
+            >
+              {f.name}
+              <button
+                type="button"
+                onClick={() => removeCustomFont(f.id)}
+                title="删除该字体"
+                className="rounded-full p-0.5 hover:bg-stone-200"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-2.5 text-[11px] leading-relaxed text-stone-400">
+        预设字体均为免费可商用字体（马善政毛笔体 / 思源黑体为 SIL OFL，站酷系列、阿里妈妈数黑体官方免费商用）。
+        上传的字体仅保存在你自己的浏览器中。
+      </p>
+
+      {/* ============ 卡片布局 ============ */}
+      <div className="mt-3 border-t border-stone-100 pt-2.5 text-[11px] font-medium tracking-wide text-stone-400">
+        卡片布局
+      </div>
       {/* 省份卡片位置：一列/两列为自动布局——切换到它们会重置全部自定义位置（省份卡片 + 老师块）；
           自定义从当前所见状态开始（历史偏移不恢复）；直接拖动卡片也会从当前状态切入自定义 */}
-      <div className="mt-3 border-t border-stone-100 pt-2.5">
+      <div className="mt-2">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-xs text-stone-500">
             省份卡片位置
@@ -368,8 +403,38 @@ export function FontPanel() {
         )}
       </div>
 
+      {/* 统一卡片宽度：开启后所有省份卡片与最宽卡片同宽（左右侧列/竖版均生效；文字对齐方式不变） */}
+      <div className="mt-2.5 flex items-center justify-between">
+        <Label htmlFor="uniform-width-toggle" className="text-xs text-stone-500">
+          统一卡片宽度（与最宽卡片对齐）
+        </Label>
+        <Switch
+          id="uniform-width-toggle"
+          checked={data.uniformCardWidth}
+          onCheckedChange={(v) => setData((prev) => ({ ...prev, uniformCardWidth: v }))}
+          aria-label="统一卡片宽度"
+        />
+      </div>
+
+      {/* 同校合并：同一大学的多名同学姓名竖排，学校信息只显示一次 */}
+      <div className="mt-2.5 flex items-center justify-between">
+        <Label htmlFor="merge-school-toggle" className="text-xs text-stone-500">
+          同校合并（同大学的人姓名竖排，校名只显示一次）
+        </Label>
+        <Switch
+          id="merge-school-toggle"
+          checked={data.mergeSameSchool}
+          onCheckedChange={(v) => setData((prev) => ({ ...prev, mergeSameSchool: v }))}
+          aria-label="同校合并"
+        />
+      </div>
+
+      {/* ============ 校徽 ============ */}
+      <div className="mt-3 border-t border-stone-100 pt-2.5 text-[11px] font-medium tracking-wide text-stone-400">
+        校徽
+      </div>
       {/* 校徽显示开关：关闭后地图与导出图中都不渲染校徽，大学文字照常 */}
-      <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
+      <div className="mt-2 flex items-center justify-between">
         <Label htmlFor="badge-toggle" className="text-xs text-stone-500">
           在大学名前显示校徽图片
         </Label>
@@ -397,21 +462,12 @@ export function FontPanel() {
         </div>
       )}
 
-      {/* 同校合并：同一大学的多名同学姓名竖排，学校信息只显示一次 */}
-      <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
-        <Label htmlFor="merge-school-toggle" className="text-xs text-stone-500">
-          同校合并（同大学的人姓名竖排，校名只显示一次）
-        </Label>
-        <Switch
-          id="merge-school-toggle"
-          checked={data.mergeSameSchool}
-          onCheckedChange={(v) => setData((prev) => ({ ...prev, mergeSameSchool: v }))}
-          aria-label="同校合并"
-        />
+      {/* ============ 卡片样式 ============ */}
+      <div className="mt-3 border-t border-stone-100 pt-2.5 text-[11px] font-medium tracking-wide text-stone-400">
+        卡片样式
       </div>
-
       {/* 省份卡片背景：每个省份名单衬一个圆角卡片，引线被卡片遮住不再穿过名单 */}
-      <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
+      <div className="mt-2 flex items-center justify-between">
         <Label htmlFor="card-bg-toggle" className="text-xs text-stone-500">
           省份名单卡片背景
         </Label>
@@ -512,32 +568,6 @@ export function FontPanel() {
         </>
       )}
 
-      {customFonts.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-stone-100 pt-2.5">
-          {customFonts.map((f) => (
-            <span
-              key={f.id}
-              className="flex items-center gap-1 rounded-full bg-stone-100 py-0.5 pr-1 pl-2.5 text-[11px] text-stone-600"
-              style={{ fontFamily: `"${customFontFamilyName(f)}"` }}
-            >
-              {f.name}
-              <button
-                type="button"
-                onClick={() => removeCustomFont(f.id)}
-                title="删除该字体"
-                className="rounded-full p-0.5 hover:bg-stone-200"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <p className="mt-2.5 text-[11px] leading-relaxed text-stone-400">
-        预设字体均为免费可商用字体（马善政毛笔体 / 思源黑体为 SIL OFL，站酷系列、阿里妈妈数黑体官方免费商用）。
-        上传的字体仅保存在你自己的浏览器中。
-      </p>
     </section>
   )
 }

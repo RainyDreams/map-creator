@@ -92,6 +92,8 @@ export interface MapData {
   customPosition: boolean
   /** 同校合并：同一大学的多名同学姓名一人一行竖排，右侧只显示一次 校徽 + 学校 · 城市 */
   mergeSameSchool: boolean
+  /** 统一卡片宽度（v1.24.3）：开启后所有省份卡片都与最宽卡片同宽（文字仍按原对齐方式排布） */
+  uniformCardWidth: boolean
   /** 省份名单卡片背景：开启后每个省份块衬一个圆角底色卡片（引线被卡片遮住，不再穿过名单） */
   labelCardBg: boolean
   /** 省份卡片圆角（画布单位，0–24） */
@@ -155,6 +157,7 @@ export const EMPTY_MAP_DATA: MapData = {
   labelLayout: 'columns',
   customPosition: false,
   mergeSameSchool: false,
+  uniformCardWidth: false,
   labelCardBg: true,
   cardRadius: 10,
   cardColor: '',

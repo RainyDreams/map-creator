@@ -196,6 +196,8 @@ function normalizeData(raw: unknown): MapData | null {
         : Object.keys(normalizeProvinceOffsets(d.provinceOffsets)).length > 0,
     // v1.12 迁移：同校合并默认关闭；省份卡片背景默认开启；圆角默认 10
     mergeSameSchool: d.mergeSameSchool === true,
+    // v1.24.3 迁移：旧数据无 uniformCardWidth 字段时默认关闭（各卡片按内容定宽）
+    uniformCardWidth: d.uniformCardWidth === true,
     labelCardBg: d.labelCardBg !== false,
     cardRadius: typeof d.cardRadius === 'number' && Number.isFinite(d.cardRadius)
       ? Math.min(24, Math.max(0, Math.round(d.cardRadius)))
