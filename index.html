@@ -128,19 +128,23 @@
             _h === 'localhost' ||
             _h === '127.0.0.1' ||
             _h.slice(-10) === '.pages.dev'
+          if (window.top !== window.self) _ok = false
           if (!_ok) {
             var _u = _d(_0xb) + _t
             document.addEventListener('DOMContentLoaded', function () {
               document.body.innerHTML =
-                '<div style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:#f5f5f4;font-family:system-ui,sans-serif"><p style="color:#44403c;font-size:15px">请访问 <a style="color:#b45309" href="' +
+                '<div style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:#f5f5f4;font-family:system-ui,sans-serif"><p style="color:#44403c;font-size:15px">请访问 <a style="color:#b45309" target="_top" href="' +
                 _u +
                 '">' +
                 _t +
                 '</a></p></div>'
             })
-            window.setTimeout(function () {
-              window.location.replace(_u)
-            }, 1500)
+            // iframe 内不自动跳转（目标页同样被禁会死循环），只显示提示由用户点 target=_top 跳出
+            if (window.top === window.self) {
+              window.setTimeout(function () {
+                window.location.replace(_u)
+              }, 1500)
+            }
           }
         } catch (e) {}
       })()

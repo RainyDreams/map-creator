@@ -1,3 +1,8 @@
+# 全站安全策略：禁止被任何站点以 iframe 引用（配合 JS 域名与 top/self 校验）
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+
 # 静态数据（地图轮廓等大文件）：浏览器 1 天、CDN 7 天，30 天内可用陈旧副本
 /data/*
   Cache-Control: public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000
