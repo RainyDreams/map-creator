@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.23.1',
+    date: '2026-07-24 14:05',
+    items: [
+      '页脚新增「微信公众号 · 零本」：鼠标悬浮（电脑）或点按（手机）即弹出公众号二维码卡片，扫码或搜一搜直达《零本》',
+    ],
+  },
+  {
     version: 'v1.23.0',
     date: '2026-07-24 13:55',
     items: [
