@@ -317,6 +317,8 @@ export default function App() {
       <Suspense fallback={<PageSkeleton />}>
         <Routes>
           <Route path="/" element={<Creator />} />
+          {/* Pages 会把 debug.html 规范化重定向到 /debug，调试入口与正式入口共用 Creator */}
+          <Route path="/debug" element={<Creator />} />
           <Route path="/agreement" element={<AgreementPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/about" element={<AboutPage />} />

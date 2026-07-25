@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.33.10',
+    date: '2026-07-26 01:35',
+    items: [
+      '修复调试入口 /debug 打开白屏的问题',
+    ],
+  },
+  {
     version: 'v1.33.9',
     date: '2026-07-26 01:25',
     items: [
