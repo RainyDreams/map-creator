@@ -142,7 +142,7 @@ export default function PrivacyPage() {
         <p><strong className="text-stone-700">关于「问题反馈」页面的数据处理：</strong></p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            「问题反馈」是一块<strong className="text-stone-700">公开</strong>反馈板（形式类似 GitHub Issues）：
+            「问题反馈」是一块<strong className="text-stone-700">公开</strong>反馈板：
             您提交的反馈类别、随机昵称与正文内容将向所有访问者展示；任何访问者均可在反馈下方以各自的
             随机昵称发表评论，评论内容同样向所有访问者展示。请勿在正文或评论中填写姓名、联系方式等任何个人信息；
           </li>

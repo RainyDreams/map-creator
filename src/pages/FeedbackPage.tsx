@@ -702,11 +702,11 @@ export default function FeedbackPage() {
   )
 
   return (
-    <StaticPageLayout title="问题反馈">
+    <StaticPageLayout title="问题反馈" hideHome={!!id}>
       {!id && (
         <>
           <p className="rounded-xl border border-amber-200/70 bg-white/70 p-4 text-stone-600">
-            这里是一块公开的反馈板（形式类似 GitHub Issues）：遇到的 Bug、想要的功能、使用感受都可以写，
+            这里是一块公开的反馈板：遇到的 Bug、想要的功能、使用感受都可以写，
             每条反馈下人人都可以评论讨论。内容<strong className="text-stone-700">所有人可见</strong>，
             请勿填写姓名、联系方式等个人信息。
           </p>

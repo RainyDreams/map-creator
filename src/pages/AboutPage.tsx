@@ -5,6 +5,14 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.33.1',
+    date: '2026-07-26 00:05',
+    items: [
+      '反馈详情页去掉「返回首页」入口：二级页面只保留「返回反馈列表」一个返回项，避免误触',
+      '文案微调：反馈板介绍去掉类比表述',
+    ],
+  },
+  {
     version: 'v1.33.0',
     date: '2026-07-25 23:50',
     items: [
