@@ -1,5 +1,5 @@
 /**
- * 会话日志上传接口（配合「问题反馈」使用）：
+ * 会话日志上传接口（配合「问题反馈」使用）—— D1 版：
  *
  *   POST /api/logs   body: { entries: [{t, level, text}], meta?: {version?, ua?, page?} }
  *                    → { ok, id }（id 可随反馈一同提交，供管理员定位问题）
@@ -8,12 +8,16 @@
  * 内容为用户浏览器当次会话的控制台记录（内存环形缓冲，刷新即清空），
  * 不含名单数据本身（除非代码把名单打进了控制台）。
  *
+ * 存储：D1（logs 表）。原 KV 版在免费额度下每日写限额极易被烧穿
+ * （2026-07-25 线上事故：put() limit exceeded，用户日志全部写入失败），
+ * D1 免费额度 10 万行写/天，对这个量级绰绰有余。
+ * 记录保留 2 天：低频写路径顺带 DELETE 过期行（0 额外请求）。
+ *
  * 防护设计：
  * 1. 同源校验（Origin/Referer 白名单）；
  * 2. 体积闸门：请求体 ≤ 64KB；条数 ≤ 300；单条文本 ≤ 500 字符；
  * 3. 限流（isolate 内存，0 KV 写入）：全局 60/min + 单 IP 3/min；
- * 4. 存储有界：记录 2 天（172800 秒）TTL 自动删除；
- * 5. 只写不读：本接口不提供 GET，日志读取只能经由管理端（另一个项目、独立鉴权）。
+ * 4. 只写不读：本接口不提供 GET，日志读取只能经由管理端（另一个项目、独立鉴权）。
  *
  * 隐私说明：IP 仅用于内存限流计数（不持久化），不写入日志记录。
  */
@@ -21,7 +25,7 @@
 import { rateLimitOk, clientIp } from '../_lib/ratelimit'
 
 interface Env {
-  cenfan_share?: KVNamespace
+  cenfan_db?: D1Database
 }
 
 const MAX_BODY_BYTES = 65536
@@ -29,8 +33,8 @@ const MAX_ENTRIES = 300
 const MAX_TEXT = 500
 const GLOBAL_PER_MIN = 60
 const IP_PER_MIN = 3
-/** 日志保留 2 天（秒） */
-const RECORD_TTL = 2 * 24 * 60 * 60
+/** 日志保留 2 天（毫秒） */
+const RECORD_MAX_AGE = 2 * 24 * 60 * 60 * 1000
 const TS_CEILING = 9999999999999
 
 const LEVELS = ['log', 'info', 'warn', 'error'] as const
@@ -92,7 +96,7 @@ interface LogEntry {
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!env.cenfan_share) return json({ error: 'not_configured' }, 503)
+  if (!env.cenfan_db) return json({ error: 'not_configured' }, 503)
   if (!originAllowed(request)) return json({ error: 'forbidden_origin' }, 403)
 
   const declared = Number(request.headers.get('Content-Length') ?? '0')
@@ -141,7 +145,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     entries,
   }
 
-  const kv = env.cenfan_share
+  const db = env.cenfan_db
   try {
     if (!rateLimitOk('log:global', GLOBAL_PER_MIN)) return json({ error: 'rate_limited' }, 429)
     if (!rateLimitOk(`log:${clientIp(request)}`, IP_PER_MIN)) return json({ error: 'rate_limited' }, 429)
@@ -149,7 +153,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const revTs = String(TS_CEILING - rec.ts).padStart(13, '0')
     const id = `${revTs}:${randomId()}`
     if (!idCharsOk(id)) return json({ error: 'id_failed' }, 500)
-    await kv.put(`log:r:${id}`, JSON.stringify(rec), { expirationTtl: RECORD_TTL })
+    // 低频写路径顺带清理 2 天前的过期日志（存储有界，0 额外请求）
+    await db.prepare('DELETE FROM logs WHERE ts < ?').bind(rec.ts - RECORD_MAX_AGE).run()
+    await db.prepare('INSERT INTO logs (id, ts, data) VALUES (?, ?, ?)').bind(id, rec.ts, JSON.stringify(rec)).run()
     return json({ ok: true, id })
   } catch {
     return json({ error: 'storage_failed' }, 503)
