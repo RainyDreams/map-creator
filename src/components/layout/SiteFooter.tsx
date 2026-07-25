@@ -94,7 +94,7 @@ export default function SiteFooter() {
           {!feedbackSeen && (
             <span
               aria-hidden
-              className="absolute -right-2 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500"
+              className="absolute -right-1 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500"
             />
           )}
         </Link>
