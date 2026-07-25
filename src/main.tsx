@@ -6,6 +6,7 @@ import './index.css'
 import App from './App.tsx'
 import { useWechatShare } from './hooks/useWechatShare.ts'
 import { initErrorReporter } from './utils/errorReporter.ts'
+import { initSessionLog } from './utils/sessionLog.ts'
 
 /** Microsoft Clarity 站点分析（仅初始化，不阻塞渲染） */
 try {
@@ -17,6 +18,13 @@ try {
 /** JS 错误自动上报（匿名、仅生产环境；初始化失败静默） */
 try {
   initErrorReporter()
+} catch {
+  // 不影响应用
+}
+
+/** 会话日志缓冲（仅内存；仅当用户在反馈表单主动勾选时才随反馈上传） */
+try {
+  initSessionLog()
 } catch {
   // 不影响应用
 }

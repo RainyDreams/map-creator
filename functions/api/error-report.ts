@@ -7,18 +7,18 @@
  * 防护设计（防 DDoS / 防数据库冲撞）：
  * 1. 同源校验：Origin/Referer 存在时必须指向本站域名（跨域脚本直接 403）；
  * 2. 体积闸门：Content-Length 预检 + 实际读取双重 ≤ 8KB；字段逐项截断；
- * 3. 全局限流：每分钟最多 150 条（超出 429），保护 KV 写配额；
- * 4. 单 IP 限流：每分钟最多 5 条（按 cf-connecting-ip），超出 429；
- * 5. 签名聚合：相同（kind+message+堆栈首帧+版本）只存一条记录、累加 count——
+ * 3. 限流（isolate 内存，0 KV 写入）：全局 150/min + 单 IP 5/min；
+ * 4. 签名聚合：相同（kind+message+堆栈首帧+版本）只存一条记录、累加 count——
  *    同一代码错误的刷屏不会产生新 key，RMW 偶发丢计数可接受；
- * 6. 新签名日配额：每天最多新建 200 个签名（防止随机 message 撑爆 key 空间），
+ * 5. 新签名日配额：每天最多新建 200 个签名（防止随机 message 撑爆 key 空间），
  *    配额用完后未知签名丢弃但已知签名照常累加；
- * 7. 所有记录 30 天 TTL 自动过期，存储量有界；
- * 8. 限流计数器 key 本身 TTL 130 秒，不沉淀垃圾数据。
+ * 6. 所有记录 30 天 TTL 自动过期，存储量有界。
  *
  * 隐私说明：记录只含错误技术信息（消息/堆栈/页面路径/UA/版本），
- * 不含名单等任何用户数据；IP 仅用于限流计数（130 秒后消失），不写入错误记录。
+ * 不含名单等任何用户数据；IP 仅用于内存限流计数（不持久化），不写入错误记录。
  */
+
+import { rateLimitOk, clientIp } from '../_lib/ratelimit'
 
 interface Env {
   cenfan_share?: KVNamespace
@@ -73,14 +73,6 @@ function fnv1a(s: string): string {
     h = Math.imul(h, 0x01000193)
   }
   return (h >>> 0).toString(16).padStart(8, '0')
-}
-
-/** 限流计数：bucket key 自增，返回当前计数（key TTL 130 秒，过期自动清零） */
-async function hit(kv: KVNamespace, key: string): Promise<number> {
-  const cur = await kv.get(key)
-  const n = cur === null ? 0 : Number(cur) || 0
-  await kv.put(key, String(n + 1), { expirationTtl: 130 })
-  return n + 1
 }
 
 interface ErrorRecord {
@@ -138,17 +130,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const kv = env.cenfan_share
   const now = Date.now()
-  const minBucket = Math.floor(now / 60000)
   const dayBucket = new Date(now).toISOString().slice(0, 10)
 
   try {
-    // 全局限流（保护 KV 写配额）
-    const g = await hit(kv, `err:rl:g:${minBucket}`)
-    if (g > GLOBAL_PER_MIN) return json({ error: 'rate_limited' }, 429)
-    // 单 IP 限流
-    const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'
-    const n = await hit(kv, `err:rl:ip:${ip}:${minBucket}`)
-    if (n > IP_PER_MIN) return json({ error: 'rate_limited' }, 429)
+    // 内存限流（0 KV 写入）：全局 + 单 IP
+    if (!rateLimitOk('err:global', GLOBAL_PER_MIN)) return json({ error: 'rate_limited' }, 429)
+    if (!rateLimitOk(`err:${clientIp(request)}`, IP_PER_MIN)) return json({ error: 'rate_limited' }, 429)
 
     // 签名聚合：同类错误只存一条
     const stackTop = stack.split('\n').find((l) => l.trim() !== '') ?? ''
@@ -166,9 +153,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       return json({ ok: true, deduped: true, count: rec.count })
     }
 
-    // 新签名日配额（防随机 message 撑爆 key 空间）
-    const created = await hit(kv, `err:cap:${dayBucket}`)
-    if (created > NEW_SIG_PER_DAY) return json({ ok: true, throttled: 'sig_cap' })
+    // 新签名日配额（防随机 message 撑爆 key 空间；内存计数，0 KV 写入）
+    if (!rateLimitOk(`err:cap:${dayBucket}`, NEW_SIG_PER_DAY, 24 * 60 * 60 * 1000)) {
+      return json({ ok: true, throttled: 'sig_cap' })
+    }
 
     const rec: ErrorRecord = {
       kind,

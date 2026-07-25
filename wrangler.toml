@@ -6,3 +6,9 @@ compatibility_date = "2026-07-22"
 [[kv_namespaces]]
 binding = "cenfan_share"
 id = "df17436ba6df471b98e63c80688be147"
+
+# 反馈与使用统计（D1：写多查多的结构化数据；KV 只保留 TTL/缓存类小数据）
+[[d1_databases]]
+binding = "cenfan_db"
+database_name = "cengfan-db"
+database_id = "c5ce9b45-7101-4ba1-b7e9-d87820c9042e"

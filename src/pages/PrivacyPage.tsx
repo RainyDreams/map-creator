@@ -5,7 +5,7 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 export default function PrivacyPage() {
   return (
     <StaticPageLayout title="隐私政策">
-      <p className="text-xs text-stone-400">版本 v2.2.0 · 生效日期：2026 年 7 月 21 日 · 最后更新：2026 年 7 月 25 日</p>
+      <p className="text-xs text-stone-400">版本 v2.3.0 · 生效日期：2026 年 7 月 21 日 · 最后更新：2026 年 7 月 25 日</p>
 
       <p className="flex items-start gap-2 rounded-xl border border-amber-200/70 bg-white/70 p-4 text-stone-600">
         <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-amber-600" />
@@ -120,6 +120,18 @@ export default function PrivacyPage() {
             相同错误只聚合计数，我们不将其用于错误排查以外的任何目的。
           </li>
         </ul>
+        <p><strong className="text-stone-700">关于匿名使用统计：</strong></p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            为改进产品，本服务会在您同意本政策后统计<strong className="text-stone-700">匿名的使用次数</strong>，
+            内容仅限事件类型与当日合计次数（如页面访问次数、导出图片次数、提交反馈次数），
+            <strong className="text-stone-700">不包含</strong>您的名单内容、页面网址参数或任何可识别个人身份的信息；
+          </li>
+          <li>
+            统计数据按天聚合保存于 Cloudflare KV 存储中，<strong className="text-stone-700">180 天</strong>后自动删除；
+            IP 地址仅用于服务端限流计数（约 2 分钟后自动消失），不写入统计记录。
+          </li>
+        </ul>
         <p><strong className="text-stone-700">关于「问题反馈」页面的数据处理：</strong></p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
@@ -136,6 +148,12 @@ export default function PrivacyPage() {
           </li>
           <li>
             反馈提交完全由您主动触发；除您主动提交的内容外，该功能不读取、不上传您的名单数据。
+          </li>
+          <li>
+            当您在反馈表单中<strong className="text-stone-700">主动勾选「附带本次会话日志」</strong>并提交时，
+            您浏览器当次会话的控制台记录（仅存在于内存、刷新页面即清空）会随反馈一同上传，
+            用于定位您反馈的问题；日志保存 <strong className="text-stone-700">48 小时</strong>后自动删除。
+            该上传仅在您主动勾选时发生，日志内容仅管理员在排查问题时可见。
           </li>
         </ul>
         <p><strong className="text-stone-700">关于「分享为链接」功能的数据处理：</strong></p>

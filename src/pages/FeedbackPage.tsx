@@ -5,6 +5,9 @@ import { toast } from 'sonner'
 import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLayout'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { getSessionLog } from '@/utils/sessionLog'
+import { track } from '@/utils/analytics'
+import { APP_VERSION } from '@/version'
 
 /**
  * 问题反馈页（/feedback）：
@@ -59,6 +62,13 @@ export default function FeedbackPage() {
   const [sending, setSending] = useState(false)
   const [items, setItems] = useState<FeedbackItem[] | null>(null)
   const [loadError, setLoadError] = useState(false)
+  /** 附带本次会话日志（反馈 Bug 时默认勾选；日志仅保留 48 小时） */
+  const [attachLog, setAttachLog] = useState(true)
+
+  // 切到 Bug 反馈时默认带上日志（用户可手动取消），切走时不打扰用户的选择
+  useEffect(() => {
+    if (kind === 'bug') setAttachLog(true)
+  }, [kind])
 
   const fetchList = useCallback(async () => {
     setLoadError(false)
@@ -93,10 +103,34 @@ export default function FeedbackPage() {
     if (!canSubmit) return
     setSending(true)
     try {
+      // 勾选「附带会话日志」时先上传日志（失败不阻塞反馈提交）；无日志内容则跳过
+      let logId = ''
+      if (attachLog) {
+        try {
+          const entries = getSessionLog()
+          if (entries.length > 0) {
+            const lr = await fetch('/api/logs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                entries,
+                meta: { version: APP_VERSION, ua: navigator.userAgent, page: location.pathname },
+              }),
+            })
+            if (lr.ok) {
+              const lj = (await lr.json()) as { ok: boolean; id?: string }
+              logId = lj.id ?? ''
+              if (logId !== '') track('log')
+            }
+          }
+        } catch {
+          // 日志上传失败静默降级为不带日志提交
+        }
+      }
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, kind, content: content.trim() }),
+        body: JSON.stringify({ name, kind, content: content.trim(), ...(logId !== '' ? { logId } : {}) }),
       })
       if (res.status === 429) {
         toast.error('提交太频繁了，请过一分钟再试')
@@ -106,7 +140,8 @@ export default function FeedbackPage() {
       const data = (await res.json()) as { ok: boolean; item: FeedbackItem }
       setItems((prev) => (prev === null ? [data.item] : [data.item, ...prev].slice(0, 50)))
       setContent('')
-      toast.success('已提交，感谢反馈')
+      track('feedback')
+      toast.success(logId !== '' ? '已提交（含会话日志），感谢反馈' : '已提交，感谢反馈')
     } catch {
       toast.error('提交失败，请检查网络后重试')
     } finally {
@@ -260,6 +295,18 @@ export default function FeedbackPage() {
               {sending ? '提交中…' : '提交反馈'}
             </Button>
           </div>
+          <label className="flex cursor-pointer items-start gap-2 text-[11px] leading-4 text-stone-400 md:text-xs">
+            <input
+              type="checkbox"
+              checked={attachLog}
+              onChange={(e) => setAttachLog(e.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-stone-800"
+            />
+            <span>
+              附带本次会话日志（仅保留 48 小时）：只记录本次打开页面后的控制台记录，
+              帮助我们定位问题；不包含你的名单数据
+            </span>
+          </label>
         </div>
       </section>
 

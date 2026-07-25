@@ -6,6 +6,7 @@ import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/u
 import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
 import { exportNodeToPng, renderNodeToPngDataUrl, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
+import { track } from '@/utils/analytics'
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
@@ -414,6 +415,7 @@ export default function MapPage() {
       } else {
         await exportNodeToPng(node, data.title, quality, onProgress, abort.signal)
       }
+      track('export')
     } catch (err) {
       if (err instanceof ExportCancelledError) {
         // 用户主动取消：静默收尾，不算失败

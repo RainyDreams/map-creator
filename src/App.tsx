@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { Routes, Route } from 'react-router'
+import { Routes, Route, useLocation } from 'react-router'
 import { MapDataProvider, useMapData } from '@/store/MapDataContext'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
@@ -13,6 +13,7 @@ import { onGotoMapExport } from '@/utils/exportBus'
 import { takeShareIdFromUrl, fetchShareState } from '@/utils/share'
 import { takeSharePayloadFromHash, type ShareLinkPayload } from '@/utils/shareLink'
 import { ShareImportLanding } from '@/components/ShareImportLanding'
+import { track, trackSessionOnce } from '@/utils/analytics'
 
 /** 协议/隐私/关于页按需加载（独立 chunk），首屏不下载 */
 const AgreementPage = lazy(() => import('@/pages/AgreementPage'))
@@ -303,6 +304,13 @@ export default function App() {
     const p = takeSharePayloadFromHash()
     if (p) setImportPayload(p)
   }, [])
+
+  // 匿名使用统计：会话每天一次 + 页面访问计数（仅事件名，不含路径参数；需用户已同意协议）
+  const { pathname } = useLocation()
+  useEffect(() => {
+    trackSessionOnce()
+    track('pv')
+  }, [pathname])
 
   return (
     <MapDataProvider>
