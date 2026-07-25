@@ -219,7 +219,9 @@ export default function CityPicker({ value, onChange, overseas, onOverseasChange
           className="col-span-1 h-8 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:h-9 md:text-sm"
         />
       ) : (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal>
+        {/* modal：本组件常驻模态框（Dialog）内，Dialog 的滚动锁会拦截 portal 到 body 的
+            Popover 内容滚轮；modal 让 Popover 自建滚动作用域，城市列表滚轮恢复正常 */}
         <PopoverTrigger asChild>
           <Button
             type="button"

@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.30.1',
+    date: '2026-07-25 21:05',
+    items: [
+      '修复：录入面板中城市下拉列表无法用鼠标滚轮滚动（模态框滚动锁拦截了下拉层，已让下拉自建滚动作用域）',
+    ],
+  },
+  {
     version: 'v1.30.0',
     date: '2026-07-25 19:40',
     items: [
