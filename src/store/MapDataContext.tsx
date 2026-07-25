@@ -423,10 +423,12 @@ function normalizeShare(raw: unknown): ShareMeta | undefined {
 }
 
 function newCanvasDoc(name: string): CanvasDoc {
+  const trimmed = name.trim()
   return {
     id: newId(),
     name,
-    data: EMPTY_MAP_DATA,
+    // 新建时用户命名的名字即画布的初始大标题（之后仍可在标题设置里改）
+    data: trimmed !== '' ? { ...EMPTY_MAP_DATA, title: trimmed } : EMPTY_MAP_DATA,
     theme: DEFAULT_THEME,
     fontSlots: { ...DEFAULT_FONT_SLOTS },
     badge: null,

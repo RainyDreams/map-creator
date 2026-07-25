@@ -37,6 +37,9 @@ export function CanvasManager() {
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  /** 新建画布命名对话框：名字必填，同时作为新画布的初始大标题 */
+  const [namingOpen, setNamingOpen] = useState(false)
+  const [namingValue, setNamingValue] = useState('')
 
   const startRename = (id: string, current: string) => {
     setEditingId(id)
@@ -46,6 +49,23 @@ export function CanvasManager() {
   const commitRename = () => {
     if (editingId) renameCanvas(editingId, editingName)
     setEditingId(null)
+  }
+
+  const openNaming = () => {
+    setNamingValue('')
+    setNamingOpen(true)
+  }
+
+  const commitCreate = () => {
+    const name = namingValue.trim()
+    if (name === '') {
+      toast.error('请先给画布起个名字')
+      return
+    }
+    createCanvas(name)
+    toast.success(`已新建画布「${name}」`)
+    setNamingOpen(false)
+    setOpen(false)
   }
 
   return (
@@ -210,11 +230,7 @@ export function CanvasManager() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              createCanvas()
-              toast.success('已新建空白画布')
-              setOpen(false)
-            }}
+            onClick={openNaming}
             className="w-full border-dashed border-stone-300 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
           >
             <Plus className="h-4 w-4" />
@@ -225,6 +241,51 @@ export function CanvasManager() {
               当前画布：{activeCanvasName}
             </p>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 新建画布命名：名字必填，同时作为这张图的初始大标题 */}
+      <Dialog open={namingOpen} onOpenChange={setNamingOpen}>
+        <DialogContent className="rounded-2xl border-stone-200 bg-white sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-stone-800">
+              <Plus className="h-5 w-5 text-stone-400" />
+              给新画布起个名字
+            </DialogTitle>
+            <DialogDescription>
+              这个名字会直接作为这张蹭饭图的大标题，之后可以随时修改。
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={namingValue}
+            onChange={(e) => setNamingValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitCreate()
+            }}
+            placeholder="例如：高三（5）班蹭饭图"
+            aria-label="新画布名称"
+            maxLength={40}
+            className="border-stone-300 bg-white text-sm"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setNamingOpen(false)}
+              className="border-stone-200 text-stone-600"
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              onClick={commitCreate}
+              disabled={namingValue.trim() === ''}
+              className="bg-stone-900 text-white hover:bg-stone-700 disabled:opacity-40"
+            >
+              创建画布
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

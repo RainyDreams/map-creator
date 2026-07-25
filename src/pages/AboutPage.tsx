@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.33.3',
+    date: '2026-07-26 00:30',
+    items: [
+      '新建画布需先命名：点「新建画布」先弹出命名框（必填），这个名字会直接作为新画布的大标题，之后仍可在标题设置中随时修改',
+    ],
+  },
+  {
     version: 'v1.33.2',
     date: '2026-07-26 00:35',
     items: [
