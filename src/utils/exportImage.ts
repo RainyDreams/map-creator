@@ -18,6 +18,7 @@
  *
  * 代码分割：html-to-image 只在真正导出时动态加载（独立 chunk），不拖慢首屏。
  */
+import { getCachedFontEmbedCss, setCachedFontEmbedCss } from './exportFontCache'
 
 /** html-to-image 懒加载：首次导出时加载，之后模块缓存复用 */
 async function loadHtmlToImage(): Promise<typeof import('html-to-image')> {
@@ -117,22 +118,34 @@ function logStep(step: string, since: number): number {
   return now
 }
 
-/** 导出前确保画布字体已加载，否则 SVG/位图里会渲染成兜底字体 */
+/**
+ * 导出前确保画布字体已加载，否则 SVG/位图里会渲染成兜底字体。
+ * 注意：不要 await document.fonts.ready——它会等文档里所有挂起的字体
+ * （包括未使用、还在懒加载的，如个别 CDN 字体），永远等不完，
+ * 导致每次导出都把安全超时打满（实测每次白等 4s）。只显式 load 画布
+ * 实际用到的家族即可；会话内第一次等过后，后续导出只做极短兜底确认。
+ */
+let fontsSettled = false
 async function ensureFontsLoaded(): Promise<void> {
+  const cap = fontsSettled ? 400 : 2500
   try {
     await Promise.race([
       (async () => {
-        await document.fonts.load('20px "MaShanZheng"', '蹭饭图')
-        await document.fonts.load('700 20px "AlimamaShuHeiTi"', '2026')
-        await document.fonts.load('20px "NotoSansSC"', '北京')
-        await document.fonts.load('20px "ZCOOLXiaoWei"', '北京')
-        await document.fonts.load('20px "ZCOOLQingKeHuangYou"', '北京')
-        await document.fonts.ready
+        await Promise.all([
+          document.fonts.load('20px "MaShanZheng"', '蹭饭图'),
+          document.fonts.load('700 20px "AlimamaShuHeiTi"', '2026'),
+          document.fonts.load('20px "NotoSansSC"', '北京'),
+          document.fonts.load('20px "ZCOOLXiaoWei"', '北京'),
+          document.fonts.load('20px "ZCOOLQingKeHuangYou"', '北京'),
+          document.fonts.load('20px "JetBrainsMono"', 'map'),
+        ])
       })(),
-      new Promise((resolve) => setTimeout(resolve, 4000)),
+      new Promise((resolve) => setTimeout(resolve, cap)),
     ])
+    fontsSettled = true
   } catch {
     // 字体加载失败不阻断导出，按兜底字体出图
+    fontsSettled = true
   }
 }
 
@@ -211,8 +224,16 @@ async function renderUltra(
   onProgress?.(30, '正在序列化矢量图（内嵌字体）…')
   // 注意：不要开 cacheBust——它会给字体/图片 URL 追加随机参数，绕过浏览器 HTTP 缓存，
   // 每次导出重新下载 ~10MB 字体子集，是导出慢的主要原因；同源资源用浏览器缓存即可。
+  // 字体嵌入 CSS 会话级缓存：getFontEmbedCSS 要抓取并 base64 内嵌全部字体子集
+  // （SVG 序列化耗时大头），字体是静态子集，跨导出复用；切换字体时缓存失效。
   // 60s 超时兜底：资源紧张时 toSvg 可能永不 resolve，超时回退位图导出而非无限卡住
-  const svgUrl = await withTimeout(toSvg(node, { backgroundColor: bg }), 60000, 'SVG 序列化')
+  let fontEmbedCSS = getCachedFontEmbedCss()
+  if (fontEmbedCSS === null) {
+    fontEmbedCSS = await withTimeout(hti.getFontEmbedCSS(node), 60000, '字体嵌入')
+    setCachedFontEmbedCss(fontEmbedCSS)
+    t = logStep(`字体嵌入完成（${Math.round(fontEmbedCSS.length / 1024)}KB，会话内仅此次）`, t)
+  }
+  const svgUrl = await withTimeout(toSvg(node, { backgroundColor: bg, fontEmbedCSS }), 60000, 'SVG 序列化')
   throwIfAborted(signal)
   t = logStep(`SVG 序列化完成（${Math.round(svgUrl.length / 1024)}KB）`, t)
   const targetW = Math.min(Math.max(ULTRA_MIN_W, Math.round(w * 2)), ULTRA_MAX_W)

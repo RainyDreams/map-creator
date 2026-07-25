@@ -109,6 +109,13 @@ function basePayload(kind: ErrorPayload['kind'], message: string): ErrorPayload 
   }
 }
 
+/** 第三方脚本自身噪音（Clarity 内部偶发异常等）：不是应用错误，不上报 */
+function isThirdPartyNoise(filename: string | undefined, stack: string | undefined): boolean {
+  const f = filename ?? ''
+  const s = stack ?? ''
+  return f.includes('clarity') || s.includes('clarity')
+}
+
 /** 安装全局错误监听（应用启动时调用一次） */
 export function initErrorReporter(): void {
   if (!enabled()) return
@@ -121,11 +128,13 @@ export function initErrorReporter(): void {
       if (target && target !== window && !(ev as ErrorEvent).message) {
         const el = target as { src?: string; href?: string; tagName?: string }
         const src = cleanUrl(el.src ?? el.href ?? '')
+        if (src.includes('clarity')) return
         const p = basePayload('resource', `资源加载失败：${el.tagName ?? 'unknown'} ${src}`)
         enqueue(p)
         return
       }
       const e = ev as ErrorEvent
+      if (isThirdPartyNoise(e.filename, typeof e.error?.stack === 'string' ? e.error.stack : undefined)) return
       const p = basePayload('error', e.message ?? 'unknown error')
       if (typeof e.error?.stack === 'string') p.stack = truncate(e.error.stack, 2000)
       if (typeof e.lineno === 'number') p.line = e.lineno
@@ -137,6 +146,7 @@ export function initErrorReporter(): void {
 
   window.addEventListener('unhandledrejection', (ev) => {
     const reason = (ev as PromiseRejectionEvent).reason
+    if (reason instanceof Error && (reason.stack ?? '').includes('clarity')) return
     const message =
       reason instanceof Error
         ? reason.message

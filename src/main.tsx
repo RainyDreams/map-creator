@@ -8,6 +8,19 @@ import { useWechatShare } from './hooks/useWechatShare.ts'
 import { initErrorReporter } from './utils/errorReporter.ts'
 import { initSessionLog } from './utils/sessionLog.ts'
 
+/**
+ * Clarity 脚本自身偶发内部异常（如 unhandledrejection: reading 'sequence'，
+ * 最新版 1.0.2 仍存在，无法靠升级修）。它不是应用错误：
+ * - 就地 preventDefault，不在用户控制台刷「Uncaught (in promise)」；
+ * - errorReporter / sessionLog 里也按 clarity 来源过滤，不占上报额度、不污染使用日志。
+ * 必须在 Clarity.init 之前注册。
+ */
+window.addEventListener('unhandledrejection', (ev) => {
+  const reason = (ev as PromiseRejectionEvent).reason
+  const stack = reason instanceof Error ? (reason.stack ?? '') : ''
+  if (stack.includes('clarity')) ev.preventDefault()
+})
+
 /** Microsoft Clarity 站点分析（仅初始化，不阻塞渲染） */
 try {
   Clarity.init('xprbe5s420')

@@ -148,9 +148,11 @@ export function initSessionLog(): void {
       }
     }
 
-    // 任何 JavaScript 报错都要进日志（含堆栈首行定位）
+    // 任何 JavaScript 报错都要进日志（含堆栈首行定位）；
+    // Clarity 脚本自身的内部异常不是应用错误，过滤掉不污染使用日志
     window.addEventListener('error', (ev) => {
       const e = ev as ErrorEvent
+      if ((e.filename ?? '').includes('clarity') || (e.error?.stack ?? '').includes('clarity')) return
       push('error', [`${e.message} @${e.filename}:${e.lineno}:${e.colno}`])
     })
     // 资源加载失败（script/img/link 等）：不冒泡，必须捕获阶段
@@ -166,7 +168,9 @@ export function initSessionLog(): void {
       true,
     )
     window.addEventListener('unhandledrejection', (ev) => {
-      push('error', ['unhandledrejection', stringify(ev.reason)])
+      const reason = ev.reason
+      if (reason instanceof Error && (reason.stack ?? '').includes('clarity')) return
+      push('error', ['unhandledrejection', stringify(reason)])
     })
 
     // —— 面包屑：启动信息（版本/路径/视口/语言/网络/触屏） ——
