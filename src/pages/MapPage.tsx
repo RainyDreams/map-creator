@@ -714,7 +714,7 @@ export default function MapPage() {
               style={{
                 right: '1cqw',
                 bottom: '0.7cqw',
-                fontSize: 'max(8px, 0.72cqw)',
+                fontSize: '0.72cqw',
                 color: theme.leaderLine,
                 fontFamily: '"NotoSansSC","PingFang SC","Microsoft YaHei",sans-serif',
               }}
