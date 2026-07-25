@@ -500,7 +500,12 @@ export default function MapPage() {
         <div className="min-w-0">
           <h1 className="text-sm font-semibold text-stone-700">蹭饭图预览</h1>
           <p className="truncate text-xs text-stone-400">
-            {exportError ?? '随录入实时更新 · 超清导出 ≥4000px 宽'}
+            {exportError ?? (
+              <>
+                <span className="max-md:hidden">随录入实时更新 · 超清导出 ≥4000px 宽</span>
+                <span className="md:hidden">随录入实时更新</span>
+              </>
+            )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -516,7 +521,7 @@ export default function MapPage() {
             ) : (
               <Download />
             )}
-            {exporting !== null ? '导出中…' : '导出'}
+            {exporting !== null ? '导出中…' : '导出为图片'}
           </Button>
         </div>
       </header>
@@ -647,7 +652,7 @@ export default function MapPage() {
             )}
 
             {/* 底部来源条：画布的一部分，随导出一起进 PNG。
-                左侧生成时间，中央生成信息（map.linkbrain.top 以黑色圆角 pill 突出显示，「零本」用毛笔字图片），右侧软件版本号；
+                左侧生成时间，中央生成信息（map.linkbrain.top 以深色圆角 pill 突出显示），右侧软件版本号；
                 字号与内边距随「画布屏幕宽 / SVG 视口宽」联动（footerPx）：地图显大时版权条适当变大、显小时变小，
                 基准 13px（与学生名一致），夹在 10–26px 之间 */}
             {(() => {
@@ -686,18 +691,7 @@ export default function MapPage() {
                 >
                   map.linkbrain.top
                 </span>
-                生成 © {new Date().getFullYear()}
-                <img
-                  src="/images/lingben-text.png"
-                  alt="零本"
-                  draggable={false}
-                  style={{
-                    height: '1.15em',
-                    width: 'auto',
-                    marginLeft: '0.3em',
-                    verticalAlign: '-0.18em',
-                  }}
-                />
+                生成
               </span>
               <span className="ml-auto tabular-nums">v{APP_VERSION}</span>
             </div>

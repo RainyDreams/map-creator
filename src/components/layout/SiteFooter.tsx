@@ -38,23 +38,25 @@ export default function SiteFooter() {
         </a>
       </p>
       <p className="flex items-center justify-center gap-x-2">
-        <Link to="/agreement" className="transition-colors hover:text-stone-700">
+        {/* 移动端已有「关于」Tab，用户协议/隐私政策/关于三个链接仅桌面端显示 */}
+        <Link to="/agreement" className="hidden transition-colors hover:text-stone-700 md:inline">
           用户协议
         </Link>
-        <span aria-hidden className="text-stone-300">·</span>
-        <Link to="/privacy" className="transition-colors hover:text-stone-700">
+        <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
+        <Link to="/privacy" className="hidden transition-colors hover:text-stone-700 md:inline">
           隐私政策
         </Link>
-        <span aria-hidden className="text-stone-300">·</span>
-        <Link to="/about" className="transition-colors hover:text-stone-700">
+        <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
+        <Link to="/about" className="hidden transition-colors hover:text-stone-700 md:inline">
           关于
         </Link>
-        <span aria-hidden className="text-stone-300">·</span>
+        <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
         <Link to="/feedback" className="transition-colors hover:text-stone-700">
           问题反馈
         </Link>
         <span aria-hidden className="text-stone-300">·</span>
-        {/* 公众号二维码：桌面悬浮展开、移动端点按展开；再次点击或移出即收起 */}
+        {/* 公众号二维码：桌面悬浮展开、移动端点按展开；再次点击或移出即收起。
+            桌面显示「微信公众号 · [零本图]」，移动端窄屏只显示零本图片 */}
         <span
           className="group relative"
           onMouseEnter={() => setQrOpen(true)}
@@ -65,9 +67,10 @@ export default function SiteFooter() {
             onClick={() => setQrOpen((v) => !v)}
             aria-expanded={qrOpen}
             aria-label="查看微信公众号零本的二维码"
-            className="cursor-pointer transition-colors hover:text-stone-700"
+            className="inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-stone-700"
           >
-            微信公众号 · 零本
+            <span className="hidden md:inline">微信公众号 ·</span>
+            <img src="/images/lingben-text.png" alt="零本" className="h-3 w-auto" draggable={false} />
           </button>
           {qrOpen && (
             <span
