@@ -97,6 +97,27 @@
       @media (min-width: 768px) {
         .cf-skel-side { display: block; }
       }
+      @keyframes cf-update-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .cf-update-splash { display: none; transition: opacity 0.3s ease; }
+      html.cf-updating .cf-update-splash {
+        display: flex; position: fixed; inset: 0; z-index: 99998;
+        align-items: center; justify-content: center; background: #faf7f0;
+        font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .cf-update-card { text-align: center; padding: 24px; animation: cf-update-in 0.35s ease-out; }
+      .cf-update-logo { width: 44px; height: 44px; margin: 0 auto 16px; border-radius: 12px; box-shadow: 0 2px 10px rgba(120, 90, 30, 0.18); }
+      .cf-update-title { font-size: 12px; letter-spacing: 0.15em; color: #a8a29e; margin-bottom: 10px; }
+      .cf-update-msg { font-size: 17px; font-weight: 600; color: #44403c; margin-bottom: 22px; }
+      .cf-update-bar { width: 240px; height: 4px; margin: 0 auto; border-radius: 999px; background: #e9e2d4; overflow: hidden; }
+      .cf-update-fill {
+        width: 0%; height: 100%; border-radius: 999px;
+        background: linear-gradient(90deg, #f0b23c, #d97706);
+        transition: width 0.15s ease-out;
+      }
+      .cf-update-pct { margin-top: 12px; font-size: 11px; font-variant-numeric: tabular-nums; color: #b8b0a2; }
     </style>
     <div id="root">
       <div class="cf-skel-root" aria-hidden="true">
@@ -148,6 +169,56 @@
               }
             }, 1500)
           }
+        } catch (e) {}
+      })()
+    </script>
+    <div class="cf-update-splash" id="cfUpdateSplash" role="status" aria-live="polite">
+      <div class="cf-update-card">
+        <img class="cf-update-logo" src="/icon.png" alt="" />
+        <div class="cf-update-title">蹭饭图生成器</div>
+        <div class="cf-update-msg">软件正在进行功能更新，请稍后</div>
+        <div class="cf-update-bar"><div class="cf-update-fill" id="cfUpdateFill"></div></div>
+        <div class="cf-update-pct" id="cfUpdatePct">0%</div>
+      </div>
+    </div>
+    <script>
+      !(function () {
+        try {
+          var _m = document.querySelector('script[type="module"]')
+          var _src = _m ? _m.getAttribute('src') || '' : ''
+          var _mm = _src.match(/index([0-9a-f]{8})\.js/)
+          if (!_mm) return
+          var _hash = _mm[1]
+          var _KEY = 'cenfan-app-hash'
+          var _prev = null
+          try { _prev = localStorage.getItem(_KEY) } catch (e) { return }
+          if (_prev === _hash) return
+          document.documentElement.classList.add('cf-updating')
+          var _fill = document.getElementById('cfUpdateFill')
+          var _pct = document.getElementById('cfUpdatePct')
+          var _sp = document.getElementById('cfUpdateSplash')
+          var _p = 0
+          var _timer = window.setInterval(function () {
+            _p = Math.min(92, _p + 1 + Math.random() * 4)
+            if (_fill) _fill.style.width = _p + '%'
+            if (_pct) _pct.textContent = Math.round(_p) + '%'
+          }, 120)
+          var _t0 = Date.now()
+          window.addEventListener('load', function () {
+            window.setTimeout(function () {
+              window.clearInterval(_timer)
+              if (_fill) _fill.style.width = '100%'
+              if (_pct) _pct.textContent = '100%'
+              try { localStorage.setItem(_KEY, _hash) } catch (e) {}
+              window.setTimeout(function () {
+                if (_sp) _sp.style.opacity = '0'
+                window.setTimeout(function () {
+                  document.documentElement.classList.remove('cf-updating')
+                  if (_sp) _sp.style.opacity = ''
+                }, 320)
+              }, 350)
+            }, Math.max(0, 900 - (Date.now() - _t0)))
+          })
         } catch (e) {}
       })()
     </script>
