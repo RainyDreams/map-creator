@@ -1,8 +1,9 @@
 /**
  * 问题反馈接口（公开反馈板）—— D1 版：
  *
- *   GET  /api/feedback            → { items: FeedbackItem[] }（最新 50 条，公开；不含 logId）
- *   POST /api/feedback            body: { name, kind, content, logId? } → 提交一条反馈
+ *   GET  /api/feedback            → { items: FeedbackItem[] }（最新 50 条，公开；不含 logId / akey，含对话流水 thread）
+ *   POST /api/feedback            body: { name, kind, content, logId? } → 提交一条反馈（响应带一次性作者凭证 key）
+ *   POST /api/feedback/reply      body: { id, key, text } → 作者追加回复（见 reply.ts；凭证不匹配 403）
  *
  * 存储：D1（feedback 表）。反馈是「写多查多 + 需要管理端标记/删除」的结构化数据，
  * 放 KV 每次列表都要 list + 逐条 get，太烧额度；D1 一次 SQL 解决。
@@ -58,6 +59,32 @@ interface FeedbackItem {
   status: FeedbackStatus
   reply: string | null
   reply_ts: number | null
+  thread: string | null
+}
+
+/** 对话流水单条（不含首帖）：by=admin 为管理员回复，by=user 为作者追问 */
+export interface ThreadEntry {
+  by: 'admin' | 'user'
+  text: string
+  ts: number
+}
+
+/** 解析 thread 列（JSON 数组；损坏/超限则截断，最多保留 20 条） */
+export function parseThread(raw: string | null): ThreadEntry[] {
+  if (!raw) return []
+  try {
+    const arr = JSON.parse(raw) as ThreadEntry[]
+    if (!Array.isArray(arr)) return []
+    const out: ThreadEntry[] = []
+    for (const e of arr.slice(-20)) {
+      if (!e || (e.by !== 'admin' && e.by !== 'user')) continue
+      if (typeof e.text !== 'string' || typeof e.ts !== 'number') continue
+      out.push({ by: e.by, text: e.text.slice(0, 500), ts: Math.round(e.ts) })
+    }
+    return out
+  } catch {
+    return []
+  }
 }
 
 function json(data: unknown, status = 200, cacheSeconds = 0): Response {
@@ -143,9 +170,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!rateLimitOk(`fb:g:${clientIp(request)}`, GET_IP_PER_MIN)) return json({ error: 'rate_limited' }, 429)
 
   try {
-    // 公开列表：不返回 logId（日志只供管理端查看）；状态与管理员回复公开
+    // 公开列表：不返回 logId / akey（日志只供管理端查看，akey 是作者凭证绝不外发）；状态与对话流水公开
     const r = await env.cenfan_db
-      .prepare('SELECT id, name, kind, content, ts, status, reply, reply_ts FROM feedback ORDER BY ts DESC LIMIT ?')
+      .prepare('SELECT id, name, kind, content, ts, status, reply, reply_ts, thread FROM feedback ORDER BY ts DESC LIMIT ?')
       .bind(LIST_LIMIT)
       .all<FeedbackItem>()
     const items = (r.results ?? []).map((row) => ({
@@ -156,6 +183,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       ts: row.ts,
       status: (FEEDBACK_STATUSES as readonly string[]).includes(row.status) ? row.status : 'open',
       ...(row.reply ? { reply: row.reply, replyTs: row.reply_ts ?? 0 } : {}),
+      ...(row.thread ? { thread: parseThread(row.thread) } : {}),
     }))
     return json({ items }, 200, 20)
   } catch {
@@ -207,13 +235,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const now = Date.now()
     const revTs = String(TS_CEILING - now).padStart(13, '0')
     const id = `${revTs}:${randomId()}`
+    /** 作者凭证：创建时返回一次，作者追问时凭它证明身份（公开列表绝不返回） */
+    const akey = `${randomId()}${randomId()}`
     // 低频写路径顺带清理 90 天前的旧记录（存储有界，0 额外请求）
     await db.prepare('DELETE FROM feedback WHERE ts < ?').bind(now - RECORD_MAX_AGE).run()
     await db
-      .prepare('INSERT INTO feedback (id, name, kind, content, ts, logId, done) VALUES (?, ?, ?, ?, ?, ?, 0)')
-      .bind(id, name, kind, content, now, logId === '' ? null : logId)
+      .prepare('INSERT INTO feedback (id, name, kind, content, ts, logId, done, akey) VALUES (?, ?, ?, ?, ?, ?, 0, ?)')
+      .bind(id, name, kind, content, now, logId === '' ? null : logId, akey)
       .run()
-    return json({ ok: true, item: { id, name, kind, content, ts: now, status: 'open' } })
+    return json({ ok: true, item: { id, name, kind, content, ts: now, status: 'open' }, key: akey })
   } catch {
     return json({ error: 'storage_failed' }, 503)
   }

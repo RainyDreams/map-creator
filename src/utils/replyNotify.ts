@@ -1,6 +1,8 @@
 /**
- * 「我的反馈被回复」通知（页脚红点）：
- * - 用户在本机提交反馈时记住 id（cenfan-my-feedback，最多 20 条）；
+ * 「我的反馈被回复」通知（页脚红点）+ 作者凭证：
+ * - 用户在本机提交反馈时记住 {id, key}（cenfan-my-feedback，最多 20 条）；
+ *   key 是创建反馈时服务端返回的一次性作者凭证，追加回复（追问）时凭它证明身份；
+ *   v1.32 之前的旧记录是纯字符串 id，自动兼容为无凭证（不能追问，红点逻辑不受影响）；
  * - 页脚定期拉取公开反馈板，发现「我的反馈」出现回复、或回复时间晚于上次已读，
  *   则在「问题反馈」链接上显示红点；
  * - 进入反馈页并加载列表后调用 markRepliesSeen() 标记已读，红点消失；
@@ -20,27 +22,48 @@ interface PublicItem {
   reply?: string
 }
 
+/** 我的反馈记录：v1.32 起带作者凭证 key（创建时服务端返回一次，追问时证明身份）；旧数据是纯字符串 id */
+interface MyFeedback {
+  id: string
+  key: string
+}
+
 let listCache: { at: number; items: PublicItem[] } | null = null
 
-export function rememberMyFeedback(id: string): void {
+/** 读取我的反馈列表（兼容旧格式：字符串 id 自动升级为无凭证记录） */
+function myList(): MyFeedback[] {
   try {
-    const arr = JSON.parse(localStorage.getItem(MY_IDS_KEY) ?? '[]') as string[]
-    if (!Array.isArray(arr)) return
-    if (arr.includes(id)) return
-    arr.unshift(id)
+    const arr = JSON.parse(localStorage.getItem(MY_IDS_KEY) ?? '[]') as Array<string | MyFeedback>
+    if (!Array.isArray(arr)) return []
+    const out: MyFeedback[] = []
+    for (const e of arr) {
+      if (typeof e === 'string' && e !== '') out.push({ id: e, key: '' })
+      else if (e && typeof e.id === 'string' && e.id !== '') out.push({ id: e.id, key: typeof e.key === 'string' ? e.key : '' })
+    }
+    return out.slice(0, MAX_MY_IDS)
+  } catch {
+    return []
+  }
+}
+
+export function rememberMyFeedback(id: string, key = ''): void {
+  try {
+    const arr = myList()
+    if (arr.some((e) => e.id === id)) return
+    arr.unshift({ id, key })
     localStorage.setItem(MY_IDS_KEY, JSON.stringify(arr.slice(0, MAX_MY_IDS)))
   } catch {
     // 忽略
   }
 }
 
+/** 取某条反馈的本机作者凭证（无凭证返回空串——老数据不能追问） */
+export function myFeedbackKey(id: string): string {
+  return myList().find((e) => e.id === id)?.key ?? ''
+}
+
 function myIds(): string[] {
-  try {
-    const arr = JSON.parse(localStorage.getItem(MY_IDS_KEY) ?? '[]') as string[]
-    return Array.isArray(arr) ? arr : []
-  } catch {
-    return []
-  }
+  return myList().map((e) => e.id)
 }
 
 function seenMap(): Record<string, number> {

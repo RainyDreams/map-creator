@@ -144,6 +144,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     viewport: sanitize(meta.viewport, 30),
     lang: sanitize(meta.lang, 20),
     net: sanitize(meta.net, 20),
+    // Microsoft Clarity 标识：管理员据此在 Clarity 后台定位该用户的会话录屏
+    clarityUser: sanitize(meta.clarityUser, 40),
+    claritySession: sanitize(meta.claritySession, 40),
     count: entries.length,
     entries,
   }

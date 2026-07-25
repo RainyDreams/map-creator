@@ -90,6 +90,13 @@ export default function PrivacyPage() {
           我们依据您首次访问时弹窗中的同意启用该工具；如您不同意，可在浏览器设置中清除并禁用本站
           Cookie（核心功能不受影响）。
         </p>
+        <p>
+          例外场景：当您访问「问题反馈」页面时，本服务会把您在本页的<strong className="text-stone-700">随机昵称</strong>
+          （形如「用户7865432」，非真实姓名）设置为 Clarity 的自定义用户标识；当您主动勾选并上传使用日志时，
+          日志会附带上述 <code className="rounded bg-stone-100 px-1">_clck</code> /
+          <code className="rounded bg-stone-100 px-1">_clsk</code> 匿名标识。
+          这仅用于管理员把您反馈的问题与对应的匿名会话录屏对照起来定位问题，不涉及您的名单数据与真实身份。
+        </p>
       </section>
 
       <section className="space-y-2">
@@ -136,7 +143,7 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>
             「问题反馈」是一块<strong className="text-stone-700">公开</strong>反馈板：您提交的反馈类别、
-            随机昵称与正文内容将向所有访问者展示，请勿在正文中填写姓名、联系方式等任何个人信息；
+            随机昵称与正文内容（含您后续的追加回复）将向所有访问者展示，请勿在正文中填写姓名、联系方式等任何个人信息；
           </li>
           <li>
             反馈昵称由您的浏览器在本地随机生成（形如「用户7865432」），仅保存于您设备的
@@ -158,7 +165,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             当您在反馈表单中<strong className="text-stone-700">主动勾选「附带我的使用日志」</strong>并提交时，
-            上述本机使用日志会随反馈一同上传，用于定位您反馈的问题；
+            上述本机使用日志会随反馈一同上传（连同 Clarity 匿名用户/会话标识，用于对照会话录屏，见第四条），
             上传成功后本机记录即清空、重新开始累积。日志保存 <strong className="text-stone-700">48 小时</strong>后自动删除。
             该上传仅在您主动勾选时发生，日志内容仅管理员在排查问题时可见，且日志不包含您的名单数据。
           </li>

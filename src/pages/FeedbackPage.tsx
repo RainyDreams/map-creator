@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { Bug, Lightbulb, MessageSquareHeart, RefreshCw, Send } from 'lucide-react'
+import Clarity from '@microsoft/clarity'
 import { toast } from 'sonner'
 import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLayout'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getSessionLog, clearSessionLog } from '@/utils/sessionLog'
-import { rememberMyFeedback, markRepliesSeen } from '@/utils/replyNotify'
+import { rememberMyFeedback, markRepliesSeen, myFeedbackKey } from '@/utils/replyNotify'
 import { track } from '@/utils/analytics'
 import { APP_VERSION } from '@/version'
 
@@ -14,6 +15,9 @@ import { APP_VERSION } from '@/version'
  * 问题反馈页（/feedback）：
  * - 公开反馈板：所有人可见最新 50 条反馈，人人可提交；
  * - 用户名本机随机生成（用户 + 7 位数字），localStorage 持久化，可一键更换；
+ * - 管理员回复后，作者可凭本机保存的一次性凭证追加回复（追问），形成对话流水；
+ * - 进入本页会把随机昵称设为 Clarity 自定义用户标识，日志上传附带 Clarity 用户/会话 ID，
+ *   便于管理员在 Clarity 后台定位该用户的会话录屏（仅反馈场景，不含名单数据）；
  * - 代码按需加载（App.tsx 中 React.lazy 独立 chunk），不进入首屏 bundle。
  */
 
@@ -21,6 +25,13 @@ const USER_KEY = 'cenfan-feedback-user'
 const MAX_CONTENT = 1000
 
 type FeedbackKind = 'bug' | 'suggestion' | 'experience'
+
+/** 对话流水单条：by=admin 管理员回复，by=user 作者追问 */
+interface ThreadEntry {
+  by: 'admin' | 'user'
+  text: string
+  ts: number
+}
 
 interface FeedbackItem {
   id: string
@@ -31,6 +42,7 @@ interface FeedbackItem {
   status?: FeedbackStatus
   reply?: string
   replyTs?: number
+  thread?: ThreadEntry[]
 }
 
 type FeedbackStatus = 'open' | 'in_progress' | 'done' | 'shelved' | 'closed'
@@ -52,6 +64,23 @@ const KIND_META: Record<FeedbackKind, { label: string; icon: typeof Bug; badge: 
 
 function genName(): string {
   return `用户${1000000 + Math.floor(Math.random() * 9000000)}`
+}
+
+/** 读取 Clarity Cookie 标识（_clck=匿名用户 ID，_clsk=会话 ID；分隔符新版为 ^ 旧版为 |，取主体部分） */
+function clarityCookie(key: '_clck' | '_clsk'): string {
+  try {
+    for (const part of document.cookie.split(';')) {
+      const t = part.trim()
+      if (t.startsWith(`${key}=`)) {
+        const v = decodeURIComponent(t.slice(key.length + 1))
+        const cut = v.search(/[|^]/)
+        return (cut >= 0 ? v.slice(0, cut) : v).slice(0, 40)
+      }
+    }
+  } catch {
+    // 忽略
+  }
+  return ''
 }
 
 function loadName(): string {
@@ -79,6 +108,19 @@ export default function FeedbackPage() {
   const [loadError, setLoadError] = useState(false)
   /** 附带我的使用日志（反馈 Bug 时默认勾选；日志仅保留 48 小时） */
   const [attachLog, setAttachLog] = useState(true)
+  /** 追加回复（追问）：当前展开输入框的反馈 id 与草稿 */
+  const [followOpenId, setFollowOpenId] = useState<string | null>(null)
+  const [followDraft, setFollowDraft] = useState('')
+  const [followSending, setFollowSending] = useState(false)
+
+  // 把随机昵称设为 Clarity 自定义用户标识：管理员可按昵称在 Clarity 后台找到对应会话录屏
+  useEffect(() => {
+    try {
+      Clarity.identify(name)
+    } catch {
+      // Clarity 未就绪不影响反馈功能
+    }
+  }, [name])
 
   // 切到 Bug 反馈时默认带上日志（用户可手动取消），切走时不打扰用户的选择
   useEffect(() => {
@@ -138,6 +180,8 @@ export default function FeedbackPage() {
                   viewport: `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio}x`,
                   lang: navigator.language,
                   net: (navigator as { connection?: { effectiveType?: string } }).connection?.effectiveType ?? '',
+                  clarityUser: clarityCookie('_clck'),
+                  claritySession: clarityCookie('_clsk'),
                 },
               }),
             })
@@ -146,6 +190,12 @@ export default function FeedbackPage() {
               logId = lj.id ?? ''
               if (logId !== '') {
                 track('log')
+                // Clarity 会话打上 logId 标签：日志 ↔ 录屏双向可对照
+                try {
+                  Clarity.setTag('logId', logId)
+                } catch {
+                  // 忽略
+                }
                 // 上传成功 = 新记录周期的起点：清空本机累积（「从上次上传完开始」语义）
                 clearSessionLog()
               }
@@ -165,10 +215,10 @@ export default function FeedbackPage() {
         return
       }
       if (!res.ok) throw new Error(String(res.status))
-      const data = (await res.json()) as { ok: boolean; item: FeedbackItem }
+      const data = (await res.json()) as { ok: boolean; item: FeedbackItem; key?: string }
       setItems((prev) => (prev === null ? [data.item] : [data.item, ...prev].slice(0, 50)))
-      // 记住「我的反馈」id：管理员回复后页脚红点提醒
-      rememberMyFeedback(data.item.id)
+      // 记住「我的反馈」id + 作者凭证：管理员回复后页脚红点提醒；凭证用于追加回复时证明身份
+      rememberMyFeedback(data.item.id, data.key ?? '')
       setContent('')
       track('feedback')
       toast.success(logId !== '' ? '已提交（含会话日志），感谢反馈' : '已提交，感谢反馈')
@@ -176,6 +226,47 @@ export default function FeedbackPage() {
       toast.error('提交失败，请检查网络后重试')
     } finally {
       setSending(false)
+    }
+  }
+
+  /** 追加回复（追问）：凭本机保存的作者凭证调用 /api/feedback/reply，写入对话流水 */
+  const submitFollow = async (it: FeedbackItem) => {
+    const key = myFeedbackKey(it.id)
+    const text = followDraft.trim()
+    if (key === '' || text === '' || followSending) return
+    setFollowSending(true)
+    try {
+      const res = await fetch('/api/feedback/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: it.id, key, text }),
+      })
+      if (res.status === 403) {
+        toast.error('无法验证作者身份（这条反馈可能来自旧版本）')
+        return
+      }
+      if (res.status === 429) {
+        toast.error('回复太频繁了，请过一分钟再试')
+        return
+      }
+      if (!res.ok) throw new Error(String(res.status))
+      const data = (await res.json()) as { ok: boolean; entry: ThreadEntry; status?: FeedbackStatus }
+      setItems((prev) =>
+        prev === null
+          ? prev
+          : prev.map((x) =>
+              x.id === it.id
+                ? { ...x, thread: [...(x.thread ?? []), data.entry], ...(data.status ? { status: data.status } : {}) }
+                : x,
+            ),
+      )
+      setFollowDraft('')
+      setFollowOpenId(null)
+      toast.success('已追加回复')
+    } catch {
+      toast.error('回复失败，请检查网络后重试')
+    } finally {
+      setFollowSending(false)
     }
   }
 
@@ -226,6 +317,9 @@ export default function FeedbackPage() {
           const meta = KIND_META[it.kind] ?? KIND_META.suggestion
           const Icon = meta.icon
           const st = STATUS_META[it.status ?? 'open'] ?? STATUS_META.open
+          const thread = it.thread ?? []
+          /** 本机有这条反馈的作者凭证 = 是我提交的，可追加回复 */
+          const mine = myFeedbackKey(it.id) !== ''
           return (
             <li key={it.id} className="rounded-xl border border-stone-200/80 bg-white/80 p-4">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -251,14 +345,86 @@ export default function FeedbackPage() {
               <p className="mt-2 whitespace-pre-wrap break-words leading-6 text-stone-600">
                 {it.content}
               </p>
-              {it.reply && (
-                <div className="mt-2.5 rounded-r-lg border-l-[3px] border-stone-300 bg-stone-50 px-3 py-2">
-                  <p className="text-[11px] text-stone-400">
-                    作者回复{it.replyTs ? ` · ${format(new Date(it.replyTs), 'yyyy-MM-dd HH:mm')}` : ''}
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-stone-700">
-                    {it.reply}
-                  </p>
+              {thread.length > 0 ? (
+                <div className="mt-2.5 space-y-1.5">
+                  {thread.map((e, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        'rounded-r-lg border-l-[3px] px-3 py-2',
+                        e.by === 'admin' ? 'border-stone-300 bg-stone-50' : 'border-amber-300 bg-amber-50/60',
+                      )}
+                    >
+                      <p className="text-[11px] text-stone-400">
+                        {e.by === 'admin' ? '作者回复' : mine ? '我（追问）' : `${it.name}（追问）`}
+                        {` · ${format(new Date(e.ts), 'yyyy-MM-dd HH:mm')}`}
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-stone-700">
+                        {e.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                it.reply && (
+                  <div className="mt-2.5 rounded-r-lg border-l-[3px] border-stone-300 bg-stone-50 px-3 py-2">
+                    <p className="text-[11px] text-stone-400">
+                      作者回复{it.replyTs ? ` · ${format(new Date(it.replyTs), 'yyyy-MM-dd HH:mm')}` : ''}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-stone-700">
+                      {it.reply}
+                    </p>
+                  </div>
+                )
+              )}
+              {mine && (
+                <div className="mt-2.5">
+                  {followOpenId === it.id ? (
+                    <div className="space-y-1.5">
+                      <textarea
+                        value={followDraft}
+                        onChange={(e) => setFollowDraft(e.target.value)}
+                        rows={2}
+                        maxLength={500}
+                        placeholder="补充说明或回复作者…（公开可见，500 字以内）"
+                        autoFocus
+                        className="w-full resize-y rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm leading-6 text-stone-700 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none"
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFollowOpenId(null)
+                            setFollowDraft('')
+                          }}
+                          className="rounded-md px-2 py-1 text-xs text-stone-400 transition-colors hover:bg-stone-100"
+                        >
+                          取消
+                        </button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={followDraft.trim() === '' || followSending}
+                          onClick={() => void submitFollow(it)}
+                          className="bg-stone-900 text-white hover:bg-stone-700"
+                        >
+                          <Send className="size-3.5" />
+                          {followSending ? '发送中…' : '发送'}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFollowOpenId(it.id)
+                        setFollowDraft('')
+                      }}
+                      className="rounded-md px-2 py-1 text-xs text-amber-700 transition-colors hover:bg-amber-50"
+                    >
+                      追加回复
+                    </button>
+                  )}
                 </div>
               )}
             </li>
@@ -266,7 +432,7 @@ export default function FeedbackPage() {
         })}
       </ul>
     )
-  }, [items, loadError, fetchList])
+  }, [items, loadError, fetchList, followOpenId, followDraft, followSending])
 
   return (
     <StaticPageLayout title="问题反馈">
