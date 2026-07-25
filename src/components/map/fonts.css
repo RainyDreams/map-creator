@@ -93,3 +93,19 @@
   font-display: swap;
   unicode-range: U+8000-9FFF;
 }
+
+/* JetBrains Mono（SIL OFL 1.1）：fontsource 拉丁子集，专供右下角网址水印 */
+@font-face {
+  font-family: 'JetBrainsMono';
+  src: url('/fonts/jetbrains-mono-latin-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrainsMono';
+  src: url('/fonts/jetbrains-mono-latin-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}

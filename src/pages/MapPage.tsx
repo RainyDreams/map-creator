@@ -716,7 +716,7 @@ export default function MapPage() {
                 bottom: '0.7cqw',
                 fontSize: '1.15cqw',
                 color: theme.leaderLine,
-                fontFamily: '"NotoSansSC","PingFang SC","Microsoft YaHei",sans-serif',
+                fontFamily: '"JetBrainsMono","NotoSansSC","PingFang SC","Microsoft YaHei",sans-serif',
               }}
             >
               map.linkbrain.top
