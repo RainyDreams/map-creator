@@ -5,6 +5,15 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.33.7',
+    date: '2026-07-26 01:50',
+    items: [
+      '更新提示界面改为极简技术风：等宽字体、细线进度条、实时显示构建编号，去除卡通化元素',
+      '首次打开浏览器控制台会看到一句彩蛋问候（本机记忆，只出现一次）',
+      '页面头部冗余标签精简；「关于」页公众号区域精简为一张搜一搜二维码',
+    ],
+  },
+  {
     version: 'v1.33.6',
     date: '2026-07-26 01:20',
     items: [
@@ -229,30 +238,16 @@ export default function AboutPage() {
 
       <section className="space-y-2">
         <SectionTitle>关注《零本》</SectionTitle>
-        <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
-          <figure className="flex flex-col items-center gap-2 rounded-xl border border-stone-200/80 bg-white/70 p-4">
-            <img
-              src="/images/qr-lingben-mp.jpg"
-              alt="公众号《零本》二维码"
-              className="h-32 w-32 rounded-lg"
-            />
-            <figcaption className="text-center text-xs leading-relaxed text-stone-500">
-              微信扫码
-              <br />
-              关注公众号《零本》
-            </figcaption>
-          </figure>
-          <figure className="flex flex-col items-center justify-center gap-2 rounded-xl border border-stone-200/80 bg-white/70 p-4">
-            <img
-              src="/images/qr-lingben-search.jpg"
-              alt="微信搜一搜「零本」"
-              className="w-full max-w-sm rounded-lg"
-            />
-            <figcaption className="text-center text-xs leading-relaxed text-stone-500">
-              或在微信「搜一搜」直接搜索「零本」
-            </figcaption>
-          </figure>
-        </div>
+        <figure className="flex flex-col items-center justify-center gap-2 rounded-xl border border-stone-200/80 bg-white/70 p-4">
+          <img
+            src="/images/qr-lingben-search.jpg"
+            alt="微信搜一搜「零本」"
+            className="w-full max-w-sm rounded-lg"
+          />
+          <figcaption className="text-center text-xs leading-relaxed text-stone-500">
+            微信扫码或在「搜一搜」直接搜索「零本」，关注公众号
+          </figcaption>
+        </figure>
       </section>
 
       <section className="space-y-2">

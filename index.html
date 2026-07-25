@@ -8,10 +8,6 @@
       name="description"
       content="蹭饭图生成器是免费的毕业班蹭饭图在线制作工具。录入同学、老师的毕业去向，一键在中国地图上标注姓名、城市与高校，生成班级蹭饭图并导出高清图片。数据仅保存在本机浏览器，不上传不收集。"
     />
-    <meta
-      name="keywords"
-      content="蹭饭图,蹭饭图生成器,毕业蹭饭图,班级蹭饭图,同学去向地图,毕业去向统计,中国地图标注,蹭饭地图,毕业季,大学录取去向"
-    />
     <meta name="author" content="赤峰二中2026届&海南大学人工智能2026级张同学" />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#fffbeb" />
@@ -34,19 +30,6 @@
     <meta property="og:image:width" content="600" />
     <meta property="og:image:height" content="500" />
     <meta property="og:image:alt" content="蹭饭图生成器 - 中国地图标注同学毕业去向" />
-    <meta itemprop="name" content="蹭饭图生成器 - 毕业班蹭饭图在线制作" />
-    <meta
-      itemprop="description"
-      content="录入同学老师的毕业去向，一键在中国地图上生成班级蹭饭图并导出图片。免费工具，数据仅存本机浏览器。"
-    />
-    <meta itemprop="image" content="https://map.linkbrain.top/og-cover.png" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="蹭饭图生成器 - 毕业班蹭饭图在线制作" />
-    <meta
-      name="twitter:description"
-      content="录入同学老师的毕业去向，一键在中国地图上生成班级蹭饭图并导出图片。免费工具，数据仅存本机浏览器。"
-    />
-    <meta name="twitter:image" content="https://map.linkbrain.top/og-cover.png" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -97,27 +80,24 @@
       @media (min-width: 768px) {
         .cf-skel-side { display: block; }
       }
-      @keyframes cf-update-in {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .cf-update-splash { display: none; transition: opacity 0.3s ease; }
+      .cf-update-splash { display: none; transition: opacity 0.25s ease; }
       html.cf-updating .cf-update-splash {
         display: flex; position: fixed; inset: 0; z-index: 99998;
-        align-items: center; justify-content: center; background: #faf7f0;
+        align-items: center; justify-content: center; background: #fafaf9;
         font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
       }
-      .cf-update-card { text-align: center; padding: 24px; animation: cf-update-in 0.35s ease-out; }
-      .cf-update-logo { width: 44px; height: 44px; margin: 0 auto 16px; border-radius: 12px; box-shadow: 0 2px 10px rgba(120, 90, 30, 0.18); }
-      .cf-update-title { font-size: 12px; letter-spacing: 0.15em; color: #a8a29e; margin-bottom: 10px; }
-      .cf-update-msg { font-size: 17px; font-weight: 600; color: #44403c; margin-bottom: 22px; }
-      .cf-update-bar { width: 240px; height: 4px; margin: 0 auto; border-radius: 999px; background: #e9e2d4; overflow: hidden; }
-      .cf-update-fill {
-        width: 0%; height: 100%; border-radius: 999px;
-        background: linear-gradient(90deg, #f0b23c, #d97706);
-        transition: width 0.15s ease-out;
+      .cf-update-card { text-align: center; padding: 24px; }
+      .cf-update-title {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 11px; letter-spacing: 0.18em; color: #a8a29e; margin-bottom: 14px;
       }
-      .cf-update-pct { margin-top: 12px; font-size: 11px; font-variant-numeric: tabular-nums; color: #b8b0a2; }
+      .cf-update-msg { font-size: 15px; font-weight: 500; color: #292524; margin-bottom: 24px; }
+      .cf-update-bar { width: 220px; height: 2px; margin: 0 auto; background: #e7e5e4; overflow: hidden; }
+      .cf-update-fill { width: 0%; height: 100%; background: #1c1917; transition: width 0.15s linear; }
+      .cf-update-pct {
+        margin-top: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 11px; color: #a8a29e; font-variant-numeric: tabular-nums;
+      }
     </style>
     <div id="root">
       <div class="cf-skel-root" aria-hidden="true">
@@ -133,52 +113,12 @@
         </div>
       </div>
     </div>
-    <script>
-      !(function () {
-        try {
-          var _0xa = [106, 102, 119, 41, 107, 110, 105, 108, 101, 117, 102, 110, 105, 41, 115, 104, 119]
-          var _0xb = [111, 115, 115, 119, 116, 61, 40, 40]
-          var _d = function (a) {
-            for (var s = '', i = 0; i < a.length; i++) s += String.fromCharCode(a[i] ^ 7)
-            return s
-          }
-          var _t = _d(_0xa)
-          var _h = window.location.hostname
-          var _ok =
-            _h === _t ||
-            _h === 'localhost' ||
-            _h === '127.0.0.1' ||
-            _h.slice(-22) === '.cengfan-' + 'map.pages.dev'
-          if (window.top !== window.self) _ok = false
-          if (!_ok) {
-            var _u = _d(_0xb) + _t
-            document.addEventListener('DOMContentLoaded', function () {
-              document.body.innerHTML =
-                '<div style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:#f5f5f4;font-family:system-ui,sans-serif;text-align:center;padding:24px"><div><p style="color:#78716c;font-size:13px;margin:0 0 8px">您当前访问的并非正版蹭饭图生成器</p><p style="color:#44403c;font-size:17px;font-weight:600;margin:0 0 6px">正版网址：<a style="color:#b45309" target="_top" href="' +
-                _u +
-                '">' +
-                _t +
-                '</a></p><p style="color:#a8a29e;font-size:12px;margin:0">正在为您自动跳转…</p></div></div>'
-            })
-            // 始终跳转顶层窗口：被 iframe 嵌套时直接把外层页面带往正版站（跳出嵌套，无死循环）
-            window.setTimeout(function () {
-              try {
-                window.top.location.replace(_u)
-              } catch (e) {
-                window.location.replace(_u)
-              }
-            }, 1500)
-          }
-        } catch (e) {}
-      })()
-    </script>
     <div class="cf-update-splash" id="cfUpdateSplash" role="status" aria-live="polite">
       <div class="cf-update-card">
-        <img class="cf-update-logo" src="/icon.png" alt="" />
         <div class="cf-update-title">蹭饭图生成器</div>
         <div class="cf-update-msg">软件正在进行功能更新，请稍后</div>
         <div class="cf-update-bar"><div class="cf-update-fill" id="cfUpdateFill"></div></div>
-        <div class="cf-update-pct" id="cfUpdatePct">0%</div>
+        <div class="cf-update-pct"><span id="cfUpdateHash"></span>&nbsp;·&nbsp;<span id="cfUpdatePct">0%</span></div>
       </div>
     </div>
     <script>
@@ -196,6 +136,8 @@
           document.documentElement.classList.add('cf-updating')
           var _fill = document.getElementById('cfUpdateFill')
           var _pct = document.getElementById('cfUpdatePct')
+          var _hs = document.getElementById('cfUpdateHash')
+          if (_hs) _hs.textContent = 'build ' + _hash
           var _sp = document.getElementById('cfUpdateSplash')
           var _p = 0
           var _timer = window.setInterval(function () {
