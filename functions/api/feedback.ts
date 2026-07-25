@@ -45,12 +45,19 @@ const TS_CEILING = 9999999999999
 const KINDS = ['bug', 'suggestion', 'experience'] as const
 type FeedbackKind = (typeof KINDS)[number]
 
+/** 处理状态（GitHub issue 式）：待处理 / 进行中 / 已完成 / 暂不处理 / 已关闭 */
+export const FEEDBACK_STATUSES = ['open', 'in_progress', 'done', 'shelved', 'closed'] as const
+type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number]
+
 interface FeedbackItem {
   id: string
   name: string
   kind: FeedbackKind
   content: string
   ts: number
+  status: FeedbackStatus
+  reply: string | null
+  reply_ts: number | null
 }
 
 function json(data: unknown, status = 200, cacheSeconds = 0): Response {
@@ -136,12 +143,21 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!rateLimitOk(`fb:g:${clientIp(request)}`, GET_IP_PER_MIN)) return json({ error: 'rate_limited' }, 429)
 
   try {
-    // 公开列表：不返回 logId（日志只供管理端查看）
+    // 公开列表：不返回 logId（日志只供管理端查看）；状态与管理员回复公开
     const r = await env.cenfan_db
-      .prepare('SELECT id, name, kind, content, ts FROM feedback ORDER BY ts DESC LIMIT ?')
+      .prepare('SELECT id, name, kind, content, ts, status, reply, reply_ts FROM feedback ORDER BY ts DESC LIMIT ?')
       .bind(LIST_LIMIT)
       .all<FeedbackItem>()
-    return json({ items: r.results ?? [] }, 200, 20)
+    const items = (r.results ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      kind: row.kind,
+      content: row.content,
+      ts: row.ts,
+      status: (FEEDBACK_STATUSES as readonly string[]).includes(row.status) ? row.status : 'open',
+      ...(row.reply ? { reply: row.reply, replyTs: row.reply_ts ?? 0 } : {}),
+    }))
+    return json({ items }, 200, 20)
   } catch {
     return json({ error: 'storage_failed' }, 503)
   }
@@ -197,7 +213,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       .prepare('INSERT INTO feedback (id, name, kind, content, ts, logId, done) VALUES (?, ?, ?, ?, ?, ?, 0)')
       .bind(id, name, kind, content, now, logId === '' ? null : logId)
       .run()
-    return json({ ok: true, item: { id, name, kind, content, ts: now } })
+    return json({ ok: true, item: { id, name, kind, content, ts: now, status: 'open' } })
   } catch {
     return json({ error: 'storage_failed' }, 503)
   }

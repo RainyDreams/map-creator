@@ -5,6 +5,14 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.30.0',
+    date: '2026-07-25 19:40',
+    items: [
+      '反馈板升级 issue 式处理流程：每条反馈公开显示处理状态（待处理 / 进行中 / 已完成 / 暂不处理 / 已关闭），作者可以公开回复，回复直接显示在反馈下方',
+      '右下角水印改用 JetBrains Mono 等宽字体（开源字体本地内置，导出图片同样生效）',
+    ],
+  },
+  {
     version: 'v1.29.2',
     date: '2026-07-25 17:45',
     items: [

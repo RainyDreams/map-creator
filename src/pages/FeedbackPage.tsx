@@ -27,6 +27,20 @@ interface FeedbackItem {
   kind: FeedbackKind
   content: string
   ts: number
+  status?: FeedbackStatus
+  reply?: string
+  replyTs?: number
+}
+
+type FeedbackStatus = 'open' | 'in_progress' | 'done' | 'shelved' | 'closed'
+
+/** 处理状态展示（GitHub issue 式）：公开板只读展示，管理端负责流转 */
+const STATUS_META: Record<FeedbackStatus, { label: string; badge: string }> = {
+  open: { label: '待处理', badge: 'bg-stone-100 text-stone-500' },
+  in_progress: { label: '进行中', badge: 'bg-sky-100 text-sky-700' },
+  done: { label: '已完成', badge: 'bg-emerald-100 text-emerald-700' },
+  shelved: { label: '暂不处理', badge: 'bg-amber-100 text-amber-700' },
+  closed: { label: '已关闭', badge: 'bg-stone-200 text-stone-500' },
 }
 
 const KIND_META: Record<FeedbackKind, { label: string; icon: typeof Bug; badge: string }> = {
@@ -202,6 +216,7 @@ export default function FeedbackPage() {
         {items.map((it) => {
           const meta = KIND_META[it.kind] ?? KIND_META.suggestion
           const Icon = meta.icon
+          const st = STATUS_META[it.status ?? 'open'] ?? STATUS_META.open
           return (
             <li key={it.id} className="rounded-xl border border-stone-200/80 bg-white/80 p-4">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -215,6 +230,11 @@ export default function FeedbackPage() {
                   <Icon className="h-3 w-3" />
                   {meta.label}
                 </span>
+                <span
+                  className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px]', st.badge)}
+                >
+                  {st.label}
+                </span>
                 <span className="text-xs text-stone-400">
                   {format(new Date(it.ts), 'yyyy-MM-dd HH:mm')}
                 </span>
@@ -222,6 +242,16 @@ export default function FeedbackPage() {
               <p className="mt-2 whitespace-pre-wrap break-words leading-6 text-stone-600">
                 {it.content}
               </p>
+              {it.reply && (
+                <div className="mt-2.5 rounded-r-lg border-l-[3px] border-stone-300 bg-stone-50 px-3 py-2">
+                  <p className="text-[11px] text-stone-400">
+                    作者回复{it.replyTs ? ` · ${format(new Date(it.replyTs), 'yyyy-MM-dd HH:mm')}` : ''}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-stone-700">
+                    {it.reply}
+                  </p>
+                </div>
+              )}
             </li>
           )
         })}
