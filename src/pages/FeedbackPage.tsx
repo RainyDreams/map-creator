@@ -235,6 +235,11 @@ export default function FeedbackPage() {
         这里是一块公开的反馈板：遇到的 Bug、想要的功能、使用感受都可以写。
         反馈内容<strong className="text-stone-700">所有人可见</strong>，请勿填写姓名、联系方式等个人信息。
       </p>
+      <p className="rounded-xl border border-stone-200/70 bg-white/60 p-4 text-sm leading-6 text-stone-500">
+        这个小站由一个人开发和维护，目前不计成本地免费开放给大家使用——
+        权当是为社会添一块砖、加一片瓦。你的每一条反馈我都会认真看，
+        好的建议会尽量排进后续版本。
+      </p>
 
       <section className="space-y-3 rounded-xl border border-stone-200/80 bg-white/80 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,6 +1,17 @@
-import { useState } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router'
 import { APP_VERSION } from '@/version'
+
+/** 「问题反馈」红点引导标记：未点击过时显示，点击或进入反馈页后永久消失（本机记忆） */
+const FEEDBACK_SEEN_KEY = 'cenfan-feedback-seen'
+
+function loadFeedbackSeen(): boolean {
+  try {
+    return localStorage.getItem(FEEDBACK_SEEN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 /**
  * 全站页脚：版权 + 开发者 + 版本 + 备案信息 + 站点页面链接。
@@ -11,6 +22,29 @@ import { APP_VERSION } from '@/version'
 export default function SiteFooter() {
   const year = new Date().getFullYear()
   const [qrOpen, setQrOpen] = useState(false)
+  const [feedbackSeen, setFeedbackSeen] = useState<boolean>(loadFeedbackSeen)
+  const { pathname } = useLocation()
+
+  // 通过任何路径到达反馈页都视为已读，红点不再出现
+  useEffect(() => {
+    if (pathname === '/feedback' && !feedbackSeen) {
+      setFeedbackSeen(true)
+      try {
+        localStorage.setItem(FEEDBACK_SEEN_KEY, '1')
+      } catch {
+        // 忽略
+      }
+    }
+  }, [pathname, feedbackSeen])
+
+  const markFeedbackSeen = () => {
+    setFeedbackSeen(true)
+    try {
+      localStorage.setItem(FEEDBACK_SEEN_KEY, '1')
+    } catch {
+      // 忽略
+    }
+  }
 
   return (
     <footer className="shrink-0 border-t border-stone-200 bg-stone-50 px-3 py-2.5 text-center text-[11px] leading-5 text-stone-400">
@@ -51,8 +85,18 @@ export default function SiteFooter() {
           关于
         </Link>
         <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
-        <Link to="/feedback" className="transition-colors hover:text-stone-700">
+        <Link
+          to="/feedback"
+          onClick={markFeedbackSeen}
+          className="relative transition-colors hover:text-stone-700"
+        >
           问题反馈
+          {!feedbackSeen && (
+            <span
+              aria-hidden
+              className="absolute -right-2 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500"
+            />
+          )}
         </Link>
         <span aria-hidden className="text-stone-300">·</span>
         {/* 公众号二维码：桌面悬浮展开、移动端点按展开；再次点击或移出即收起。

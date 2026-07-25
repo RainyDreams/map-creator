@@ -1222,11 +1222,12 @@ export function recommendFontSizes(
     person: clampFit(bodySize, FIT_RANGE.person),
     place: clampFit(bodySize, FIT_RANGE.place),
   }
-  // 放大建议收敛上限 19px：空间富余时也不推荐过大字号（16–19px 观感最佳）
+  // 放大建议收敛上限：空间富余时姓名/校名/城市推荐到 16px 即止（16px 是观感最合适的常规大小），
+  // 省份名标题随之到 19px；不再往更大推荐，避免「字大挤图」
   if (factor >= 1) {
     rec.province = Math.min(rec.province, 19)
-    rec.person = Math.min(rec.person, 19)
-    rec.place = Math.min(rec.place, 19)
+    rec.person = Math.min(rec.person, 16)
+    rec.place = Math.min(rec.place, 16)
   }
   if (rec.province === sizes.province && rec.person === sizes.person && rec.place === sizes.place) {
     return null
