@@ -2,8 +2,10 @@
  * 问题反馈接口（公开反馈板）—— D1 版：
  *
  *   GET  /api/feedback            → { items: FeedbackItem[] }（最新 50 条，公开；不含 logId / akey，含对话流水 thread）
+ *   GET  /api/feedback?id=<id>    → { item }（单条详情，issue 详情页直链用）
  *   POST /api/feedback            body: { name, kind, content, logId? } → 提交一条反馈（响应带一次性作者凭证 key）
- *   POST /api/feedback/reply      body: { id, key, text } → 作者追加回复（见 reply.ts；凭证不匹配 403）
+ *   POST /api/feedback/reply      body: { id, key?, name?, text } → 追加评论（见 reply.ts；任何人可评论，
+ *                                   带有效作者凭证 key 的评论标记 author=true）
  *
  * 存储：D1（feedback 表）。反馈是「写多查多 + 需要管理端标记/删除」的结构化数据，
  * 放 KV 每次列表都要 list + 逐条 get，太烧额度；D1 一次 SQL 解决。
@@ -62,11 +64,14 @@ interface FeedbackItem {
   thread: string | null
 }
 
-/** 对话流水单条（不含首帖）：by=admin 为管理员回复，by=user 为作者追问 */
+/** 对话流水单条（不含首帖）：by=admin 为管理员评论，by=user 为访客/作者评论；
+ *  user 条目带昵称 name；author=true 表示经作者凭证验证的「作者」评论（GitHub Author 徽标语义） */
 export interface ThreadEntry {
   by: 'admin' | 'user'
   text: string
   ts: number
+  name?: string
+  author?: boolean
 }
 
 /** 解析 thread 列（JSON 数组；损坏/超限则截断，最多保留 20 条） */
@@ -79,11 +84,30 @@ export function parseThread(raw: string | null): ThreadEntry[] {
     for (const e of arr.slice(-20)) {
       if (!e || (e.by !== 'admin' && e.by !== 'user')) continue
       if (typeof e.text !== 'string' || typeof e.ts !== 'number') continue
-      out.push({ by: e.by, text: e.text.slice(0, 500), ts: Math.round(e.ts) })
+      const entry: ThreadEntry = { by: e.by, text: e.text.slice(0, 500), ts: Math.round(e.ts) }
+      if (e.by === 'user') {
+        if (typeof e.name === 'string' && e.name !== '') entry.name = e.name.slice(0, 30)
+        if (e.author === true) entry.author = true
+      }
+      out.push(entry)
     }
     return out
   } catch {
     return []
+  }
+}
+
+/** 行 → 公开条目（不返回 logId / akey；状态与对话流水公开） */
+function toPublicItem(row: FeedbackItem): Record<string, unknown> {
+  return {
+    id: row.id,
+    name: row.name,
+    kind: row.kind,
+    content: row.content,
+    ts: row.ts,
+    status: (FEEDBACK_STATUSES as readonly string[]).includes(row.status) ? row.status : 'open',
+    ...(row.reply ? { reply: row.reply, replyTs: row.reply_ts ?? 0 } : {}),
+    ...(row.thread ? { thread: parseThread(row.thread) } : {}),
   }
 }
 
@@ -139,6 +163,23 @@ function nameValid(v: string): boolean {
   return true
 }
 
+/** 反馈 id 校验：13 位数字 + 冒号 + 12 位小写十六进制（逐字符判断） */
+function idOk(id: string): boolean {
+  if (id.length !== 26) return false
+  for (let i = 0; i < id.length; i++) {
+    const n = id.charCodeAt(i)
+    if (i === 13) {
+      if (id[i] !== ':') return false
+    } else if (i < 13) {
+      if (n < 48 || n > 57) return false
+    } else {
+      const ok = (n >= 48 && n <= 57) || (n >= 97 && n <= 102)
+      if (!ok) return false
+    }
+  }
+  return true
+}
+
 /** 日志 id 字符校验（小写字母/数字/冒号；逐字符判断） */
 function logIdOk(v: string): boolean {
   if (v.length < 8) return false
@@ -170,21 +211,23 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!rateLimitOk(`fb:g:${clientIp(request)}`, GET_IP_PER_MIN)) return json({ error: 'rate_limited' }, 429)
 
   try {
-    // 公开列表：不返回 logId / akey（日志只供管理端查看，akey 是作者凭证绝不外发）；状态与对话流水公开
+    // 单条详情（GitHub issue 详情页直链用）：?id=<26 位 id>
+    const id = new URL(request.url).searchParams.get('id')
+    if (id !== null) {
+      if (!idOk(id)) return json({ error: 'invalid_id' }, 400)
+      const row = await env.cenfan_db
+        .prepare('SELECT id, name, kind, content, ts, status, reply, reply_ts, thread FROM feedback WHERE id = ?')
+        .bind(id)
+        .first<FeedbackItem>()
+      if (!row) return json({ error: 'not_found' }, 404)
+      return json({ item: toPublicItem(row) }, 200, 10)
+    }
+    // 公开列表：最新 50 条
     const r = await env.cenfan_db
       .prepare('SELECT id, name, kind, content, ts, status, reply, reply_ts, thread FROM feedback ORDER BY ts DESC LIMIT ?')
       .bind(LIST_LIMIT)
       .all<FeedbackItem>()
-    const items = (r.results ?? []).map((row) => ({
-      id: row.id,
-      name: row.name,
-      kind: row.kind,
-      content: row.content,
-      ts: row.ts,
-      status: (FEEDBACK_STATUSES as readonly string[]).includes(row.status) ? row.status : 'open',
-      ...(row.reply ? { reply: row.reply, replyTs: row.reply_ts ?? 0 } : {}),
-      ...(row.thread ? { thread: parseThread(row.thread) } : {}),
-    }))
+    const items = (r.results ?? []).map(toPublicItem)
     return json({ items }, 200, 20)
   } catch {
     return json({ error: 'storage_failed' }, 503)

@@ -1,21 +1,22 @@
 /**
- * 作者追加回复接口（反馈对话流水）：
+ * 追加评论接口（反馈对话流水，GitHub issue 评论语义）：
  *
- *   POST /api/feedback/reply   body: { id, key, text } → { ok, entry }
+ *   POST /api/feedback/reply   body: { id, key?, name?, text } → { ok, entry }
  *
  * 设计：
+ * - 任何访问者都可以评论（GitHub issue 式开放讨论），评论以本机随机昵称署名；
  * - 用户创建反馈时服务端生成一次性作者凭证 akey 并随响应返回（仅此一次），
  *   浏览器把它和反馈 id 一起存在本机（cenfan-my-feedback）；
- * - 追加回复必须带上 id + key，与服务端 akey 匹配才允许写入——
- *   公开反馈板的 id 人人可见，没有凭证就无法冒充作者；
- * - 追加内容写入 feedback.thread（JSON 对话流水），by='user'；
- * - 作者追问说明问题未解决：状态为 done/shelved/closed 时自动重开为 open，
- *   让管理端重新看到它；
- * - 追问不更新 reply/reply_ts（那是「最新管理员回复」快照，驱动页脚红点），
- *   所以用户自己的追问不会给自己触发红点。
+ *   评论时若带上有效的 key（与 akey 匹配），条目标记 author=true——
+ *   对应 GitHub 的「Author」徽标，他人无法冒充作者；
+ * - 评论写入 feedback.thread（JSON 对话流水），by='user' + name + author；
+ * - 作者（凭证验证通过）在 done/shelved/closed 的反馈下评论 = 问题未解决，
+ *   自动重开为 open；普通访客评论不改变状态；
+ * - 评论不更新 reply/reply_ts（那是「最新管理员回复」快照，驱动页脚红点），
+ *   所以用户自己的评论不会给自己触发红点。
  *
  * 防护：同源校验、体积闸门（4KB）、限流（全局 100/min + 单 IP 8/min）、
- * 内容清洗（控制字符过滤 + 500 字截断）、凭证格式校验（24 位小写十六进制）。
+ * 内容清洗（控制字符过滤 + 500 字截断）、昵称格式校验（不符则服务端重新生成）。
  */
 
 import { rateLimitOk, clientIp } from '../../_lib/ratelimit'
@@ -35,6 +36,8 @@ interface ThreadEntry {
   by: 'admin' | 'user'
   text: string
   ts: number
+  name?: string
+  author?: boolean
 }
 
 function json(data: unknown, status = 200): Response {
@@ -101,6 +104,25 @@ function keyOk(k: string): boolean {
   return true
 }
 
+/** 用户名校验：「用户」+ 4~10 位数字（逐字符判断） */
+function nameValid(v: string): boolean {
+  if (!v.startsWith('用户')) return false
+  const rest = v.slice(2)
+  if (rest.length < 4 || rest.length > 10) return false
+  for (const c of rest) {
+    const n = c.codePointAt(0) ?? 0
+    if (n < 48 || n > 57) return false
+  }
+  return true
+}
+
+/** 服务端兜底用户名：用户 + 7 位数字 */
+function randomName(): string {
+  const buf = new Uint32Array(1)
+  crypto.getRandomValues(buf)
+  return `用户${1000000 + (buf[0] % 9000000)}`
+}
+
 function parseThread(raw: string | null): ThreadEntry[] {
   if (!raw) return []
   try {
@@ -136,8 +158,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const id = typeof body.id === 'string' ? body.id : ''
   const key = typeof body.key === 'string' ? body.key : ''
   const text = sanitize(body.text, MAX_TEXT_CHARS)
+  let name = sanitize(body.name, 30)
+  if (!nameValid(name)) name = randomName()
   if (!idOk(id)) return json({ error: 'invalid_id' }, 400)
-  if (!keyOk(key)) return json({ error: 'invalid_key' }, 400)
   if (text === '') return json({ error: 'empty_content' }, 400)
 
   if (!rateLimitOk('fbr:p:global', GLOBAL_PER_MIN)) return json({ error: 'rate_limited' }, 429)
@@ -150,16 +173,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       .bind(id)
       .first<{ akey: string | null; status: string | null; thread: string | null }>()
     if (!row) return json({ error: 'not_found' }, 404)
-    // 老数据没有 akey：无法验证作者身份，礼貌拒绝（新反馈均带凭证）
-    if (!row.akey || row.akey !== key) return json({ error: 'forbidden_key' }, 403)
+
+    // 带有效作者凭证的评论 → GitHub「Author」徽标语义（老数据无 akey，永远 false）
+    const author = keyOk(key) && row.akey !== null && row.akey === key
 
     const thread = parseThread(row.thread)
-    const entry: ThreadEntry = { by: 'user', text, ts: Date.now() }
+    const entry: ThreadEntry = { by: 'user', name, text, ts: Date.now(), ...(author ? { author: true } : {}) }
     thread.push(entry)
     const trimmed = thread.slice(-MAX_THREAD_ENTRIES)
 
-    // 追问 = 问题未解决：已完结/搁置/关闭的反馈自动重开，让管理端重新看到
-    const reopen = row.status === 'done' || row.status === 'shelved' || row.status === 'closed'
+    // 作者在已完结/搁置/关闭的反馈下评论 = 问题未解决：自动重开，让管理端重新看到
+    const reopen = author && (row.status === 'done' || row.status === 'shelved' || row.status === 'closed')
     await db
       .prepare(`UPDATE feedback SET thread = ?${reopen ? ", status = 'open'" : ''} WHERE id = ?`)
       .bind(JSON.stringify(trimmed), id)
