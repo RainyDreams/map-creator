@@ -4,7 +4,10 @@ import { defineConfig } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
-export default defineConfig({
+// code-path 调试属性（kimi-plugin-inspect-react 注入的源码位置标注）：
+// 本地 dev 始终开启；生产构建默认关闭以减小体积，
+// 仅 VITE_CODE_PATH=1 的调试构建（build:debug → debug.html）开启
+export default defineConfig(({ command }) => ({
   base: './',
   plugins: [
     // 依赖库（Radix 等）的开发态警告在生产构建中剔除：
@@ -34,7 +37,7 @@ export default defineConfig({
         return out === code ? null : out
       },
     },
-    inspectAttr(),
+    ...(command === 'serve' || process.env.VITE_CODE_PATH === '1' ? [inspectAttr()] : []),
     react(),
   ],
   server: {
@@ -58,4 +61,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

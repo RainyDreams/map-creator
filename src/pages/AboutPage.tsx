@@ -5,6 +5,14 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.33.9',
+    date: '2026-07-26 01:25',
+    items: [
+      '正式包移除 code-path 源码位置标注，入口脚本减重约 56KB，加载更快、更省流量',
+      '调试信息改由独立的 debug.html 承载，排障入口保留但不影响正式用户',
+    ],
+  },
+  {
     version: 'v1.33.8',
     date: '2026-07-26 02:10',
     items: [
