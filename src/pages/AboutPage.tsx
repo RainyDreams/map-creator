@@ -5,6 +5,14 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.33.8',
+    date: '2026-07-26 02:10',
+    items: [
+      '生产构建剔除第三方组件库的无障碍开发警告文案，产物更干净，不再暴露依赖信息',
+      '咱们自己的导出诊断日志完整保留，不影响问题排查',
+    ],
+  },
+  {
     version: 'v1.33.7',
     date: '2026-07-26 01:50',
     items: [
