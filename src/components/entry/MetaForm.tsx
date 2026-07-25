@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Section } from '@/components/entry/Section'
@@ -6,6 +6,7 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  ChevronDown,
   ImagePlus,
   PenLine,
   X,
@@ -46,8 +47,52 @@ function fileToBadgeDataUrl(file: File): Promise<string> {
 }
 
 /**
- * 标题控制区：大标题（年份与「蹭饭图」都直接写进标题）+ 标题字体 / 数字字体 /
- * 字号 / 排布 / 副标题 / 班徽，全部集中在此，实时写入 store、地图页联动。
+ * 标题个性化子分区（字体 / 字号 / 排布）：
+ * 移动端信息优先——个性化选项排在信息之后并默认折叠；
+ * 桌面端空间充裕默认展开。外观是轻量的虚线分区，不与外层卡片混淆。
+ */
+function PersonalizePanel({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(
+    () =>
+      typeof window === 'undefined' ||
+      !window.matchMedia('(max-width: 767px)').matches,
+  )
+  return (
+    <div className="rounded-lg border border-dashed border-stone-200">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left"
+      >
+        <span className="text-xs font-medium text-stone-600 md:text-sm">标题个性化</span>
+        <span className="text-[11px] text-stone-400">字体 · 字号 · 排布</span>
+        <ChevronDown
+          className={cn(
+            'ml-auto h-3.5 w-3.5 text-stone-400 transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
+          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="space-y-3 border-t border-dashed border-stone-200 px-3 py-3 md:space-y-4">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 标题控制区：大标题（年份与「蹭饭图」都直接写进标题）+ 副标题 + 班徽为信息区，
+ * 字体 / 字号 / 排布收进「标题个性化」子分区，实时写入 store、地图页联动。
  */
 export default function MetaForm() {
   const { data, setData, badge, setBadge, fontSlots, setFontSlot } = useMapData()
@@ -72,6 +117,7 @@ export default function MetaForm() {
   return (
     <Section icon={PenLine} title="班级信息">
       <div className="space-y-3 md:space-y-4">
+        {/* —— 信息区：大标题 / 英文副标题 / 校徽班徽，移动端优先呈现 —— */}
         <div className="space-y-1.5">
           <Label htmlFor="map-title" className="text-xs text-stone-600 md:text-sm">
             大标题
@@ -88,53 +134,6 @@ export default function MetaForm() {
           </p>
         </div>
 
-        {/* 标题字体：按字符类型分 数字 / 英文 / 中文 三个槽位 */}
-        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-stone-600 md:text-sm">数字字体</Label>
-            <div className="flex items-center">
-              <FontSelect
-                value={fontSlots.digit}
-                onChange={(id) => setFontSlot('digit', id)}
-                ariaLabel="数字字体"
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-stone-600 md:text-sm">英文字体</Label>
-            <div className="flex items-center">
-              <FontSelect
-                value={fontSlots.latin}
-                onChange={(id) => setFontSlot('latin', id)}
-                ariaLabel="英文字体"
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-stone-600 md:text-sm">中文字体</Label>
-            <div className="flex items-center">
-              <FontSelect
-                value={fontSlots.han}
-                onChange={(id) => setFontSlot('han', id)}
-                ariaLabel="中文字体"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* 标题字号（px 下拉，与标注字号同一控件） */}
-        <div className="space-y-1.5">
-          <Label className="text-xs text-stone-600 md:text-sm">标题字号</Label>
-          <div className="flex items-center">
-            <SizeSelect
-              value={data.titleSize}
-              options={TITLE_SIZE_OPTIONS}
-              onChange={(px) => setData((prev) => ({ ...prev, titleSize: px }))}
-              ariaLabel="标题字号"
-            />
-          </div>
-        </div>
-
         <div className="space-y-1.5">
           <Label htmlFor="map-subtitle" className="text-xs text-stone-600 md:text-sm">
             英文副标题（可选）
@@ -146,56 +145,6 @@ export default function MetaForm() {
             placeholder="如：CLASS OF 2026"
             className="h-8 border-transparent bg-stone-50 text-xs hover:bg-stone-100 focus-visible:ring-stone-300 md:h-9 md:text-sm"
           />
-        </div>
-
-        {/* 副标题字号（px 下拉，与标题字号同一控件） */}
-        <div className="space-y-1.5">
-          <Label className="text-xs text-stone-600 md:text-sm">副标题字号</Label>
-          <div className="flex items-center">
-            <SizeSelect
-              value={data.subtitleSize}
-              options={SUBTITLE_SIZE_OPTIONS}
-              onChange={(px) => setData((prev) => ({ ...prev, subtitleSize: px }))}
-              ariaLabel="副标题字号"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs text-stone-600 md:text-sm">标题排布</Label>
-          <div
-            role="radiogroup"
-            aria-label="标题排布"
-            className="inline-flex rounded-lg border border-stone-200 bg-stone-100 p-0.5"
-          >
-            {(
-              [
-                { value: 'left', label: '居左', icon: AlignLeft },
-                { value: 'center', label: '居中', icon: AlignCenter },
-                { value: 'right', label: '居右', icon: AlignRight },
-              ] as const
-            ).map(({ value, label, icon: Icon }) => {
-              const active = data.titleAlign === value
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setAlign(value)}
-                  className={cn(
-                    'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-colors md:px-3 md:text-sm',
-                    active
-                      ? 'bg-white font-medium text-stone-800 shadow-sm'
-                      : 'text-stone-500 hover:text-stone-700',
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              )
-            })}
-          </div>
         </div>
 
         <div className="space-y-1.5">
@@ -255,6 +204,106 @@ export default function MetaForm() {
             </div>
           )}
         </div>
+
+        {/* —— 个性化区：字体 / 字号 / 排布，移动端默认折叠、排在信息之后 —— */}
+        <PersonalizePanel>
+          {/* 标题字体：按字符类型分 数字 / 英文 / 中文 三个槽位 */}
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-stone-600 md:text-sm">数字字体</Label>
+              <div className="flex items-center">
+                <FontSelect
+                  value={fontSlots.digit}
+                  onChange={(id) => setFontSlot('digit', id)}
+                  ariaLabel="数字字体"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-stone-600 md:text-sm">英文字体</Label>
+              <div className="flex items-center">
+                <FontSelect
+                  value={fontSlots.latin}
+                  onChange={(id) => setFontSlot('latin', id)}
+                  ariaLabel="英文字体"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-stone-600 md:text-sm">中文字体</Label>
+              <div className="flex items-center">
+                <FontSelect
+                  value={fontSlots.han}
+                  onChange={(id) => setFontSlot('han', id)}
+                  ariaLabel="中文字体"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 标题字号（px 下拉，与标注字号同一控件） */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-stone-600 md:text-sm">标题字号</Label>
+            <div className="flex items-center">
+              <SizeSelect
+                value={data.titleSize}
+                options={TITLE_SIZE_OPTIONS}
+                onChange={(px) => setData((prev) => ({ ...prev, titleSize: px }))}
+                ariaLabel="标题字号"
+              />
+            </div>
+          </div>
+
+          {/* 副标题字号（px 下拉，与标题字号同一控件） */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-stone-600 md:text-sm">副标题字号</Label>
+            <div className="flex items-center">
+              <SizeSelect
+                value={data.subtitleSize}
+                options={SUBTITLE_SIZE_OPTIONS}
+                onChange={(px) => setData((prev) => ({ ...prev, subtitleSize: px }))}
+                ariaLabel="副标题字号"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-stone-600 md:text-sm">标题排布</Label>
+            <div
+              role="radiogroup"
+              aria-label="标题排布"
+              className="inline-flex rounded-lg border border-stone-200 bg-stone-100 p-0.5"
+            >
+              {(
+                [
+                  { value: 'left', label: '居左', icon: AlignLeft },
+                  { value: 'center', label: '居中', icon: AlignCenter },
+                  { value: 'right', label: '居右', icon: AlignRight },
+                ] as const
+              ).map(({ value, label, icon: Icon }) => {
+                const active = data.titleAlign === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setAlign(value)}
+                    className={cn(
+                      'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-colors md:px-3 md:text-sm',
+                      active
+                        ? 'bg-white font-medium text-stone-800 shadow-sm'
+                        : 'text-stone-500 hover:text-stone-700',
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </PersonalizePanel>
       </div>
     </Section>
   )

@@ -776,7 +776,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                     onChange={(e) => updateRow(s.id, { name: e.target.value })}
                     placeholder="姓名"
                     aria-label="姓名"
-                    className="h-7 min-w-0 flex-1 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:w-20 md:flex-none"
+                    className="h-7 min-w-0 flex-1 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:order-1 md:w-20 md:flex-none"
                   />
                   <button
                     type="button"
@@ -790,7 +790,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                           ? '已上传毛笔字图片，点击调整'
                           : '上传该校的毛笔字图片（替代大学文字）'
                     }
-                    className={`shrink-0 rounded p-1 ${
+                    className={`shrink-0 rounded p-1 md:order-3 ${
                       calli
                         ? 'text-stone-700 bg-stone-200/70 hover:bg-stone-200'
                         : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
@@ -809,7 +809,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                           ? '此人的校徽已隐藏，点击调整'
                           : '自定义此人的校徽（上传图片或单独隐藏）'
                     }
-                    className={`shrink-0 rounded p-1 ${
+                    className={`shrink-0 rounded p-1 md:order-3 ${
                       ovr?.dataUrl
                         ? 'text-stone-700 bg-stone-200/70 hover:bg-stone-200'
                         : ovr?.hidden
@@ -823,7 +823,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                     type="button"
                     onClick={() => removeRow(s.id)}
                     aria-label="删除该行"
-                    className="shrink-0 rounded p-1 text-stone-400 hover:bg-red-50 hover:text-red-500"
+                    className="shrink-0 rounded p-1 text-stone-400 hover:bg-red-50 hover:text-red-500 md:order-3"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -838,7 +838,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                     }}
                     placeholder="大学"
                     aria-label="大学"
-                    className="order-6 h-7 w-full min-w-0 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:order-none md:w-auto md:flex-1"
+                    className="order-6 h-7 w-full min-w-0 border-stone-200 bg-white text-xs focus-visible:ring-stone-300 md:order-2 md:w-auto md:flex-1"
                   />
                   </div>
 

@@ -10,6 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useMapData } from '@/store/MapDataContext'
 import { cn } from '@/lib/utils'
 
@@ -40,6 +50,9 @@ export function CanvasManager() {
   /** 新建画布命名对话框：名字必填，同时作为新画布的初始大标题 */
   const [namingOpen, setNamingOpen] = useState(false)
   const [namingValue, setNamingValue] = useState('')
+  /** 待确认删除的画布 id（危险操作必须二次确认） */
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const deletingCanvas = canvases.find((c) => c.id === deletingId) ?? null
 
   const startRename = (id: string, current: string) => {
     setEditingId(id)
@@ -200,10 +213,7 @@ export function CanvasManager() {
                     {canvases.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          deleteCanvas(c.id)
-                          toast.success(`已删除画布「${c.name}」`)
-                        }}
+                        onClick={() => setDeletingId(c.id)}
                         aria-label={`删除「${c.name}」`}
                         title="删除该画布"
                         className="rounded-md p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-500"
@@ -288,6 +298,35 @@ export function CanvasManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 删除画布二次确认：危险操作，明确告知名单数据一并删除且不可恢复 */}
+      <AlertDialog open={deletingId !== null} onOpenChange={(v) => !v && setDeletingId(null)}>
+        <AlertDialogContent className="rounded-2xl border-stone-200 bg-white sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-stone-800">
+              删除画布「{deletingCanvas?.name}」？
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              画布里的 {deletingCanvas?.studentCount ?? 0} 名学生名单、主题与字体设置会一并删除，此操作不可恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-stone-200 text-stone-600">取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingCanvas) {
+                  deleteCanvas(deletingCanvas.id)
+                  toast.success(`已删除画布「${deletingCanvas.name}」`)
+                }
+                setDeletingId(null)
+              }}
+              className="bg-red-600 text-white hover:bg-red-500"
+            >
+              确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
