@@ -141,6 +141,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     version: sanitize(meta.version, 20),
     ua: sanitize(meta.ua, 200),
     page: sanitize(meta.page, 120),
+    viewport: sanitize(meta.viewport, 30),
+    lang: sanitize(meta.lang, 20),
+    net: sanitize(meta.net, 20),
     count: entries.length,
     entries,
   }

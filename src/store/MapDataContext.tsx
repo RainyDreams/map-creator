@@ -210,6 +210,8 @@ function normalizeData(raw: unknown): MapData | null {
     showStats: d.showStats === true,
     // v1.27.1 迁移：名字一键隐私默认关闭（旧数据无该字段）
     anonymizeNames: d.anonymizeNames === true,
+    // v1.29.1 迁移：只显示省份默认关闭（旧数据无该字段）
+    provinceOnly: d.provinceOnly === true,
     cardSizes: (() => {
       const raw = d.cardSizes
       if (!raw || typeof raw !== 'object') return {}

@@ -566,6 +566,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
           setForm={setAddForm}
           nameRef={addNameRef}
           onConfirm={confirmAdd}
+          provinceOnly={data.provinceOnly}
         />
       </div>
     )
@@ -853,6 +854,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                           v ? { overseas: true, city: '' } : { overseas: undefined },
                         )
                       }
+                      provinceOnly={data.provinceOnly}
                       ariaLabel={`${s.name || `第 ${index + 1} 行`}的城市`}
                     />
                   </div>
@@ -1080,6 +1082,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
         setForm={setAddForm}
         nameRef={addNameRef}
         onConfirm={confirmAdd}
+        provinceOnly={data.provinceOnly}
       />
     </div>
   )
@@ -1093,6 +1096,7 @@ function AddStudentDialog({
   setForm,
   nameRef,
   onConfirm,
+  provinceOnly,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
@@ -1100,6 +1104,8 @@ function AddStudentDialog({
   setForm: React.Dispatch<React.SetStateAction<{ name: string; university: string; city: string; overseas: boolean }>>
   nameRef: React.RefObject<HTMLInputElement | null>
   onConfirm: () => void
+  /** 只显示省份模式：城市可留空（只选省份即可添加） */
+  provinceOnly?: boolean
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1150,6 +1156,7 @@ function AddStudentDialog({
                 onChange={(city) => setForm((f) => ({ ...f, city }))}
                 overseas={form.overseas}
                 onOverseasChange={(v) => setForm((f) => ({ ...f, overseas: v }))}
+                provinceOnly={provinceOnly}
                 ariaLabel="新增同学的城市"
               />
             </div>

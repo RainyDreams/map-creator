@@ -438,6 +438,19 @@ export function FontPanel() {
         />
       </div>
 
+      {/* 只显示省份（v1.29.1）：学生行不显示城市；开启后录入/导入时城市可留空（只选省份） */}
+      <div className="mt-2.5 flex items-center justify-between">
+        <Label htmlFor="province-only-toggle" className="text-xs text-stone-500">
+          只显示省份（学生行隐藏城市，录入时城市可留空）
+        </Label>
+        <Switch
+          id="province-only-toggle"
+          checked={data.provinceOnly}
+          onCheckedChange={(v) => setData((prev) => ({ ...prev, provinceOnly: v }))}
+          aria-label="只显示省份"
+        />
+      </div>
+
       {/* 分布统计表：画布下方（页脚之上）展示全班各地人数分布，随导出进 PNG */}
       <div className="mt-2.5 flex items-center justify-between">
         <Label htmlFor="stats-toggle" className="text-xs text-stone-500">

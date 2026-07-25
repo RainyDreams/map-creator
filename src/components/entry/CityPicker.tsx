@@ -20,15 +20,22 @@ import {
 } from '@/components/ui/command'
 import { cn } from '@/lib/utils'
 import { fetchCities, fetchProvinces, isCityApiAvailable, type CityInfo } from '@/utils/cities'
-import { provinceOfCity } from '@/utils/geo'
+import { normalizeProvinceName, provinceOfCity } from '@/utils/geo'
+
+/** 省份全称 → 短名（湖南省→湖南、北京市→北京；只显示省份模式下作为城市位的存储值） */
+function provinceShort(p: string): string {
+  return p.replace(/(特别行政区|壮族自治区|回族自治区|维吾尔自治区|自治区|省|市)$/, '')
+}
 
 interface CityPickerProps {
-  /** 当前城市名（可不带“市”后缀），为空表示未选 */
+  /** 当前城市名（可不带“市”后缀），为空表示未选；只显示省份模式下也可能是省份短名（如「湖南」） */
   value: string
   onChange: (city: string) => void
   /** 境外标记：true 时 value 视为国家/地区名，不在中国地图定位 */
   overseas?: boolean
   onOverseasChange?: (v: boolean) => void
+  /** 只显示省份模式（v1.29.1）：城市可留空，只选省份时 value 存省份短名 */
+  provinceOnly?: boolean
   /** 降级为文本输入时透传回车键处理（最后一行回车加行） */
   onEnterKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
   ariaLabel?: string
@@ -51,7 +58,7 @@ function stripCitySuffix(name: string): string {
  * - 省份下拉首项为「海外 / 境外」：选中后城市位变为国家/地区自由输入，
  *   该同学不指向地图，单独列入「海外 / 境外」区块。
  */
-export default function CityPicker({ value, onChange, overseas, onOverseasChange, onEnterKeyDown, ariaLabel }: CityPickerProps) {
+export default function CityPicker({ value, onChange, overseas, onOverseasChange, provinceOnly, onEnterKeyDown, ariaLabel }: CityPickerProps) {
   const [status, setStatus] = useState<Status>('loading')
   const [provinces, setProvinces] = useState<string[]>([])
   const [province, setProvince] = useState('')
@@ -84,10 +91,16 @@ export default function CityPicker({ value, onChange, overseas, onOverseasChange
       if (province !== OVERSEAS_VALUE) setProvince(OVERSEAS_VALUE)
       return
     }
-    const inferred = value.trim() ? provinceOfCity(value) : null
+    if (!value.trim()) return
+    const inferred = provinceOfCity(value)
     if (inferred && inferred !== province) setProvince(inferred)
+    // 只显示省份模式：value 是省份短名（如「湖南」）时，省份下拉也要回显
+    if (!inferred && provinceOnly) {
+      const asProv = normalizeProvinceName(value)
+      if (asProv && asProv !== province) setProvince(asProv)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, overseas])
+  }, [value, overseas, provinceOnly])
 
   // 省份变化 → 拉取该省城市（带序号防竞态）；境外模式不拉取
   useEffect(() => {
@@ -113,6 +126,13 @@ export default function CityPicker({ value, onChange, overseas, onOverseasChange
       return
     }
     onOverseasChange?.(false)
+    if (provinceOnly) {
+      // 只显示省份模式：选省份即先把城市位置为省份短名（用户可再选具体城市覆盖）；
+      // 若当前值已是该省的城市或该省短名，保持不变
+      const v = value.trim()
+      if (v === '' || (provinceOfCity(v) !== p && provinceShort(p) !== v)) onChange(provinceShort(p))
+      return
+    }
     // 切换省份后，若当前城市不属于新省份则清空，避免“河北省 + 广州”这种错配
     if (value.trim() && provinceOfCity(value) !== p) onChange('')
   }
@@ -214,7 +234,7 @@ export default function CityPicker({ value, onChange, overseas, onOverseasChange
             )}
           >
             <span className="truncate">
-              {citiesLoading ? '加载中…' : value || (province ? '城市' : '先选省份')}
+              {citiesLoading ? '加载中…' : value || (province ? (provinceOnly ? '城市（可留空）' : '城市') : '先选省份')}
             </span>
             {citiesLoading ? (
               <Loader2 className="ml-1 h-3.5 w-3.5 shrink-0 animate-spin opacity-60" />
@@ -229,6 +249,24 @@ export default function CityPicker({ value, onChange, overseas, onOverseasChange
             <CommandList>
               <CommandEmpty>未找到匹配城市</CommandEmpty>
               <CommandGroup>
+                {/* 只显示省份模式：允许不选具体城市，城市位存省份短名 */}
+                {provinceOnly && province && (
+                  <CommandItem
+                    value={`__only_province__${province}`}
+                    onSelect={() => {
+                      onChange(provinceShort(province))
+                      setOpen(false)
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        value.trim() === provinceShort(province) ? 'opacity-100' : 'opacity-0',
+                      )}
+                    />
+                    仅到省（不选具体城市）
+                  </CommandItem>
+                )}
                 {cities.map((c) => (
                   <CommandItem
                     key={c.name}

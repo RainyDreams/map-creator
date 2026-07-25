@@ -114,7 +114,14 @@ export default function FeedbackPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 entries,
-                meta: { version: APP_VERSION, ua: navigator.userAgent, page: location.pathname },
+                meta: {
+                  version: APP_VERSION,
+                  ua: navigator.userAgent,
+                  page: location.pathname,
+                  viewport: `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio}x`,
+                  lang: navigator.language,
+                  net: (navigator as { connection?: { effectiveType?: string } }).connection?.effectiveType ?? '',
+                },
               }),
             })
             if (lr.ok) {

@@ -105,6 +105,9 @@ export interface MapData {
   /** 名字一键隐私（v1.27.1）：开启后地图与导出图片中的学生姓名只显示「姓+同学」；
       仅影响渲染，原始名单数据不变，录入/编辑界面仍显示全名 */
   anonymizeNames: boolean
+  /** 只显示省份（v1.29.1）：开启后地图上学生行不显示城市（只显示大学），
+      录入时城市可留空（只选省份，城市位存省份短名如「湖南」）；导入同理 */
+  provinceOnly: boolean
   /**
    * 省份卡片手动尺寸覆盖（v1.25）：卡片键 → {w, h}（viewBox 单位，绝对尺寸）。
    * 选中卡片后拖动右下角手柄调整；实际生效尺寸 = max(内容自然尺寸, 覆盖值)——
@@ -162,7 +165,7 @@ export interface MapData {
 }
 
 export const EMPTY_MAP_DATA: MapData = {
-  title: '',
+  title: '我们班的蹭饭图',
   titleSize: 30,
   students: [],
   teachers: [],
@@ -183,6 +186,7 @@ export const EMPTY_MAP_DATA: MapData = {
   cardCountPos: 'auto',
   showStats: false,
   anonymizeNames: false,
+  provinceOnly: false,
   cardSizes: {},
   labelCardBg: true,
   cardRadius: 10,

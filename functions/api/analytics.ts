@@ -85,8 +85,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const col = COLUMN[name as EventName]
   const day = new Date().toISOString().slice(0, 10)
+  // 统计只保留最近 31 天（用户要求：几周~一个月，防止无限增长）
+  const cutoff = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   try {
-    // 原子累加（upsert）；顺带清理 180 天前的旧行（存储有界）
+    // 低频写路径顺带清理 31 天前的旧行（0 额外请求）；原子累加（upsert）
+    await env.cenfan_db.prepare('DELETE FROM stats_daily WHERE day < ?').bind(cutoff).run()
     await env.cenfan_db
       .prepare(
         `INSERT INTO stats_daily (day, ${col}) VALUES (?, 1)

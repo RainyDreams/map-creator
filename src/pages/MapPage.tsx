@@ -7,6 +7,7 @@ import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
 import { exportNodeToPng, renderNodeToPngDataUrl, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
 import { track } from '@/utils/analytics'
+import { breadcrumb } from '@/utils/sessionLog'
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { ChinaMap } from '@/components/map/ChinaMap'
@@ -182,6 +183,9 @@ export default function MapPage() {
   /** 画布 flow 内容（标题+地图）与 footer 的 ref：老师块 top 锚定与画布加高测量用 */
   const flowRef = useRef<HTMLDivElement>(null)
   const footerRef = useRef<HTMLDivElement>(null)
+  // 底部来源条（footer）开关：2026-07-25 起按需求隐藏（代码保留，恢复时改回 true）。
+  // 隐藏后 footerRef.current 为 null，老师/海外块的 footerH 测量会安全回退为 0（?? 0）。
+  const SHOW_CANVAS_FOOTER = false
   /** 画布渲染宽度（屏幕 px）：老师块向下拖出时换算画布加高量 */
   const [canvasW, setCanvasW] = useState(0)
   /** 地图 SVG 视口宽度（viewBox 单位）：footer 字号随「画布屏幕宽 / 视口宽」联动——
@@ -407,6 +411,7 @@ export default function MapPage() {
           : { ...prev, pct: Math.max(prev.pct, Math.min(pct, anchorRef.current.pct)), stage },
       )
     }
+    breadcrumb(`导出开始（${quality}）`)
     try {
       if (isWeChatBrowser()) {
         // 微信不支持 a[download]：渲染出 dataURL，弹窗引导用户长按保存
@@ -415,13 +420,16 @@ export default function MapPage() {
       } else {
         await exportNodeToPng(node, data.title, quality, onProgress, abort.signal)
       }
+      breadcrumb(`导出成功（${quality}，耗时 ${((Date.now() - exportStartRef.current) / 1000).toFixed(1)}s）`)
       track('export')
     } catch (err) {
       if (err instanceof ExportCancelledError) {
         // 用户主动取消：静默收尾，不算失败
         console.info('[导出] 用户取消了导出')
+        breadcrumb('导出被用户取消')
       } else {
         console.error('导出 PNG 失败', err)
+        breadcrumb(`导出失败：${err instanceof Error ? err.message : String(err)}`)
         setExportError('导出失败，请重试')
       }
     } finally {
@@ -651,11 +659,11 @@ export default function MapPage() {
               </div>
             )}
 
-            {/* 底部来源条：画布的一部分，随导出一起进 PNG。
+            {/* 底部来源条：画布的一部分，随导出一起进 PNG。—— 当前被 SHOW_CANVAS_FOOTER 隐藏（保留代码便于恢复）。
                 左侧生成时间，中央生成信息（map.linkbrain.top 以深色圆角 pill 突出显示），右侧软件版本号；
                 字号与内边距随「画布屏幕宽 / SVG 视口宽」联动（footerPx）：地图显大时版权条适当变大、显小时变小，
                 基准 13px（与学生名一致），夹在 10–26px 之间 */}
-            {(() => {
+            {SHOW_CANVAS_FOOTER && (() => {
               const footerPx =
                 canvasW > 0 && viewBoxW > 0
                   ? Math.min(26, Math.max(10, Math.round((canvasW / viewBoxW) * 13)))
@@ -697,6 +705,22 @@ export default function MapPage() {
             </div>
               )
             })()}
+
+            {/* 右下角水印：替代被隐藏的 footer。纯文本、无背景，颜色随主题（leaderLine）；
+                z-50 保证任何省份卡片/老师块/海外块都压在它下面；pointer-events-none 不干扰拖动 */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute z-50 font-medium whitespace-nowrap"
+              style={{
+                right: '1cqw',
+                bottom: '0.7cqw',
+                fontSize: 'max(8px, 0.72cqw)',
+                color: theme.leaderLine,
+                fontFamily: '"NotoSansSC","PingFang SC","Microsoft YaHei",sans-serif',
+              }}
+            >
+              map.linkbrain.top
+            </span>
           </div>
         </div>
       </div>
