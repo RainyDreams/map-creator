@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.33.4',
+    date: '2026-07-26 00:40',
+    items: [
+      '移动端页脚的「问题反馈」改为暗红色显示，在灰色页脚中更醒目（桌面端保持原有灰色）',
+    ],
+  },
+  {
     version: 'v1.33.3',
     date: '2026-07-26 00:30',
     items: [

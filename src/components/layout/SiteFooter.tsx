@@ -108,7 +108,7 @@ export default function SiteFooter() {
         <Link
           to="/feedback"
           onClick={markFeedbackSeen}
-          className="relative transition-colors hover:text-stone-700"
+          className="relative text-red-800 transition-colors hover:text-red-900 md:text-stone-400 md:hover:text-stone-700"
         >
           问题反馈
           {(!feedbackSeen || replyNotify) && (
