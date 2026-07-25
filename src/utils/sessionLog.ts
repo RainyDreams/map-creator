@@ -1,12 +1,15 @@
 /**
- * 会话日志缓冲（仅内存，不上传）：
- * - 包裹 console.log/info/warn/error + window error/unhandledrejection + 资源加载失败（捕获阶段），
- *   把当次浏览器会话的控制台记录存入环形缓冲（最多 300 条，刷新即清空）；
+ * 使用日志缓冲（跨会话累积，本机持久化，仅用户主动上传时外发）：
+ * - 包裹 console.log/info/warn/error + window error/unhandledrejection + 资源加载失败（捕获阶段）；
  * - 面包屑（breadcrumb）：应用启动信息、路由跳转、页面可见性、网络断连/恢复等关键事件
  *   自动记录——保证日志「详细且永远有内容」，不再只是控制台输出；
  * - 业务模块可调用 breadcrumb() 追加关键动作（如导出开始/完成/失败）；
+ * - 累积范围：从上次成功上传后开始（从未上传过则从首次访问开始）——
+ *   每条日志即时节流持久化到 localStorage，刷新/关闭浏览器不丢失；
  * - 唯一出口是 getSessionLog()——只有在用户于反馈表单主动勾选
- *   「附带本次会话日志」并点击提交时，才会随反馈上传到 /api/logs（保留 48 小时）。
+ *   「附带我的使用日志」并点击提交时，才会随反馈上传到 /api/logs（保留 48 小时）；
+ *   上传成功后调用 clearSessionLog() 清空本机累积，重新开始记录；
+ * - 容量有界：最多 800 条且序列化后约 ≤ 200KB，超出丢弃最旧条目并插入截断标记。
  */
 
 import { APP_VERSION } from '@/version'
@@ -17,10 +20,64 @@ export interface SessionLogEntry {
   text: string
 }
 
-const MAX_ENTRIES = 300
+const MAX_ENTRIES = 800
 const MAX_TEXT = 500
+/** 持久化体积上限（字符数，约 200KB）：localStorage 总量有限，名单数据也在用 */
+const MAX_STORE_CHARS = 200_000
+const STORE_KEY = 'cenfan-session-log-v2'
 const buffer: SessionLogEntry[] = []
 let installed = false
+let loaded = false
+let flushTimer: number | null = null
+/** 是否已插入过截断标记（避免反复插入） */
+let truncatedMark = false
+
+function loadStored(): void {
+  if (loaded) return
+  loaded = true
+  try {
+    const raw = localStorage.getItem(STORE_KEY)
+    if (raw) {
+      const arr = JSON.parse(raw) as SessionLogEntry[]
+      if (Array.isArray(arr)) {
+        for (const e of arr) {
+          if (e && typeof e.t === 'number' && typeof e.text === 'string') {
+            buffer.push({ t: e.t, level: e.level ?? 'log', text: e.text.slice(0, MAX_TEXT) })
+          }
+        }
+      }
+    }
+  } catch {
+    // 数据损坏则从零开始
+  }
+}
+
+/** 节流持久化（800ms 尾随）：控制台爆发时不会每条都写 localStorage */
+function scheduleFlush(): void {
+  if (flushTimer !== null) return
+  flushTimer = window.setTimeout(() => {
+    flushTimer = null
+    try {
+      let out = buffer
+      let json = JSON.stringify(out)
+      // 体积超限：从头部丢弃最旧条目，直到装得下
+      while (json.length > MAX_STORE_CHARS && out.length > 1) {
+        out = out.slice(Math.max(1, Math.floor(out.length * 0.2)))
+        json = JSON.stringify(out)
+      }
+      if (out.length !== buffer.length) {
+        buffer.splice(0, buffer.length, ...out)
+        if (!truncatedMark) {
+          truncatedMark = true
+          buffer.unshift({ t: Date.now(), level: 'warn', text: '…（早期日志因容量限制已截断）' })
+        }
+      }
+      localStorage.setItem(STORE_KEY, JSON.stringify(buffer))
+    } catch {
+      // 存储失败（隐私模式/满）静默忽略，内存缓冲仍在
+    }
+  }, 800)
+}
 
 function stringify(v: unknown): string {
   if (typeof v === 'string') return v
@@ -33,6 +90,7 @@ function stringify(v: unknown): string {
 }
 
 function push(level: SessionLogEntry['level'], args: unknown[]): void {
+  loadStored()
   const text = args
     .map(stringify)
     .join(' ')
@@ -41,6 +99,7 @@ function push(level: SessionLogEntry['level'], args: unknown[]): void {
   if (text.trim() === '') return
   buffer.push({ t: Date.now(), level, text })
   if (buffer.length > MAX_ENTRIES) buffer.shift()
+  scheduleFlush()
 }
 
 /** 面包屑：记录一个关键动作/事件（业务模块主动调用，如导出、导入、分享） */
@@ -138,7 +197,24 @@ export function initSessionLog(): void {
   }
 }
 
-/** 取当前会话日志副本（仅供反馈表单主动上传使用） */
+/** 取累积日志副本（仅供反馈表单主动上传使用） */
 export function getSessionLog(): SessionLogEntry[] {
+  loadStored()
   return buffer.slice()
+}
+
+/**
+ * 上传成功后清空本机累积（「从上次上传完开始记录」的语义落点）：
+ * 清空后立刻补一条启动面包屑作为新周期的基线。
+ */
+export function clearSessionLog(): void {
+  loadStored()
+  buffer.length = 0
+  truncatedMark = false
+  try {
+    localStorage.removeItem(STORE_KEY)
+  } catch {
+    // 忽略
+  }
+  breadcrumb('使用日志已随反馈上传，本机记录重新开始')
 }

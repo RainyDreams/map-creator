@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLayout'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { getSessionLog } from '@/utils/sessionLog'
+import { getSessionLog, clearSessionLog } from '@/utils/sessionLog'
+import { rememberMyFeedback, markRepliesSeen } from '@/utils/replyNotify'
 import { track } from '@/utils/analytics'
 import { APP_VERSION } from '@/version'
 
@@ -76,7 +77,7 @@ export default function FeedbackPage() {
   const [sending, setSending] = useState(false)
   const [items, setItems] = useState<FeedbackItem[] | null>(null)
   const [loadError, setLoadError] = useState(false)
-  /** 附带本次会话日志（反馈 Bug 时默认勾选；日志仅保留 48 小时） */
+  /** 附带我的使用日志（反馈 Bug 时默认勾选；日志仅保留 48 小时） */
   const [attachLog, setAttachLog] = useState(true)
 
   // 切到 Bug 反馈时默认带上日志（用户可手动取消），切走时不打扰用户的选择
@@ -91,6 +92,8 @@ export default function FeedbackPage() {
       if (!res.ok) throw new Error(String(res.status))
       const data = (await res.json()) as { items: FeedbackItem[] }
       setItems(data.items)
+      // 列表加载成功即视为已读：把「我的反馈」当前回复时间记下，页脚红点消除
+      markRepliesSeen(data.items)
     } catch {
       setLoadError(true)
     }
@@ -141,7 +144,11 @@ export default function FeedbackPage() {
             if (lr.ok) {
               const lj = (await lr.json()) as { ok: boolean; id?: string }
               logId = lj.id ?? ''
-              if (logId !== '') track('log')
+              if (logId !== '') {
+                track('log')
+                // 上传成功 = 新记录周期的起点：清空本机累积（「从上次上传完开始」语义）
+                clearSessionLog()
+              }
             }
           }
         } catch {
@@ -160,6 +167,8 @@ export default function FeedbackPage() {
       if (!res.ok) throw new Error(String(res.status))
       const data = (await res.json()) as { ok: boolean; item: FeedbackItem }
       setItems((prev) => (prev === null ? [data.item] : [data.item, ...prev].slice(0, 50)))
+      // 记住「我的反馈」id：管理员回复后页脚红点提醒
+      rememberMyFeedback(data.item.id)
       setContent('')
       track('feedback')
       toast.success(logId !== '' ? '已提交（含会话日志），感谢反馈' : '已提交，感谢反馈')
@@ -345,8 +354,9 @@ export default function FeedbackPage() {
               className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-stone-800"
             />
             <span>
-              附带本次会话日志（仅保留 48 小时）：只记录本次打开页面后的控制台记录，
-              帮助我们定位问题；不包含你的名单数据
+              附带我的使用日志（仅保留 48 小时）：包含自上次上传以来（从未上传过则自首次访问以来）
+              的控制台记录、页面报错与关键操作足迹，帮助我们定位问题；上传后本机记录清空、重新开始；
+              不包含你的名单数据
             </span>
           </label>
         </div>

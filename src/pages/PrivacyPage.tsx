@@ -150,10 +150,17 @@ export default function PrivacyPage() {
             反馈提交完全由您主动触发；除您主动提交的内容外，该功能不读取、不上传您的名单数据。
           </li>
           <li>
-            当您在反馈表单中<strong className="text-stone-700">主动勾选「附带本次会话日志」</strong>并提交时，
-            您浏览器当次会话的控制台记录（仅存在于内存、刷新页面即清空）会随反馈一同上传，
-            用于定位您反馈的问题；日志保存 <strong className="text-stone-700">48 小时</strong>后自动删除。
-            该上传仅在您主动勾选时发生，日志内容仅管理员在排查问题时可见。
+            使用日志：为便于问题定位，您的浏览器会在本机（localStorage）持续累积一份
+            <strong className="text-stone-700">使用日志</strong>，内容包括控制台记录、
+            页面 JavaScript 报错与导出图片等关键操作的技术细节；日志自上次上传之后开始累积
+            （从未上传过则自首次访问本页面开始累积），仅保存在您自己的设备上，
+            容量有界，超限后自动丢弃最早的记录；
+          </li>
+          <li>
+            当您在反馈表单中<strong className="text-stone-700">主动勾选「附带我的使用日志」</strong>并提交时，
+            上述本机使用日志会随反馈一同上传，用于定位您反馈的问题；
+            上传成功后本机记录即清空、重新开始累积。日志保存 <strong className="text-stone-700">48 小时</strong>后自动删除。
+            该上传仅在您主动勾选时发生，日志内容仅管理员在排查问题时可见，且日志不包含您的名单数据。
           </li>
         </ul>
         <p><strong className="text-stone-700">关于「分享为链接」功能的数据处理：</strong></p>

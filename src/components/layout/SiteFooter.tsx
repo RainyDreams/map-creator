@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import { APP_VERSION } from '@/version'
+import { checkNewReplies, REPLY_EVENT } from '@/utils/replyNotify'
 
-/** 「问题反馈」红点引导标记：未点击过时显示，点击或进入反馈页后永久消失（本机记忆） */
+/** 「问题反馈」红点引导标记：未点击过时显示，点击或进入反馈页后消失；此后若我的反馈被回复会再次出现（本机记忆） */
 const FEEDBACK_SEEN_KEY = 'cenfan-feedback-seen'
 
 function loadFeedbackSeen(): boolean {
@@ -23,6 +24,8 @@ export default function SiteFooter() {
   const year = new Date().getFullYear()
   const [qrOpen, setQrOpen] = useState(false)
   const [feedbackSeen, setFeedbackSeen] = useState<boolean>(loadFeedbackSeen)
+  /** 我的反馈被管理员回复（未读）时也显示红点 */
+  const [replyNotify, setReplyNotify] = useState(false)
   const { pathname } = useLocation()
 
   // 通过任何路径到达反馈页都视为已读，红点不再出现
@@ -36,6 +39,23 @@ export default function SiteFooter() {
       }
     }
   }, [pathname, feedbackSeen])
+
+  // 启动时 + 收到已读广播时，检查「我的反馈」是否有新回复
+  useEffect(() => {
+    let cancelled = false
+    const run = (force: boolean) => {
+      void checkNewReplies(force).then((v) => {
+        if (!cancelled) setReplyNotify(v)
+      })
+    }
+    run(false)
+    const onEvent = () => run(false)
+    window.addEventListener(REPLY_EVENT, onEvent)
+    return () => {
+      cancelled = true
+      window.removeEventListener(REPLY_EVENT, onEvent)
+    }
+  }, [])
 
   const markFeedbackSeen = () => {
     setFeedbackSeen(true)
@@ -91,7 +111,7 @@ export default function SiteFooter() {
           className="relative transition-colors hover:text-stone-700"
         >
           问题反馈
-          {!feedbackSeen && (
+          {(!feedbackSeen || replyNotify) && (
             <span
               aria-hidden
               className="absolute -right-1 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500"
