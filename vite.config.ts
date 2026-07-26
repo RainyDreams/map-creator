@@ -58,6 +58,38 @@ export default defineConfig(({ command }) => ({
         entryFileNames: 'assets/[name][hash].js',
         chunkFileNames: 'assets/chunk[hash].js',
         assetFileNames: 'assets/[hash][extname]',
+        // 分包策略：把「几乎不变的静态数据」和「框架/依赖代码」拆成独立 chunk。
+        // 业务代码每次迭代都会变，但数据表和依赖库不变——拆开后它们的哈希稳定，
+        // 版本更新时浏览器只需重新下载真正变化的业务主包，其余命中本地缓存。
+        manualChunks(id) {
+          // 静态地理/院校数据：内容极少变动，独立成块
+          if (
+            id.includes('src/assets/city-province.json') ||
+            id.includes('src/utils/geo.ts') ||
+            id.includes('src/utils/universities.ts')
+          ) {
+            return 'datastatic'
+          }
+          if (id.includes('node_modules')) {
+            // 懒加载库（Excel 导出 / ZIP 导出 / 图像渲染）保持自然动态分包，
+            // 绝不并入首屏 chunk，否则用户打开首页就要白下几百 KB
+            if (
+              id.includes('/xlsx/') ||
+              id.includes('/fflate/') ||
+              id.includes('/html-to-image/')
+            ) {
+              return undefined
+            }
+            // React 核心与路由：版本锁定，长期不变，且不依赖其他 vendor 包，
+            // 单独成块无循环风险
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/.test(id)) {
+              return 'reactcore'
+            }
+            // 其余首屏依赖（Radix、lucide、sonner、zod、clarity 等）统一归 vendor：
+            // Radix 与 vaul/cmdk 等包互相引用，强行再拆会产生循环 chunk
+            return 'vendor'
+          }
+        },
       },
     },
   },
