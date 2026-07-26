@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import Clarity from '@microsoft/clarity'
+import { getUserId } from '@/utils/userId'
 import './index.css'
 import App from './App.tsx'
 import { useWechatShare } from './hooks/useWechatShare.ts'
@@ -50,6 +51,9 @@ window.addEventListener('unhandledrejection', (ev) => {
 /** Microsoft Clarity 站点分析（仅初始化，不阻塞渲染） */
 try {
   Clarity.init('xprbe5s420')
+  // 启动即上报我们自己的持久用户 ID：反馈昵称（用户XXXXXXX）= Clarity Custom user ID，
+  // 管理员看到任何反馈/日志后，可直接按该 ID 在 Clarity 检索全部会话录屏
+  Clarity.identify(getUserId())
 } catch {
   // 初始化失败不影响应用
 }

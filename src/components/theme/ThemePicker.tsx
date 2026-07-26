@@ -2,6 +2,7 @@ import { Section } from '@/components/entry/Section'
 import { Palette } from 'lucide-react'
 import { useMapData } from '@/store/MapDataContext'
 import { PRESET_THEMES, type ThemeConfig } from '@/utils/themes'
+import { breadcrumb } from '@/utils/sessionLog'
 import { cn } from '@/lib/utils'
 
 // —— 颜色工具：#rrggbb 级别的提取与混合 ——
@@ -74,6 +75,10 @@ export default function ThemePicker() {
   const { theme, setTheme } = useMapData()
 
   const applyCustom = (patch: Partial<ThemeConfig>) => {
+    // 记录改了哪个槽位、改成什么值：「自定义颜色用不了」类反馈的回溯抓手
+    const slots = Object.keys(patch).join('/')
+    const firstVal = String(Object.values(patch)[0] ?? '')
+    breadcrumb(`主题：自定义颜色修改（${slots} → ${firstVal.slice(0, 40)}）`)
     setTheme({ ...theme, ...patch, id: 'custom', name: '自定义' })
   }
 
@@ -99,7 +104,10 @@ export default function ThemePicker() {
               <button
                 key={preset.id}
                 type="button"
-                onClick={() => setTheme(preset)}
+                onClick={() => {
+                  breadcrumb(`主题：切换预设「${preset.name}」`)
+                  setTheme(preset)
+                }}
                 aria-pressed={active}
                 className={cn(
                   'group rounded-lg border bg-white p-1 text-left transition-all md:p-1.5',

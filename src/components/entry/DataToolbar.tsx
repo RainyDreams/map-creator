@@ -24,6 +24,7 @@ import type { ParseResult } from '@/utils/excel'
 import { exportCanvasJson, parseCanvasJson, type CanvasJsonPayload } from '@/utils/exportData'
 import { requestMapExport } from '@/utils/exportBus'
 import { buildShareUrl } from '@/utils/shareLink'
+import { breadcrumb } from '@/utils/sessionLog'
 
 /** xlsx 模块懒加载（代码分割：首屏不下载 Excel 引擎，首次使用模板/导入/导出时才加载） */
 async function loadExcel(): Promise<typeof import('@/utils/excel')> {
@@ -88,6 +89,7 @@ export default function DataToolbar() {
 
   const handleBuildHashLink = () => {
     const result = buildShareUrl({ name: activeCanvasName, data, theme, fontSlots, badge })
+    breadcrumb(`分享：生成链接（${result.tooLarge ? '超长' : '正常'}，剥离 ${result.stripped.length} 项）`)
     setHashShare(result)
     if (result.tooLarge) {
       toast.info('名单较长，链接已生成但可能超出部分浏览器限制', {
@@ -124,12 +126,14 @@ export default function DataToolbar() {
 
   const handleExportExcel = async () => {
     setExcelBusy(true)
+    breadcrumb('数据：导出 Excel')
     try {
       const { exportWorkbook } = await loadExcel()
       exportWorkbook(data)
       toast.success('已导出 Excel 名单', { description: '与模板同构，可再次上传导入' })
       setExportOpen(false)
     } catch (err) {
+      breadcrumb(`数据：导出 Excel 失败（${err instanceof Error ? err.message : '未知'}）`)
       toast.error(err instanceof Error ? err.message : '导出失败，请重试')
     } finally {
       setExcelBusy(false)
@@ -139,6 +143,7 @@ export default function DataToolbar() {
   /** 下载模板（首点需加载 Excel 引擎，显示加载动画） */
   const handleDownloadTemplate = async () => {
     setExcelBusy(true)
+    breadcrumb('数据：下载 Excel 模板')
     try {
       const { downloadTemplate } = await loadExcel()
       downloadTemplate()
@@ -150,6 +155,7 @@ export default function DataToolbar() {
   }
 
   const handleExportJson = () => {
+    breadcrumb('数据：导出 JSON')
     exportCanvasJson({ name: activeCanvasName, data, theme, fontSlots, badge })
     toast.success('已导出 JSON 画布文件', { description: '包含名单、主题、字体与班徽配置' })
     setExportOpen(false)
@@ -158,6 +164,7 @@ export default function DataToolbar() {
   /** 导出 ZIP 全量备份：名单 + 主题 + 字体槽位 + 卡片位置 + 班徽 + 毛笔字/自定义校徽图片 + 自定义字体 */
   const handleExportZip = async () => {
     setZipBusy(true)
+    breadcrumb('数据：导出 ZIP 全量备份')
     try {
       const { exportFullCanvasZip } = await loadZip()
       exportFullCanvasZip({ name: activeCanvasName, data, theme, fontSlots, badge, customFonts })
@@ -174,6 +181,7 @@ export default function DataToolbar() {
 
   /** 移动端「预览并导出为图片」：关闭面板 → 切到地图 Tab → 自动开始导出 */
   const handlePreviewExport = () => {
+    breadcrumb('数据：预览并导出为图片')
     setExportOpen(false)
     requestMapExport()
   }
@@ -228,6 +236,7 @@ export default function DataToolbar() {
     if (!pendingExcel) return
     const { result } = pendingExcel
     const count = importStudents(result.students, mode)
+    breadcrumb(`数据：导入 Excel（${mode === 'replace' ? '替换' : '追加'} ${count} 名学生，老师 ${result.teachers.length} 名，问题行 ${result.errors.length}）`)
     // 解析到老师数据时一并替换老师名单
     if (result.teachers.length > 0) {
       const teachers = result.teachers.map((t) => ({ ...t, id: newId() }))
@@ -281,6 +290,7 @@ export default function DataToolbar() {
       toast.error('画布数据不完整，无法导入')
       return
     }
+    breadcrumb(`数据：导入 JSON 画布「${pendingJson.payload.name || '未命名'}」（${pendingJson.studentCount} 名学生）`)
     toast.success(`已作为新画布导入「${pendingJson.payload.name || '未命名画布'}」`, {
       description: `${pendingJson.studentCount} 名学生，已自动切换过去`,
     })
@@ -322,6 +332,7 @@ export default function DataToolbar() {
     }
     // 备份中的自定义字体注册到全局字体库（同 id 自动去重）
     result.customFonts.forEach((f) => addCustomFont(f))
+    breadcrumb(`数据：导入 ZIP 画布「${result.payload.name || '未命名'}」（${result.stats.students} 名学生，毛笔字 ${result.stats.calligraphy}，校徽 ${result.stats.badges}，字体 ${result.stats.fonts}）`)
     const extras: string[] = []
     if (result.stats.calligraphy > 0) extras.push(`毛笔字 ${result.stats.calligraphy} 张`)
     if (result.stats.badges > 0) extras.push(`自定义校徽 ${result.stats.badges} 张`)

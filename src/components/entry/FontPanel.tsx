@@ -15,6 +15,7 @@ import {
 import { FontSelect } from '@/components/entry/FontSelect'
 import { SizeSelect } from '@/components/entry/SizeSelect'
 import { Section } from '@/components/entry/Section'
+import { breadcrumb } from '@/utils/sessionLog'
 import { recommendFontSizes, recommendLabelFit, applyProvinceSplits } from '@/components/map/labels'
 import { isGeoReady, loadGeoFeatures } from '@/components/map/geo'
 import { resolveProvince } from '@/utils/geo'
@@ -61,6 +62,10 @@ export function FontPanel() {
   const { data, setData, fontSlots, setFontSlot, customFonts, addCustomFont, removeCustomFont } = useMapData()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+
+  /** 排版设置的统一行为钩子：只记离散决策（开关/按钮/选择），
+      滑块、取色等连续值不记（每次拖动都会触发，会把日志刷爆） */
+  const bc = (text: string) => breadcrumb(`排版：${text}`)
 
   /* ---------- 行内推荐标注（去弹窗化） ----------
    * 字号推荐：以地图纵向高度为预算，算出恰好用满空间的字号（含毛笔字图片高度协调）；
@@ -135,6 +140,7 @@ export function FontPanel() {
   function applySizeRec(slot: (typeof SLOTS)[number]) {
     if (!sizeRec) return
     const px = sizeRec.sizes[slot]
+    bc(`应用推荐字号（${slot} → ${px}px）`)
     setData((prev) => ({ ...prev, labelSizes: { ...prev.labelSizes, [slot]: px } }))
   }
 
@@ -156,10 +162,12 @@ export function FontPanel() {
         dataUrl: String(reader.result),
       }
       addCustomFont(font)
+      bc(`上传自定义字体「${font.name}」（${Math.round(file.size / 1024)}KB）`)
       toast.success(`字体「${font.name}」已添加`, { description: '可在各模块的下拉列表中选用' })
       setUploading(false)
     }
     reader.onerror = () => {
+      breadcrumb(`排版：自定义字体读取失败（${file.name}）`)
       toast.error('读取文件失败，请重试')
       setUploading(false)
     }
@@ -207,18 +215,19 @@ export function FontPanel() {
             </span>
             <FontSelect
               value={fontSlots[slot]}
-              onChange={(id) => setFontSlot(slot, id)}
+              onChange={(id) => { bc(`${FONT_SLOT_LABELS[slot]}字体 → ${id}`); setFontSlot(slot, id) }}
               ariaLabel={`${FONT_SLOT_LABELS[slot]}字体`}
             />
             <SizeSelect
               value={data.labelSizes[slot]}
               options={SIZE_OPTIONS[slot]}
-              onChange={(px) =>
+              onChange={(px) => {
+                bc(`${FONT_SLOT_LABELS[slot]}字号 → ${px}px`)
                 setData((prev) => ({
                   ...prev,
                   labelSizes: { ...prev.labelSizes, [slot]: px },
                 }))
-              }
+              }}
               ariaLabel={`${FONT_SLOT_LABELS[slot]}字号`}
             />
             {/* 行内推荐标注：与当前值不同才出现，点击应用该槽位的推荐字号 */}
@@ -265,7 +274,7 @@ export function FontPanel() {
               {f.name}
               <button
                 type="button"
-                onClick={() => removeCustomFont(f.id)}
+                onClick={() => { bc(`删除自定义字体「${f.name}」`); removeCustomFont(f.id) }}
                 title="删除该字体"
                 className="rounded-full p-0.5 hover:bg-stone-200"
               >
@@ -295,7 +304,10 @@ export function FontPanel() {
             {fitRec?.twoColumns === true && data.labelColumns === 1 && (
               <button
                 type="button"
-                onClick={() => setData((prev) => ({ ...prev, labelColumns: 2, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 }, overseasOffset: { dx: 0, dy: 0 }, cardSizes: {} }))}
+                onClick={() => {
+                  bc('应用推荐：切换为每侧两列')
+                  setData((prev) => ({ ...prev, labelColumns: 2, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 }, overseasOffset: { dx: 0, dy: 0 }, cardSizes: {} }))
+                }}
                 title="内容较高，推荐切换为每侧两列（点击应用）"
                 className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
               >
@@ -305,7 +317,10 @@ export function FontPanel() {
             {fitRec?.oneColumn === true && data.labelColumns === 2 && (
               <button
                 type="button"
-                onClick={() => setData((prev) => ({ ...prev, labelColumns: 1, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 }, overseasOffset: { dx: 0, dy: 0 }, cardSizes: {} }))}
+                onClick={() => {
+                  bc('应用推荐：切回每侧一列')
+                  setData((prev) => ({ ...prev, labelColumns: 1, customPosition: false, provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 }, overseasOffset: { dx: 0, dy: 0 }, cardSizes: {} }))
+                }}
                 title="一列也放得下，切回一列更简洁（点击应用）"
                 className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
               >
@@ -327,7 +342,8 @@ export function FontPanel() {
                 type="button"
                 role="radio"
                 aria-checked={opt.active}
-                onClick={() =>
+                onClick={() => {
+                  bc(`省份卡片位置 → ${opt.label}`)
                   setData((prev) => ({
                     ...prev,
                     ...opt.apply,
@@ -339,7 +355,7 @@ export function FontPanel() {
                       ? { provinceOffsets: {} }
                       : { provinceOffsets: {}, teachersOffset: { dx: 0, dy: 0 }, overseasOffset: { dx: 0, dy: 0 }, cardSizes: {} }),
                   }))
-                }
+                }}
                 title={
                   opt.key === 'custom'
                     ? '从当前布局开始手动摆放（在地图上按住省份卡片即可拖动）'
@@ -363,7 +379,8 @@ export function FontPanel() {
           <div className="mt-1.5 flex justify-end">
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
+                bc('自动排布（清除全部手动位置）')
                 setData((prev) => ({
                   ...prev,
                   provinceOffsets: {},
@@ -372,7 +389,7 @@ export function FontPanel() {
                   cardSizes: {},
                   customPosition: false,
                 }))
-              }
+              }}
               title="清除所有手动位置与手动尺寸（省份卡片 + 老师名单块 + 海外名单块），恢复自动排布"
               className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
             >
@@ -391,7 +408,8 @@ export function FontPanel() {
           <div className="mt-1.5 flex justify-end">
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
+                bc('重置位置（清除手动偏移与尺寸）')
                 setData((prev) => ({
                   ...prev,
                   provinceOffsets: {},
@@ -400,7 +418,7 @@ export function FontPanel() {
                   cardSizes: {},
                   customPosition: false,
                 }))
-              }
+              }}
               title="清除所有省份卡片、老师名单块与海外名单块的手动位置/手动尺寸，恢复自动布局"
               className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] whitespace-nowrap text-stone-500 transition-colors hover:bg-stone-50 hover:text-stone-700"
             >
@@ -420,7 +438,7 @@ export function FontPanel() {
         <Switch
           id="uniform-width-toggle"
           checked={data.uniformCardWidth}
-          onCheckedChange={(v) => setData((prev) => ({ ...prev, uniformCardWidth: v }))}
+          onCheckedChange={(v) => { bc(`统一卡片宽度${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, uniformCardWidth: v })) }}
           aria-label="统一卡片宽度"
         />
       </div>
@@ -433,7 +451,7 @@ export function FontPanel() {
         <Switch
           id="merge-school-toggle"
           checked={data.mergeSameSchool}
-          onCheckedChange={(v) => setData((prev) => ({ ...prev, mergeSameSchool: v }))}
+          onCheckedChange={(v) => { bc(`同校合并${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, mergeSameSchool: v })) }}
           aria-label="同校合并"
         />
       </div>
@@ -446,7 +464,7 @@ export function FontPanel() {
         <Switch
           id="province-only-toggle"
           checked={data.provinceOnly}
-          onCheckedChange={(v) => setData((prev) => ({ ...prev, provinceOnly: v }))}
+          onCheckedChange={(v) => { bc(`只显示省份${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, provinceOnly: v })) }}
           aria-label="只显示省份"
         />
       </div>
@@ -459,7 +477,7 @@ export function FontPanel() {
         <Switch
           id="stats-toggle"
           checked={data.showStats}
-          onCheckedChange={(v) => setData((prev) => ({ ...prev, showStats: v }))}
+          onCheckedChange={(v) => { bc(`分布统计表${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, showStats: v })) }}
           aria-label="画布下方分布统计表"
         />
       </div>
@@ -476,7 +494,7 @@ export function FontPanel() {
         <Switch
           id="badge-toggle"
           checked={data.showBadges}
-          onCheckedChange={(v) => setData((prev) => ({ ...prev, showBadges: v }))}
+          onCheckedChange={(v) => { bc(`校徽显示${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, showBadges: v })) }}
           aria-label="在大学名前显示校徽图片"
         />
       </div>
@@ -509,7 +527,7 @@ export function FontPanel() {
         <Switch
           id="card-bg-toggle"
           checked={data.labelCardBg}
-          onCheckedChange={(v) => setData((prev) => ({ ...prev, labelCardBg: v }))}
+          onCheckedChange={(v) => { bc(`卡片背景${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, labelCardBg: v })) }}
           aria-label="省份名单卡片背景"
         />
       </div>
@@ -521,7 +539,7 @@ export function FontPanel() {
         <Switch
           id="card-count-toggle"
           checked={data.showCardCount}
-          onCheckedChange={(v) => setData((prev) => ({ ...prev, showCardCount: v }))}
+          onCheckedChange={(v) => { bc(`人数统计小块${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, showCardCount: v })) }}
           aria-label="卡片内人数统计小块"
         />
       </div>

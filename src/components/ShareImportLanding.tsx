@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { Download, Map as MapIcon, Users, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
+import { breadcrumb } from '@/utils/sessionLog'
 import { exportCanvasJson } from '@/utils/exportData'
 import { resolveProvince } from '@/utils/geo'
 import type { MapData, StudentEntry } from '@/types'
@@ -109,11 +110,13 @@ export function ShareImportLanding({
       toast.error('分享的画布数据不完整，无法导入')
       return
     }
+    breadcrumb(`分享：从链接导入画布「${name}」（${preview.studentCount} 名学生）`)
     toast.success(`已导入「${name}」`, { description: `${preview.studentCount} 名学生，已作为新画布打开` })
     onClose()
   }
 
   const handleDownload = () => {
+    breadcrumb(`分享：仅下载 JSON「${name}」`)
     exportCanvasJson({
       name,
       data: payload.data,

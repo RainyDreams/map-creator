@@ -15,6 +15,7 @@ import { useMapData } from '@/store/MapDataContext'
 import { inferCityFromUniversity, resolveProvince } from '@/utils/geo'
 import { getUniInfoSync, prefetchUniversities, schoolBadgeUrl } from '@/utils/universities'
 import { newId, splitCardKey, type CalligraphyAsset, type MapData, type StudentBadge, type StudentEntry } from '@/types'
+import { breadcrumb } from '@/utils/sessionLog'
 
 /** 未定位条目的虚拟分组键 */
 const UNLOCATED = '__unlocated__'
@@ -180,6 +181,8 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
   }
 
   const removeRow = (id: string) => {
+    const s = data.students.find((x) => x.id === id)
+    breadcrumb(`名单：删除同学「${s?.name.trim() || '未命名'}」（${s?.university.trim() || '未填大学'}）`)
     setData((prev) => ({ ...prev, students: prev.students.filter((s) => s.id !== id) }))
   }
 
@@ -226,6 +229,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
   }
 
   const resetOrder = (prov: string) => {
+    breadcrumb(`名单：恢复自动排序「${prov}」`)
     setData((prev) => ({
       ...prev,
       customOrderProvinces: prev.customOrderProvinces.filter((p) => p !== prov),
@@ -301,6 +305,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
 
   /** 拆分卡片：当前顺序整体留在第一张卡，新增一张空卡 */
   const splitProvince = (prov: string) => {
+    breadcrumb(`名单：拆分省份「${prov}」`)
     setData((prev) => {
       const members = groups.get(prov) ?? []
       if (members.length === 0) return prev
@@ -314,6 +319,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
 
   /** 按城市拆分：每个城市一张卡（城市为空的同学单独一张卡） */
   const splitByCity = (prov: string) => {
+    breadcrumb(`名单：按城市拆分「${prov}」`)
     setData((prev) => {
       const members = groups.get(prov) ?? []
       const byCity = new Map<string, string[]>()
@@ -343,6 +349,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
 
   /** 合并为一张卡：按卡片顺序展开回填全局 students 顺序（手动顺序保留），并移除拆分 */
   const mergeCards = (prov: string) => {
+    breadcrumb(`名单：合并卡片「${prov}」`)
     setData((prev) => {
       const raw = prev.provinceSplits[prov]
       if (!raw) return prev
@@ -475,8 +482,10 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     try {
       const asset = await processCalliFile(file)
       setCalli(uni, asset)
+      breadcrumb(`名单：上传毛笔字图片（${uni}，${Math.round(file.size / 1024)}KB）`)
       // 字号协调建议已去弹窗化：统一由「排版设计」面板中的行内推荐标注给出（recommendFontSizes 并入毛笔字高度因素）
     } catch {
+      breadcrumb(`名单：毛笔字图片读取失败（${uni}）`)
       // 读取失败静默忽略（用户可重试）
     }
   }
@@ -510,7 +519,9 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     try {
       const dataUrl = await processBadgeFile(file)
       setBadgeOverride(id, { dataUrl, hidden: false })
+      breadcrumb(`名单：上传自定义校徽（${Math.round(file.size / 1024)}KB）`)
     } catch {
+      breadcrumb('名单：自定义校徽读取失败')
       // 读取失败静默忽略（用户可重试）
     }
   }
@@ -536,6 +547,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
     if (name === '' && university === '' && city === '') return
     const major = addForm.major.trim()
     const score = addForm.score.trim()
+    breadcrumb(`名单：新增同学「${name || '未命名'}」（${university || '未填大学'}${city ? ` · ${city}` : ''}${addForm.overseas ? ' · 海外' : ''}）`)
     setData((prev) => ({
       ...prev,
       students: [

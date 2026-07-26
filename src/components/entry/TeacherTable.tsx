@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Section } from '@/components/entry/Section'
 import { BookOpen, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { useMapData } from '@/store/MapDataContext'
+import { breadcrumb } from '@/utils/sessionLog'
 import { newId, type TeacherEntry } from '@/types'
 
 /**
@@ -40,11 +41,14 @@ export default function TeacherTable() {
   }
 
   const removeRow = (id: string) => {
+    const t = teachers.find((x) => x.id === id)
+    breadcrumb(`老师：删除「${t?.name.trim() || '未命名'}」`)
     nameInputRefs.current.delete(id)
     setData((prev) => ({ ...prev, teachers: prev.teachers.filter((t) => t.id !== id) }))
   }
 
   const addRow = () => {
+    breadcrumb('老师：添加一位')
     const id = newId()
     setData((prev) => ({
       ...prev,
@@ -113,7 +117,7 @@ export default function TeacherTable() {
           <Switch
             id="teacher-toggle"
             checked={show}
-            onCheckedChange={setShow}
+            onCheckedChange={(v) => { breadcrumb(`老师：地图上显示${v ? '：开' : '：关'}`); setShow(v) }}
             aria-label="在地图上显示或隐藏老师名单"
           />
         </>

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { RotateCcw, Sparkles } from 'lucide-react'
 import { useMapData } from '@/store/MapDataContext'
+import { breadcrumb } from '@/utils/sessionLog'
 import DataToolbar from '@/components/entry/DataToolbar'
 import { CanvasManager } from '@/components/entry/CanvasManager'
 import MetaForm from '@/components/entry/MetaForm'
@@ -66,7 +67,10 @@ export default function EntryPage() {
               <AlertDialogFooter>
                 <AlertDialogCancel>取消</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={resetData}
+                  onClick={() => {
+                    breadcrumb('数据：清空全部内容（标题 + 学生 + 老师）')
+                    resetData()
+                  }}
                   className="bg-red-500 text-white hover:bg-red-600"
                 >
                   确定清空

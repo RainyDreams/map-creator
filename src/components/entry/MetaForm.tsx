@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMapData } from '@/store/MapDataContext'
+import { breadcrumb } from '@/utils/sessionLog'
 import { FontSelect } from '@/components/entry/FontSelect'
 import { SizeSelect } from '@/components/entry/SizeSelect'
 import { Slider } from '@/components/ui/slider'
@@ -98,8 +99,10 @@ export default function MetaForm() {
   const { data, setData, badge, setBadge, fontSlots, setFontSlot } = useMapData()
   const badgeRef = useRef<HTMLInputElement>(null)
 
-  const setAlign = (titleAlign: MapData['titleAlign']) =>
+  const setAlign = (titleAlign: MapData['titleAlign']) => {
+    breadcrumb(`班级信息：标题排布 → ${titleAlign}`)
     setData((prev) => ({ ...prev, titleAlign }))
+  }
 
   async function handleBadge(file: File) {
     if (file.size > 5 * 1024 * 1024) {
@@ -108,8 +111,10 @@ export default function MetaForm() {
     }
     try {
       setBadge(await fileToBadgeDataUrl(file))
+      breadcrumb(`班级信息：上传班徽（${Math.round(file.size / 1024)}KB）`)
       toast.success('班徽已添加，显示在画布标题旁')
     } catch {
+      breadcrumb('班级信息：班徽图片读取失败')
       toast.error('图片读取失败，请重试')
     }
   }
@@ -159,7 +164,7 @@ export default function MetaForm() {
                 />
                 <button
                   type="button"
-                  onClick={() => setBadge(null)}
+                  onClick={() => { breadcrumb('班级信息：移除班徽'); setBadge(null) }}
                   className="flex items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-xs text-stone-500 hover:bg-stone-50"
                 >
                   <X className="h-3 w-3" />

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { StudentGroupModal } from '@/components/entry/StudentGroupModal'
 import { useMapData } from '@/store/MapDataContext'
+import { breadcrumb } from '@/utils/sessionLog'
 import type { StudentEntry } from '@/types'
 import { resolveProvince } from '@/utils/geo'
 
@@ -130,7 +131,7 @@ export default function StudentTable() {
           </span>
           <Switch
             checked={data.anonymizeNames}
-            onCheckedChange={(v) => setData((prev) => ({ ...prev, anonymizeNames: v }))}
+            onCheckedChange={(v) => { breadcrumb(`名单：名字一键隐私${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, anonymizeNames: v })) }}
             aria-label="名字一键隐私"
           />
         </label>
@@ -146,7 +147,7 @@ export default function StudentTable() {
           </span>
           <Switch
             checked={data.detailedInfo}
-            onCheckedChange={(v) => setData((prev) => ({ ...prev, detailedInfo: v }))}
+            onCheckedChange={(v) => { breadcrumb(`名单：录入更详细的信息${v ? '：开' : '：关'}`); setData((prev) => ({ ...prev, detailedInfo: v })) }}
             aria-label="录入更详细的信息"
           />
         </label>

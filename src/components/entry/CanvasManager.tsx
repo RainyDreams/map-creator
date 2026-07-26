@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useMapData } from '@/store/MapDataContext'
+import { breadcrumb } from '@/utils/sessionLog'
 import { cn } from '@/lib/utils'
 
 function formatTime(ts: number): string {
@@ -60,6 +61,7 @@ export function CanvasManager() {
   }
 
   const commitRename = () => {
+    if (editingId && editingName.trim() !== '') breadcrumb(`画布：重命名为「${editingName.trim()}」`)
     if (editingId) renameCanvas(editingId, editingName)
     setEditingId(null)
   }
@@ -75,6 +77,7 @@ export function CanvasManager() {
       toast.error('请先给画布起个名字')
       return
     }
+    breadcrumb(`画布：新建「${name}」`)
     createCanvas(name)
     toast.success(`已新建画布「${name}」`)
     setNamingOpen(false)
@@ -135,6 +138,7 @@ export function CanvasManager() {
                   <button
                     type="button"
                     onClick={() => {
+                      breadcrumb(`画布：切换到「${c.name}」`)
                       switchCanvas(c.id)
                       setOpen(false)
                     }}
@@ -201,6 +205,7 @@ export function CanvasManager() {
                     <button
                       type="button"
                       onClick={() => {
+                        breadcrumb(`画布：复制「${c.name}」`)
                         duplicateCanvas(c.id)
                         toast.success(`已复制「${c.name}」，并切换到副本`)
                       }}
@@ -315,6 +320,7 @@ export function CanvasManager() {
             <AlertDialogAction
               onClick={() => {
                 if (deletingCanvas) {
+                  breadcrumb(`画布：删除「${deletingCanvas.name}」（${deletingCanvas.studentCount} 名学生）`)
                   deleteCanvas(deletingCanvas.id)
                   toast.success(`已删除画布「${deletingCanvas.name}」`)
                 }

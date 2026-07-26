@@ -18,6 +18,7 @@ import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLa
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getSessionLog, clearSessionLog } from '@/utils/sessionLog'
+import { getUserId, resetUserId } from '@/utils/userId'
 import { rememberMyFeedback, markRepliesSeen, myFeedbackKey } from '@/utils/replyNotify'
 import { track } from '@/utils/analytics'
 import { APP_VERSION } from '@/version'
@@ -33,7 +34,6 @@ import { APP_VERSION } from '@/version'
  * - 代码按需加载（App.tsx 中 React.lazy 独立 chunk），不进入首屏 bundle。
  */
 
-const USER_KEY = 'cenfan-feedback-user'
 const MAX_CONTENT = 1000
 const MAX_COMMENT = 500
 
@@ -85,26 +85,6 @@ function isClosedStatus(s?: FeedbackStatus): boolean {
 function issueTitle(content: string): string {
   const first = content.split('\n')[0] ?? content
   return first.length > 80 ? `${first.slice(0, 80)}…` : first
-}
-
-function genName(): string {
-  return `用户${1000000 + Math.floor(Math.random() * 9000000)}`
-}
-
-function loadName(): string {
-  try {
-    const v = localStorage.getItem(USER_KEY)
-    if (v && v.startsWith('用户')) return v
-  } catch {
-    // 忽略
-  }
-  const n = genName()
-  try {
-    localStorage.setItem(USER_KEY, n)
-  } catch {
-    // 忽略
-  }
-  return n
 }
 
 /** 读取 Clarity Cookie 标识（_clck=匿名用户 ID，_clsk=会话 ID；分隔符新版为 ^ 旧版为 |，取主体部分） */
@@ -487,7 +467,7 @@ export default function FeedbackPage() {
   const [searchParams] = useSearchParams()
   const id = searchParams.get('id')
   const navigate = useNavigate()
-  const [name, setName] = useState<string>(loadName)
+  const [name, setName] = useState<string>(getUserId)
   const [kind, setKind] = useState<FeedbackKind>('bug')
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
@@ -529,13 +509,9 @@ export default function FeedbackPage() {
   }, [fetchList, id])
 
   const changeName = () => {
-    const n = genName()
-    setName(n)
-    try {
-      localStorage.setItem(USER_KEY, n)
-    } catch {
-      // 忽略
-    }
+    // 换昵称 = 换 Clarity 用户标识（resetUserId 内部已持久化；
+    // name state 变化触发上方 effect 重新 Clarity.identify）
+    setName(resetUserId())
   }
 
   const remaining = MAX_CONTENT - content.length
@@ -563,6 +539,8 @@ export default function FeedbackPage() {
                   viewport: `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio}x`,
                   lang: navigator.language,
                   net: (navigator as { connection?: { effectiveType?: string } }).connection?.effectiveType ?? '',
+                  // 我们自己的持久用户 ID（= Clarity Custom user ID）：日志 ↔ Clarity 录屏直接可对照
+                  uid: name,
                   clarityUser: clarityCookie('_clck'),
                   claritySession: clarityCookie('_clsk'),
                 },
