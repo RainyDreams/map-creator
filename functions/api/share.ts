@@ -1,15 +1,15 @@
 /**
- * 分享短链接 / 多端协同接口：
+ * 分享短链接 / 多端协同接口（D1 版）：
  *
  *   POST /api/share              body: 画布 JSON（format = cenfan-map-share）
- *                                → 创建协同文档（KV，7 天 TTL），返回短 id；
+ *                                → 创建协同文档（D1 shares 表，7 天滚动有效期），返回短 id；
  *                                  通过 Set-Cookie 把「创建者 = 管理员」身份写进浏览器
  *   GET  /api/share?id=xxx       → 返回文档全文 + 调用方角色（admin/member）；
  *                                  首次访问的设备种「成员」cookie
  *        GET /api/share?id&rev=n → 轮询模式：rev 已是最新时只回 changed:false（省流量）
  *   PUT  /api/share              body: { id, name, data, theme, fontSlots }
  *                                → 持有有效角色 cookie（管理员或成员）的设备可写；
- *                                  rev +1，TTL 顺延 7 天（活跃画布不过期）
+ *                                  rev +1，有效期顺延 7 天（活跃画布不过期）
  *
  * 身份模型（按需求用 cookie 界定）：
  * - 创建分享时，服务器为该 id 种下 cenfan_role_<id> = "a:<adminKey>"，管理员；
@@ -18,13 +18,17 @@
  *
  * 数据合规说明：
  * - 只有用户主动点击「分享为链接」时，画布数据才会上传到本接口；
- * - 数据在无编辑活动 7 天后由 Cloudflare KV 自动删除（expirationTtl = 604800 秒），
+ * - 数据在无编辑活动 7 天后过期（访问时判定 + 写入时顺手清理过期行），
  *   服务端不做任何阅读、分析或二次利用；
  * - 短 id 与 adminKey 均为加密随机数，不可枚举。
+ *
+ * 存储说明（v1.34.0 起从 KV 迁至 D1）：
+ * - KV 免费额度（写 1000 次/天）对协同场景太小；D1 免费额度 10 万行写/天、
+ *   500 万行读/天，重开分享功能时不会再烧穿额度。
  */
 
 interface Env {
-  cenfan_share?: KVNamespace
+  cenfan_db?: D1Database
 }
 
 /**
@@ -43,6 +47,7 @@ function disabledResponse(): Response {
 
 /** 7 天有效期（秒）；每次成功 PUT 顺延 */
 const TTL_SECONDS = 7 * 24 * 60 * 60
+const TTL_MS = TTL_SECONDS * 1000
 /** 单条分享数据上限（字符数），防止滥用 */
 const MAX_BODY_CHARS = 2_000_000
 /** 短 id 字符表（URL 安全、无歧义） */
@@ -68,16 +73,40 @@ function json(data: unknown, status = 200, extraHeaders?: Record<string, string>
   })
 }
 
-interface ShareDoc {
-  format: 'cenfan-map-share'
+interface ShareRow {
+  id: string
   rev: number
-  updatedAt: number
+  updated_at: number
   name: string
-  data: unknown
-  theme: unknown
-  fontSlots: unknown
+  /** 画布数据（JSON 字符串） */
+  data: string
+  theme: string | null
+  font_slots: string | null
   /** 管理员密钥（cookie 比对用），不随任何响应返回 */
   admin: string
+}
+
+function parseJsonColumn(text: string | null): unknown {
+  if (text === null || text === '') return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+/** 读取一行；过期即删并按不存在处理（7 天滚动有效期） */
+async function loadShare(db: D1Database, id: string): Promise<ShareRow | null> {
+  const row = await db
+    .prepare('SELECT id, rev, updated_at, name, data, theme, font_slots, admin FROM shares WHERE id = ?')
+    .bind(id)
+    .first<ShareRow>()
+  if (!row) return null
+  if (Date.now() > row.updated_at + TTL_MS) {
+    await db.prepare('DELETE FROM shares WHERE id = ?').bind(id).run()
+    return null
+  }
+  return row
 }
 
 function roleCookieName(id: string): string {
@@ -109,7 +138,7 @@ function isValidId(id: string): boolean {
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (SHARE_DISABLED) return disabledResponse()
-  if (!env.cenfan_share) return json({ error: 'share_not_configured' }, 503)
+  if (!env.cenfan_db) return json({ error: 'share_not_configured' }, 503)
 
   let text: string
   try {
@@ -132,20 +161,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const id = randomString(10)
   const adminKey = randomString(16)
-  const doc: ShareDoc = {
-    format: 'cenfan-map-share',
-    rev: 1,
-    updatedAt: Date.now(),
-    name: typeof parsed.name === 'string' ? parsed.name : '',
-    data: parsed.data,
-    theme: parsed.theme ?? null,
-    fontSlots: parsed.fontSlots ?? null,
-    admin: adminKey,
-  }
-  const expiresAt = Date.now() + TTL_SECONDS * 1000
-  await env.cenfan_share.put(`share:${id}`, JSON.stringify(doc), { expirationTtl: TTL_SECONDS })
+  const now = Date.now()
+  await env.cenfan_db
+    .prepare('INSERT INTO shares (id, rev, updated_at, name, data, theme, font_slots, admin) VALUES (?, 1, ?, ?, ?, ?, ?, ?)')
+    .bind(
+      id,
+      now,
+      typeof parsed.name === 'string' ? parsed.name : '',
+      JSON.stringify(parsed.data),
+      parsed.theme == null ? null : JSON.stringify(parsed.theme),
+      parsed.fontSlots == null ? null : JSON.stringify(parsed.fontSlots),
+      adminKey,
+    )
+    .run()
+  // 顺手清理过期行（7 天无编辑活动的文档）
+  await env.cenfan_db.prepare('DELETE FROM shares WHERE updated_at < ?').bind(now - TTL_MS).run()
   return json(
-    { id, rev: 1, expiresAt, ttlDays: 7, role: 'admin' },
+    { id, rev: 1, expiresAt: now + TTL_MS, ttlDays: 7, role: 'admin' },
     200,
     { 'Set-Cookie': roleCookie(id, `a:${adminKey}`) },
   )
@@ -153,17 +185,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (SHARE_DISABLED) return disabledResponse()
-  if (!env.cenfan_share) return json({ error: 'share_not_configured' }, 503)
+  if (!env.cenfan_db) return json({ error: 'share_not_configured' }, 503)
 
   const url = new URL(request.url)
   const id = url.searchParams.get('id') ?? ''
   if (!isValidId(id)) return json({ error: 'invalid_id' }, 400)
 
-  const text = await env.cenfan_share.get(`share:${id}`)
-  if (text === null) {
+  const doc = await loadShare(env.cenfan_db, id)
+  if (doc === null) {
     return json({ error: 'not_found', message: '链接不存在或已超过 7 天有效期' }, 404)
   }
-  const doc = JSON.parse(text) as ShareDoc
 
   // 角色：管理员 cookie 匹配 → admin；否则种成员 cookie（首次访问）
   let role = resolveRole(request, id, doc.admin)
@@ -172,7 +203,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     role = 'member'
     headers['Set-Cookie'] = roleCookie(id, `m:${randomString(12)}`)
   }
-  const expiresAt = doc.updatedAt + TTL_SECONDS * 1000
+  const expiresAt = doc.updated_at + TTL_MS
 
   // 轮询模式：客户端 rev 已最新 → 只回元信息
   const revParam = Number(url.searchParams.get('rev') ?? '0')
@@ -183,13 +214,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     {
       changed: true,
       rev: doc.rev,
-      updatedAt: doc.updatedAt,
+      updatedAt: doc.updated_at,
       expiresAt,
       role,
       name: doc.name,
-      data: doc.data,
-      theme: doc.theme,
-      fontSlots: doc.fontSlots,
+      data: parseJsonColumn(doc.data),
+      theme: parseJsonColumn(doc.theme),
+      fontSlots: parseJsonColumn(doc.font_slots),
     },
     200,
     headers,
@@ -198,7 +229,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
 export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   if (SHARE_DISABLED) return disabledResponse()
-  if (!env.cenfan_share) return json({ error: 'share_not_configured' }, 503)
+  if (!env.cenfan_db) return json({ error: 'share_not_configured' }, 503)
 
   let body: { id?: unknown; name?: unknown; data?: unknown; theme?: unknown; fontSlots?: unknown }
   try {
@@ -210,11 +241,10 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   if (!isValidId(id)) return json({ error: 'invalid_id' }, 400)
   if (!body.data || typeof body.data !== 'object') return json({ error: 'invalid_payload' }, 400)
 
-  const text = await env.cenfan_share.get(`share:${id}`)
-  if (text === null) {
+  const doc = await loadShare(env.cenfan_db, id)
+  if (doc === null) {
     return json({ error: 'not_found', message: '链接不存在或已超过 7 天有效期' }, 404)
   }
-  const doc = JSON.parse(text) as ShareDoc
 
   // 写权限：管理员或成员均可编辑（协同的意义）；无角色 cookie 的设备拒绝
   const role = resolveRole(request, id, doc.admin)
@@ -222,16 +252,20 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
     return json({ error: 'forbidden', message: '请先通过分享链接打开画布，再进行同步编辑' }, 403)
   }
 
-  const next: ShareDoc = {
-    ...doc,
-    rev: doc.rev + 1,
-    updatedAt: Date.now(),
-    name: typeof body.name === 'string' ? body.name : doc.name,
-    data: body.data,
-    theme: body.theme ?? doc.theme,
-    fontSlots: body.fontSlots ?? doc.fontSlots,
-  }
   // 滑动续期：有编辑活动即顺延 7 天
-  await env.cenfan_share.put(`share:${id}`, JSON.stringify(next), { expirationTtl: TTL_SECONDS })
-  return json({ ok: true, rev: next.rev, updatedAt: next.updatedAt, expiresAt: next.updatedAt + TTL_SECONDS * 1000, role })
+  const now = Date.now()
+  const nextRev = doc.rev + 1
+  await env.cenfan_db
+    .prepare('UPDATE shares SET rev = ?, updated_at = ?, name = ?, data = ?, theme = ?, font_slots = ? WHERE id = ?')
+    .bind(
+      nextRev,
+      now,
+      typeof body.name === 'string' ? body.name : doc.name,
+      JSON.stringify(body.data),
+      body.theme == null ? doc.theme : JSON.stringify(body.theme),
+      body.fontSlots == null ? doc.font_slots : JSON.stringify(body.fontSlots),
+      id,
+    )
+    .run()
+  return json({ ok: true, rev: nextRev, updatedAt: now, expiresAt: now + TTL_MS, role })
 }

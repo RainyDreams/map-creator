@@ -269,6 +269,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // 可选：随反馈附带的会话日志 id（/api/logs 返回；仅校验格式）
   let logId = sanitize(body.logId, 48)
   if (logId !== '' && !logIdOk(logId)) logId = ''
+  // 可选：Microsoft Clarity 用户/会话标识（仅管理端可见，用于定位会话录屏）
+  const clarityUser = sanitize(body.clarityUser, 64)
+  const claritySession = sanitize(body.claritySession, 64)
 
   if (!rateLimitOk('fb:p:global', POST_GLOBAL_PER_MIN)) return json({ error: 'rate_limited' }, 429)
   if (!rateLimitOk(`fb:p:${clientIp(request)}`, POST_IP_PER_MIN)) return json({ error: 'rate_limited' }, 429)
@@ -283,8 +286,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     // 低频写路径顺带清理 90 天前的旧记录（存储有界，0 额外请求）
     await db.prepare('DELETE FROM feedback WHERE ts < ?').bind(now - RECORD_MAX_AGE).run()
     await db
-      .prepare('INSERT INTO feedback (id, name, kind, content, ts, logId, done, akey) VALUES (?, ?, ?, ?, ?, ?, 0, ?)')
-      .bind(id, name, kind, content, now, logId === '' ? null : logId, akey)
+      .prepare('INSERT INTO feedback (id, name, kind, content, ts, logId, done, akey, clarityUser, claritySession) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)')
+      .bind(
+        id,
+        name,
+        kind,
+        content,
+        now,
+        logId === '' ? null : logId,
+        akey,
+        clarityUser === '' ? null : clarityUser,
+        claritySession === '' ? null : claritySession,
+      )
       .run()
     return json({ ok: true, item: { id, name, kind, content, ts: now, status: 'open' }, key: akey })
   } catch {

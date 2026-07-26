@@ -2,12 +2,8 @@ name = "cengfan-map"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-07-22"
 
-# 分享短链接数据存储（7 天有效期，到期自动删除）
-[[kv_namespaces]]
-binding = "cenfan_share"
-id = "df17436ba6df471b98e63c80688be147"
-
-# 反馈与使用统计（D1：写多查多的结构化数据；KV 只保留 TTL/缓存类小数据）
+# 全部持久化数据走 D1（v1.34.0 起 KV 绑定已下线：
+# 分享短链接、JS 错误上报均已迁入 D1，免费额度更宽裕）
 [[d1_databases]]
 binding = "cenfan_db"
 database_name = "cengfan-db"

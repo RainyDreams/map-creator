@@ -9,6 +9,14 @@ import { initErrorReporter } from './utils/errorReporter.ts'
 import { initSessionLog } from './utils/sessionLog.ts'
 import { checkEnvironment } from './utils/guard.ts'
 
+// 启动标记：index.html 的镜像兜底加载器据此判断入口是否成功执行；
+// 主站与镜像入口并发成功时，后到的实例直接放弃，避免双挂载
+const _boot = window as unknown as { __CF_APP_BOOTED__?: boolean }
+if (_boot.__CF_APP_BOOTED__) {
+  throw new Error('[boot] duplicate entry ignored')
+}
+_boot.__CF_APP_BOOTED__ = true
+
 /** 控制台彩蛋：首次打开控制台的用户能看到（本机记忆，只出现一次） */
 try {
   if (localStorage.getItem('cenfan-console-hi') !== '1') {

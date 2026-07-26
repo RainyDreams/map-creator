@@ -591,7 +591,15 @@ export default function FeedbackPage() {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, kind, content: content.trim(), ...(logId !== '' ? { logId } : {}) }),
+        body: JSON.stringify({
+          name,
+          kind,
+          content: content.trim(),
+          ...(logId !== '' ? { logId } : {}),
+          // 无论是否附带日志，都带上 Clarity 标识：便于在 Clarity 后台定位该用户的会话录屏
+          clarityUser: clarityCookie('_clck'),
+          claritySession: clarityCookie('_clsk'),
+        }),
       })
       if (res.status === 429) {
         toast.error('提交太频繁了，请过一分钟再试')

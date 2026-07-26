@@ -134,6 +134,8 @@ export function initErrorReporter(): void {
         return
       }
       const e = ev as ErrorEvent
+      // 镜像兜底的双挂载防护抛错（后到实例主动放弃），属预期行为不上报
+      if (typeof e.message === 'string' && e.message.includes('[boot]')) return
       if (isThirdPartyNoise(e.filename, typeof e.error?.stack === 'string' ? e.error.stack : undefined)) return
       const p = basePayload('error', e.message ?? 'unknown error')
       if (typeof e.error?.stack === 'string') p.stack = truncate(e.error.stack, 2000)

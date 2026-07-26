@@ -1,13 +1,14 @@
 {
   "name": "cengfan-map",
   "private": true,
-  "version": "1.33.10",
+  "version": "1.34.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:debug": "set \"VITE_CODE_PATH=1\" && vite build --outDir dist-debug --emptyOutDir && node scripts/merge-debug.mjs",
     "build:all": "npm run build && npm run build:debug",
+    "build:mirror": "npm run build:all && node scripts/make-mirror-pack.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

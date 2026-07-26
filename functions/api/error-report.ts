@@ -1,18 +1,22 @@
 /**
- * JavaScript 错误自动反馈接口：
+ * JavaScript 错误自动反馈接口（D1 版）：
  *
  *   POST /api/error-report   body: { kind, message, stack?, page, version, ua, line?, col? }
- *                            → 聚合写入 KV（err:sig:<hash>），同签名错误只累加次数
+ *                            → 写入 D1 error_reports 表，同签名错误只累加次数
+ *
+ * 存储说明（v1.34.0 起从 KV 迁至 D1）：
+ * - KV 免费额度（写 1000 次/天）极易被错误上报烧穿；D1 免费额度 10 万行写/天，
+ *   且同签名累加可用一条 UPSERT 原子完成，不再需要「读-改-写」两次操作。
  *
  * 防护设计（防 DDoS / 防数据库冲撞）：
  * 1. 同源校验：Origin/Referer 存在时必须指向本站域名（跨域脚本直接 403）；
  * 2. 体积闸门：Content-Length 预检 + 实际读取双重 ≤ 8KB；字段逐项截断；
- * 3. 限流（isolate 内存，0 KV 写入）：全局 150/min + 单 IP 5/min；
- * 4. 签名聚合：相同（kind+message+堆栈首帧+版本）只存一条记录、累加 count——
- *    同一代码错误的刷屏不会产生新 key，RMW 偶发丢计数可接受；
- * 5. 新签名日配额：每天最多新建 200 个签名（防止随机 message 撑爆 key 空间），
+ * 3. 限流（isolate 内存，0 数据库写入）：全局 150/min + 单 IP 5/min；
+ * 4. 签名聚合：相同（kind+message+堆栈首帧+版本）只存一行、UPSERT 累加 count——
+ *    同一代码错误的刷屏不会产生新行；
+ * 5. 新签名日配额：每天最多新建 200 个签名（防止随机 message 撑爆表），
  *    配额用完后未知签名丢弃但已知签名照常累加；
- * 6. 所有记录 30 天 TTL 自动过期，存储量有界。
+ * 6. 30 天滚动清理：写入时顺手删除 last_seen 超过 30 天的行，存储量有界。
  *
  * 隐私说明：记录只含错误技术信息（消息/堆栈/页面路径/UA/版本），
  * 不含名单等任何用户数据；IP 仅用于内存限流计数（不持久化），不写入错误记录。
@@ -21,7 +25,7 @@
 import { rateLimitOk, clientIp } from '../_lib/ratelimit'
 
 interface Env {
-  cenfan_share?: KVNamespace
+  cenfan_db?: D1Database
 }
 
 /** 单条请求体积上限（字节） */
@@ -32,8 +36,8 @@ const GLOBAL_PER_MIN = 150
 const IP_PER_MIN = 5
 /** 每日新建签名限额 */
 const NEW_SIG_PER_DAY = 200
-/** 错误记录保留 30 天（秒） */
-const RECORD_TTL = 30 * 24 * 60 * 60
+/** 错误记录保留 30 天（毫秒） */
+const RECORD_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -75,22 +79,8 @@ function fnv1a(s: string): string {
   return (h >>> 0).toString(16).padStart(8, '0')
 }
 
-interface ErrorRecord {
-  kind: string
-  message: string
-  stack: string
-  page: string
-  version: string
-  ua: string
-  line: number
-  col: number
-  firstSeen: number
-  lastSeen: number
-  count: number
-}
-
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!env.cenfan_share) return json({ error: 'not_configured' }, 503)
+  if (!env.cenfan_db) return json({ error: 'not_configured' }, 503)
   if (!originAllowed(request)) return json({ error: 'forbidden_origin' }, 403)
 
   // 体积闸门：头预检 + 实读双保险
@@ -128,50 +118,42 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const line = toInt(body.line)
   const col = toInt(body.col)
 
-  const kv = env.cenfan_share
+  const db = env.cenfan_db
   const now = Date.now()
   const dayBucket = new Date(now).toISOString().slice(0, 10)
 
   try {
-    // 内存限流（0 KV 写入）：全局 + 单 IP
+    // 内存限流（0 数据库写入）：全局 + 单 IP
     if (!rateLimitOk('err:global', GLOBAL_PER_MIN)) return json({ error: 'rate_limited' }, 429)
     if (!rateLimitOk(`err:${clientIp(request)}`, IP_PER_MIN)) return json({ error: 'rate_limited' }, 429)
 
-    // 签名聚合：同类错误只存一条
+    // 签名聚合：同类错误只存一行，UPSERT 原子累加（无需读-改-写）
     const stackTop = stack.split('\n').find((l) => l.trim() !== '') ?? ''
     const sig = fnv1a(`${kind}|${message}|${stackTop}|${version}`)
-    const key = `err:sig:${sig}`
-    const existing = await kv.get(key)
-    if (existing !== null) {
-      const rec = JSON.parse(existing) as ErrorRecord
-      rec.count += 1
-      rec.lastSeen = now
-      // 新版本的同签名错误刷新版本号（旧版本错误随 TTL 自然消失）
-      rec.version = version || rec.version
-      rec.page = page || rec.page
-      await kv.put(key, JSON.stringify(rec), { expirationTtl: RECORD_TTL })
-      return json({ ok: true, deduped: true, count: rec.count })
+
+    const bumped = await db
+      .prepare('UPDATE error_reports SET count = count + 1, last_seen = ? WHERE sig = ?')
+      .bind(now, sig)
+      .run()
+    if ((bumped.meta?.changes ?? 0) > 0) {
+      return json({ ok: true, deduped: true })
     }
 
-    // 新签名日配额（防随机 message 撑爆 key 空间；内存计数，0 KV 写入）
+    // 新签名日配额（防随机 message 撑爆表；内存计数，0 数据库写入）
     if (!rateLimitOk(`err:cap:${dayBucket}`, NEW_SIG_PER_DAY, 24 * 60 * 60 * 1000)) {
       return json({ ok: true, throttled: 'sig_cap' })
     }
 
-    const rec: ErrorRecord = {
-      kind,
-      message,
-      stack,
-      page,
-      version,
-      ua,
-      line,
-      col,
-      firstSeen: now,
-      lastSeen: now,
-      count: 1,
-    }
-    await kv.put(key, JSON.stringify(rec), { expirationTtl: RECORD_TTL })
+    await db
+      .prepare(
+        'INSERT INTO error_reports (sig, kind, message, stack, page, version, ua, line, col, first_seen, last_seen, count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)',
+      )
+      .bind(sig, kind, message, stack, page, version, ua, line, col, now, now)
+      .run()
+
+    // 30 天滚动清理（仅新建签名时顺手做，写放大可控）
+    await db.prepare('DELETE FROM error_reports WHERE last_seen < ?').bind(now - RECORD_TTL_MS).run()
+
     return json({ ok: true, deduped: false })
   } catch {
     return json({ error: 'storage_failed' }, 503)
