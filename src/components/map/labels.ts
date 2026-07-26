@@ -495,9 +495,10 @@ export function computeLabelLayout(
     return typeof r === 'number' ? r : 9999
   }
 
-  /** 学生行的部件（校徽/毛笔字处理完毕，不换行） */
-  const partsOf = (s: StudentEntry): Omit<StudentLineParts, 'placeLines' | 'ownLine'> => {
-    const parts = studentLineParts(s, options?.anonymizeNames, options?.provinceOnly)
+  /** 学生行的部件（校徽/毛笔字处理完毕，不换行）。
+      dropCity=true 时行内不拼城市（按城市拆分的卡片标题已带城市，行内再显示是重复） */
+  const partsOf = (s: StudentEntry, dropCity = false): Omit<StudentLineParts, 'placeLines' | 'ownLine'> => {
+    const parts = studentLineParts(s, options?.anonymizeNames, options?.provinceOnly || dropCity)
     const key = s.university.trim()
     const enrich = uniInfo?.get(key)
     let badge = enrich?.badge === true
@@ -555,10 +556,12 @@ export function computeLabelLayout(
         ? [...students].sort((a, b) => rankOf(a) - rankOf(b))
         : students
     // 卡片标题：拆分卡 —— 卡内学生城市全相同 →「省份 · 城市」，否则 →「省份（N）」（1 起卡号）
+    // 标题带城市的拆分卡（含按城市拆分），行内不再重复显示城市
+    const cities = new Set(ordered.map((s) => s.city.trim()).filter((c) => c !== ''))
+    const stripCity = base !== province && cities.size === 1
     let title = province
     if (base !== province) {
       const cardNo = Number(province.slice(base.length + 1)) + 1
-      const cities = new Set(ordered.map((s) => s.city.trim()).filter((c) => c !== ''))
       title = cities.size === 1 ? `${base} · ${[...cities][0]}` : `${base}（${cardNo}）`
     }
     /** 同校合并：按大学分组（键 = trim 后校名），组内保持当前顺序；
@@ -582,6 +585,7 @@ export function computeLabelLayout(
         // 避免把某一个成员的信息误标成整组的（成员各自的详情在姓名行展示）
         const p = partsOf(
           members.length > 1 ? { ...members[0], major: undefined, score: undefined } : members[0],
+          stripCity,
         )
         if (members.length === 1) return p
         return {
@@ -596,7 +600,7 @@ export function computeLabelLayout(
         }
       })
     } else {
-      parts = ordered.map(partsOf)
+      parts = ordered.map((s) => partsOf(s, stripCity))
     }
     // 该省最长单行内容宽度（学生行与卡片标题取大者）
     const oneLineW = Math.max(

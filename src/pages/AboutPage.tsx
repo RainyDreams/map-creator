@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.36.1',
+    date: '2026-07-26 21:25',
+    items: [
+      '按城市拆分的省份卡片中，学生行不再重复显示城市（标题已带城市），只看大学与专业/分数，版面更清爽；混合城市卡片不受影响',
+    ],
+  },
+  {
     version: 'v1.36.0',
     date: '2026-07-26 21:00',
     items: [
