@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.34.2',
+    date: '2026-07-26 12:40',
+    items: [
+      '同校合并时，相邻学校分组之间增加一条浅色分割线，校与校一眼分清',
+    ],
+  },
+  {
     version: 'v1.34.1',
     date: '2026-07-26 12:20',
     items: [

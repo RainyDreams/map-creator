@@ -6,6 +6,7 @@ import {
   BADGE_GAP,
   BADGE_RATIO,
   CALLI_RATIO,
+  CARD_PAD_X,
   GROUP_GAP,
   NAME_PLACE_GAP,
   calliSize,
@@ -871,11 +872,32 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
               {b.title ?? b.province}
             </text>
             {b.lines.map((ln, i) => {
+              const startOffset = rowOffset
               const { nodes, rows } = ln.groupNames
                 ? renderGroup(b, ln, rowOffset, `${b.province}-${i}`)
                 : renderStudent(b, ln, rowOffset, `${b.province}-${i}`)
               rowOffset += rows
-              return <g key={`${b.province}-${i}`}>{nodes}</g>
+              // 同校合并：相邻两个学校合并组之间画一条浅浅的分割线，避免校与校分不清
+              const next = b.lines[i + 1]
+              const showDivider = !!ln.groupNames && !!next?.groupNames
+              const dividerY = b.firstLineBaseline + (startOffset + rows - 0.5) * b.lineH
+              return (
+                <g key={`${b.province}-${i}`}>
+                  {nodes}
+                  {showDivider && (
+                    <line
+                      x1={b.cardX + CARD_PAD_X}
+                      x2={b.cardX + b.cardW - CARD_PAD_X}
+                      y1={dividerY}
+                      y2={dividerY}
+                      stroke={theme.textColor}
+                      strokeOpacity={0.14}
+                      strokeWidth={1}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+                </g>
+              )
             })}
           </g>
         )
