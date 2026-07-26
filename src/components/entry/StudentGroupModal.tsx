@@ -517,11 +517,11 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
 
   /* ---------- 新增同学（嵌套模态框；自动归入所在省份分组） ---------- */
   const [addOpen, setAddOpen] = useState(false)
-  const [addForm, setAddForm] = useState({ name: '', university: '', city: '', overseas: false })
+  const [addForm, setAddForm] = useState({ name: '', university: '', city: '', overseas: false, major: '', score: '' })
   const addNameRef = useRef<HTMLInputElement>(null)
 
   const openAdd = () => {
-    setAddForm({ name: '', university: '', city: '', overseas: false })
+    setAddForm({ name: '', university: '', city: '', overseas: false, major: '', score: '' })
     setAddOpen(true)
     // 对话框动画结束后聚焦姓名输入框
     setTimeout(() => addNameRef.current?.focus(), 120)
@@ -534,11 +534,21 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
       addForm.city.trim() ||
       (addForm.overseas ? '' : inferCityFromUniversity(university) || '')
     if (name === '' && university === '' && city === '') return
+    const major = addForm.major.trim()
+    const score = addForm.score.trim()
     setData((prev) => ({
       ...prev,
       students: [
         ...prev.students,
-        { id: newId(), name, university, city, overseas: addForm.overseas || undefined },
+        {
+          id: newId(),
+          name,
+          university,
+          city,
+          overseas: addForm.overseas || undefined,
+          ...(major !== '' ? { major } : {}),
+          ...(score !== '' ? { score } : {}),
+        },
       ],
     }))
     setAddOpen(false)
@@ -859,6 +869,26 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
                     />
                   </div>
 
+                  {/* 第三行（可选）：录取专业 + 高考分数（「录入更详细的信息」开关打开时出现） */}
+                  {data.detailedInfo && (
+                    <div className="mt-1.5 grid grid-cols-2 gap-1.5 pl-0 md:pl-[52px]">
+                      <Input
+                        value={s.major ?? ''}
+                        onChange={(e) => updateRow(s.id, { major: e.target.value })}
+                        placeholder="录取专业（选填）"
+                        aria-label={`${s.name || `第 ${index + 1} 行`}的录取专业`}
+                        className="h-7 min-w-0 border-stone-200 bg-white text-xs focus-visible:ring-stone-300"
+                      />
+                      <Input
+                        value={s.score ?? ''}
+                        onChange={(e) => updateRow(s.id, { score: e.target.value })}
+                        placeholder="高考分数（选填）"
+                        aria-label={`${s.name || `第 ${index + 1} 行`}的高考分数`}
+                        className="h-7 min-w-0 border-stone-200 bg-white text-xs focus-visible:ring-stone-300"
+                      />
+                    </div>
+                  )}
+
                   {/* 毛笔字图片编辑面板：透明底横版 PNG，同校学生共用；上传后地图上替代大学文字 */}
                   {calliOpen && uniKey !== '' && (
                     <div className="mt-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-2">
@@ -1083,6 +1113,7 @@ export function StudentGroupModal({ focusStudentId }: { focusStudentId?: string 
         nameRef={addNameRef}
         onConfirm={confirmAdd}
         provinceOnly={data.provinceOnly}
+        detailedInfo={data.detailedInfo}
       />
     </div>
   )
@@ -1097,15 +1128,18 @@ function AddStudentDialog({
   nameRef,
   onConfirm,
   provinceOnly,
+  detailedInfo,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
-  form: { name: string; university: string; city: string; overseas: boolean }
-  setForm: React.Dispatch<React.SetStateAction<{ name: string; university: string; city: string; overseas: boolean }>>
+  form: { name: string; university: string; city: string; overseas: boolean; major: string; score: string }
+  setForm: React.Dispatch<React.SetStateAction<{ name: string; university: string; city: string; overseas: boolean; major: string; score: string }>>
   nameRef: React.RefObject<HTMLInputElement | null>
   onConfirm: () => void
   /** 只显示省份模式：城市可留空（只选省份即可添加） */
   provinceOnly?: boolean
+  /** 「录入更详细的信息」开关：显示录取专业与高考分数 */
+  detailedInfo?: boolean
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1161,6 +1195,34 @@ function AddStudentDialog({
               />
             </div>
           </div>
+          {detailedInfo && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label htmlFor="add-major" className="text-xs text-stone-500">
+                  录取专业（选填）
+                </label>
+                <Input
+                  id="add-major"
+                  value={form.major}
+                  onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))}
+                  placeholder="如 计算机科学与技术"
+                  className="h-9 border-stone-200 bg-white text-sm focus-visible:ring-stone-300"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="add-score" className="text-xs text-stone-500">
+                  高考分数（选填）
+                </label>
+                <Input
+                  id="add-score"
+                  value={form.score}
+                  onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))}
+                  placeholder="如 632"
+                  className="h-9 border-stone-200 bg-white text-sm focus-visible:ring-stone-300"
+                />
+              </div>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"

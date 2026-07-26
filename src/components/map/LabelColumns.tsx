@@ -882,7 +882,10 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
               const next = b.lines[i + 1]
               const showDivider =
                 data.mergeSameSchool && next !== undefined && (!!ln.groupNames || !!next.groupNames)
-              const dividerY = b.firstLineBaseline + (startOffset + rows - 0.5) * b.lineH
+              // 文字视觉重心在基线之上（上伸约 0.8em、下延约 0.25em），
+              // 几何中点偏下会让线贴着下一行；上移约 0.27em 后上下留白才相等
+              const dividerY =
+                b.firstLineBaseline + (startOffset + rows - 0.5) * b.lineH - 0.27 * b.personSize
               return (
                 <g key={`${b.province}-${i}`}>
                   {nodes}
@@ -895,6 +898,7 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
                       stroke={theme.textColor}
                       strokeOpacity={0.2}
                       strokeWidth={1}
+                      strokeLinecap="round"
                       vectorEffect="non-scaling-stroke"
                     />
                   )}

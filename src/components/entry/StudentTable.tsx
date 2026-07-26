@@ -134,6 +134,22 @@ export default function StudentTable() {
             aria-label="名字一键隐私"
           />
         </label>
+        {/* 录入更详细的信息：开启后录入面板每位同学可填录取专业与高考分数（仅留存，不上图） */}
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50/60 px-3 py-2">
+          <span className="min-w-0">
+            <span className="block text-xs font-medium text-stone-700 md:text-sm">
+              录入更详细的信息
+            </span>
+            <span className="block text-[11px] leading-4 text-stone-400 md:text-xs">
+              录入面板中每位同学可填写录取专业与高考分数
+            </span>
+          </span>
+          <Switch
+            checked={data.detailedInfo}
+            onCheckedChange={(v) => setData((prev) => ({ ...prev, detailedInfo: v }))}
+            aria-label="录入更详细的信息"
+          />
+        </label>
         <p className="text-center text-xs text-stone-400">
           仅预览前 {PREVIEW_COUNT} 位；完整名单的查看、编辑、排序均在录入面板中进行
         </p>

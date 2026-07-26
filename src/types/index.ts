@@ -11,6 +11,10 @@ export interface StudentEntry {
    * 在地图右下角「海外 / 境外」区块中单独列出
    */
   overseas?: boolean
+  /** 录取专业（可选；「录入更详细的信息」开关打开后可在录入面板填写） */
+  major?: string
+  /** 高考分数（可选；字符串保存，允许“632（物理类）”这类写法） */
+  score?: string
 }
 
 /** 老师条目（可选填） */
@@ -108,6 +112,8 @@ export interface MapData {
   /** 只显示省份（v1.29.1）：开启后地图上学生行不显示城市（只显示大学），
       录入时城市可留空（只选省份，城市位存省份短名如「湖南」）；导入同理 */
   provinceOnly: boolean
+  /** 录入更详细的信息（v1.35）：开启后录入面板每位同学可填写录取专业与高考分数（仅录入与留存，不上图） */
+  detailedInfo: boolean
   /**
    * 省份卡片手动尺寸覆盖（v1.25）：卡片键 → {w, h}（viewBox 单位，绝对尺寸）。
    * 选中卡片后拖动右下角手柄调整；实际生效尺寸 = max(内容自然尺寸, 覆盖值)——
@@ -187,6 +193,7 @@ export const EMPTY_MAP_DATA: MapData = {
   showStats: false,
   anonymizeNames: false,
   provinceOnly: false,
+  detailedInfo: false,
   cardSizes: {},
   labelCardBg: true,
   cardRadius: 10,
