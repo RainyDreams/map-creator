@@ -208,12 +208,24 @@ export function privacyName(name: string): string {
   return `${first}同学`
 }
 
+/** 专业/分数附加文本（v1.35.3）：用户录入了才显示；纯数字分数自动补「分」字 */
+export function majorScoreText(s: StudentEntry): string {
+  const parts: string[] = []
+  const major = s.major?.trim() ?? ''
+  if (major !== '') parts.push(major)
+  const score = s.score?.trim() ?? ''
+  if (score !== '') parts.push(/^\d+(\.\d+)?$/.test(score) ? `${score}分` : score)
+  return parts.join(' · ')
+}
+
 export function studentLineParts(s: StudentEntry, anonymize?: boolean, provinceOnly?: boolean): Omit<StudentLineParts, 'placeLines' | 'ownLine'> {
   const name = anonymize ? privacyName(s.name) : s.name.trim() || '（未命名）'
   const uni = s.university.trim() || '（未填大学）'
   // 只显示省份模式（v1.29.1）：地点段不拼城市，只留大学
   const city = provinceOnly ? '' : s.city.trim()
-  return { person: name, place: city !== '' ? `${uni} · ${city}` : uni, uni: s.university.trim() }
+  const uniCity = city !== '' ? `${uni} · ${city}` : uni
+  const detail = majorScoreText(s)
+  return { person: name, place: detail !== '' ? `${uniCity} · ${detail}` : uniCity, uni: s.university.trim() }
 }
 
 /* ---------- 侧宽动态界定的档位与间距常量 ---------- */
@@ -566,14 +578,21 @@ export function computeLabelLayout(
         groups2 = [...groups2].sort((a, b) => bestRank(a) - bestRank(b))
       }
       parts = groups2.map((members) => {
-        const p = partsOf(members[0])
+        // 多人合并组的学校行是全组共享的：剥掉首成员的专业/分数，
+        // 避免把某一个成员的信息误标成整组的（成员各自的详情在姓名行展示）
+        const p = partsOf(
+          members.length > 1 ? { ...members[0], major: undefined, score: undefined } : members[0],
+        )
         if (members.length === 1) return p
         return {
           ...p,
           person: '',
-          groupNames: members.map((m) =>
-            options?.anonymizeNames ? privacyName(m.name) : m.name.trim() || '（未命名）',
-          ),
+          groupNames: members.map((m) => {
+            const n = options?.anonymizeNames ? privacyName(m.name) : m.name.trim() || '（未命名）'
+            // 合并组共享同一行学校信息，成员各自的专业/分数跟在姓名后
+            const d = majorScoreText(m)
+            return d !== '' ? `${n} · ${d}` : n
+          }),
         }
       })
     } else {
