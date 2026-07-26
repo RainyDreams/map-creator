@@ -895,9 +895,10 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
                       x2={b.cardX + b.cardW - CARD_PAD_X}
                       y1={dividerY}
                       y2={dividerY}
-                      stroke={theme.textColor}
-                      strokeOpacity={0.2}
-                      strokeWidth={1}
+                      stroke={theme.leaderLine}
+                      strokeOpacity={0.35}
+                      strokeWidth={0.75}
+                      strokeDasharray="4 3"
                       strokeLinecap="round"
                       vectorEffect="non-scaling-stroke"
                     />

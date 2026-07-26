@@ -5,11 +5,12 @@ import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
 import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
-import { exportNodeToPng, renderNodeToPngDataUrl, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
+import { exportNodeToPng, renderNodeToPngDataUrl, exportPngFilename, dataUrlToBlob, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
 import { track } from '@/utils/analytics'
 import { breadcrumb } from '@/utils/sessionLog'
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
+import { isMobileOrPad } from '@/utils/device'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { APP_VERSION } from '@/version'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
@@ -125,20 +126,33 @@ function ExportProgressDialog({
   )
 }
 
-/** 微信环境导出完成后的保存弹窗：微信不支持 a[download]，图片直接展示，引导长按保存 */
-function WeChatSaveDialog({
+/** 移动端导出完成后的保存弹窗：
+ *  - 所有移动设备（手机 / iPad 等平板）：大弹窗展示完整图片预览 + 黑色下载按钮
+ *  - 微信内置浏览器：不支持 a[download]，仅展示预览，引导长按保存（无下载按钮） */
+function MobileSaveDialog({
   dataUrl,
+  filename,
+  isWeChat,
   onClose,
 }: {
   dataUrl: string
+  filename: string
+  isWeChat: boolean
   onClose: () => void
 }) {
+  // 下载按钮用 Blob URL：大体积 data: URL 在部分浏览器下载时会卡死
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  useEffect(() => {
+    const url = URL.createObjectURL(dataUrlToBlob(dataUrl))
+    setBlobUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [dataUrl])
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 backdrop-blur-[2px] sm:p-6">
       <div
         role="dialog"
         aria-label="保存图片"
-        className="flex max-h-[90dvh] w-full max-w-sm flex-col rounded-xl border border-stone-200 bg-white shadow-2xl"
+        className="flex max-h-[94dvh] w-full max-w-3xl flex-col rounded-xl border border-stone-200 bg-white shadow-2xl"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-stone-100 px-4 py-3">
           <h2 className="text-sm font-semibold text-stone-700">图片已生成</h2>
@@ -151,14 +165,35 @@ function WeChatSaveDialog({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-stone-50 p-3 sm:p-4">
           <img src={dataUrl} alt="蹭饭图导出结果" className="mx-auto w-full rounded-md" />
         </div>
-        <p className="shrink-0 border-t border-stone-100 px-4 py-3 text-center text-xs leading-5 text-stone-500">
-          微信中无法直接下载图片
-          <br />
-          <strong className="text-stone-700">请长按上方图片 → 保存到相册</strong>
-        </p>
+        <div className="shrink-0 border-t border-stone-100 px-4 py-3.5">
+          {isWeChat ? (
+            <p className="text-center text-xs leading-5 text-stone-500">
+              微信中无法直接下载图片
+              <br />
+              <strong className="text-stone-700">请长按上方图片 → 保存到相册</strong>
+            </p>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <a
+                href={blobUrl ?? undefined}
+                download={filename}
+                aria-disabled={blobUrl === null}
+                className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition-colors sm:w-auto sm:min-w-56 ${
+                  blobUrl ? 'bg-stone-900 hover:bg-stone-700' : 'pointer-events-none bg-stone-300'
+                }`}
+              >
+                <Download className="h-4 w-4" />
+                下载图片
+              </a>
+              <p className="text-center text-[11px] text-stone-400">
+                也可以直接长按上方图片保存到相册
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -170,8 +205,12 @@ export default function MapPage() {
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [progress, setProgress] = useState<ExportProgress | null>(null)
-  /** 微信环境下导出完成的图片 dataURL（弹窗引导长按保存） */
-  const [wechatImage, setWechatImage] = useState<string | null>(null)
+  /** 移动端导出完成的图片（弹窗预览 + 下载按钮；微信则引导长按保存） */
+  const [mobileExport, setMobileExport] = useState<{
+    dataUrl: string
+    filename: string
+    isWeChat: boolean
+  } | null>(null)
   /** 进度锚点（真实阶段 + 到达时刻）与展示值（向锚点平滑爬行）分离，长耗时阶段也有前进感 */
   const anchorRef = useRef<{ pct: number; stage: string; at: number }>({ pct: 0, stage: '', at: 0 })
   /** 导出开始时刻（估算剩余时间用） */
@@ -413,10 +452,16 @@ export default function MapPage() {
     }
     breadcrumb(`导出开始（${quality}）`)
     try {
-      if (isWeChatBrowser()) {
-        // 微信不支持 a[download]：渲染出 dataURL，弹窗引导用户长按保存
+      if (isWeChatBrowser() || isMobileOrPad()) {
+        // 移动设备（含平板）：a[download] 体验差或不可用，渲染出 dataURL 后弹窗预览；
+        // 弹窗内提供黑色下载按钮（微信除外——微信不支持下载，引导长按保存）
+        const wechat = isWeChatBrowser()
         const r = await renderNodeToPngDataUrl(node, quality, onProgress, abort.signal)
-        setWechatImage(r.dataUrl)
+        setMobileExport({
+          dataUrl: r.dataUrl,
+          filename: exportPngFilename(data.title, quality),
+          isWeChat: wechat,
+        })
       } else {
         await exportNodeToPng(node, data.title, quality, onProgress, abort.signal)
       }
@@ -734,8 +779,13 @@ export default function MapPage() {
       )}
 
       {/* 微信环境：图片生成后引导长按保存 */}
-      {wechatImage !== null && (
-        <WeChatSaveDialog dataUrl={wechatImage} onClose={() => setWechatImage(null)} />
+      {mobileExport !== null && (
+        <MobileSaveDialog
+          dataUrl={mobileExport.dataUrl}
+          filename={mobileExport.filename}
+          isWeChat={mobileExport.isWeChat}
+          onClose={() => setMobileExport(null)}
+        />
       )}
     </div>
   )

@@ -84,13 +84,19 @@ function sanitize(s: string): string {
   return s.trim().replace(/[\\/:*?"<>|\s]+/g, '-')
 }
 
+/** 导出 PNG 的文件名（与 exportNodeToPng 内部规则一致），供移动端保存弹窗的下载按钮使用 */
+export function exportPngFilename(title: string, quality: ExportQuality): string {
+  const base = sanitize(title) || '蹭饭图'
+  return `${base}${quality === 'ultra' ? '-超清' : ''}.png`
+}
+
 /**
  * dataURL → Blob。
  * 大体积 data: URL 触发 Chrome 下载时会在下载管理器里概率性卡死（进度满格但 0 B/s
  * 不落盘，重启浏览器才好）——这是 Chrome 对超长 data: URL 的已知问题。
  * 改用 Blob + URL.createObjectURL 下载，稳定且更省内存。
  */
-function dataUrlToBlob(dataUrl: string): Blob {
+export function dataUrlToBlob(dataUrl: string): Blob {
   const comma = dataUrl.indexOf(',')
   const mime = dataUrl.slice(5, comma).split(';')[0] || 'image/png'
   const bin = atob(dataUrl.slice(comma + 1))
