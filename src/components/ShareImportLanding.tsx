@@ -56,6 +56,9 @@ function extractPreview(data: unknown): {
   }
 }
 
+/** 预览只展示前 10 条，超出折叠为「等共 N 人」 */
+const PREVIEW_LIMIT = 10
+
 export function ShareImportLanding({
   payload,
   onClose,
@@ -163,34 +166,34 @@ export function ShareImportLanding({
             ))}
           </div>
 
-          {/* 名单预览（只读，完整展示，超高滚动） */}
+          {/* 名单预览（只读，最多展示前 10 条） */}
           {preview.rows.length > 0 && (
             <div className="mt-4 overflow-hidden rounded-lg border border-stone-200">
-              <div className="max-h-72 overflow-y-auto">
-                <table className="w-full text-left text-xs md:text-sm">
-                  <thead className="sticky top-0">
-                    <tr className="bg-stone-50 text-stone-500">
-                      <th className="px-3 py-2 font-medium">姓名</th>
-                      <th className="px-3 py-2 font-medium">大学</th>
-                      <th className="px-3 py-2 font-medium">地区</th>
+              <table className="w-full text-left text-xs md:text-sm">
+                <thead>
+                  <tr className="bg-stone-50 text-stone-500">
+                    <th className="px-3 py-2 font-medium">姓名</th>
+                    <th className="px-3 py-2 font-medium">大学</th>
+                    <th className="px-3 py-2 font-medium">地区</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.rows.slice(0, PREVIEW_LIMIT).map((r, i) => (
+                    <tr key={i} className="border-t border-stone-100 text-stone-700">
+                      <td className="px-3 py-1.5">{r.name}</td>
+                      <td className="px-3 py-1.5">{r.university}</td>
+                      <td className="px-3 py-1.5 text-stone-500">
+                        {r.overseas ? '海外' : r.city}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {preview.rows.map((r, i) => (
-                      <tr key={i} className="border-t border-stone-100 text-stone-700">
-                        <td className="px-3 py-1.5">{r.name}</td>
-                        <td className="px-3 py-1.5">{r.university}</td>
-                        <td className="px-3 py-1.5 text-stone-500">
-                          {r.overseas ? '海外' : r.city}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="border-t border-stone-100 bg-stone-50/60 px-3 py-1.5 text-[11px] text-stone-400">
-                共 {preview.rows.length} 人，导入后可继续编辑
-              </p>
+                  ))}
+                </tbody>
+              </table>
+              {preview.rows.length > PREVIEW_LIMIT && (
+                <p className="border-t border-stone-100 bg-stone-50/60 px-3 py-1.5 text-[11px] text-stone-400">
+                  … 等共 {preview.rows.length} 人，导入后可查看完整名单
+                </p>
+              )}
             </div>
           )}
 

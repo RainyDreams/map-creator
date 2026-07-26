@@ -877,9 +877,11 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
                 ? renderGroup(b, ln, rowOffset, `${b.province}-${i}`)
                 : renderStudent(b, ln, rowOffset, `${b.province}-${i}`)
               rowOffset += rows
-              // 同校合并：相邻两个学校合并组之间画一条浅浅的分割线，避免校与校分不清
+              // 同校合并：合并组与其前后条目之间画浅色分割线（组上下各一条），
+              // 多人组从单人行里「围」出来，校与校一眼分清；全单人时不多余画线
               const next = b.lines[i + 1]
-              const showDivider = !!ln.groupNames && !!next?.groupNames
+              const showDivider =
+                data.mergeSameSchool && next !== undefined && (!!ln.groupNames || !!next.groupNames)
               const dividerY = b.firstLineBaseline + (startOffset + rows - 0.5) * b.lineH
               return (
                 <g key={`${b.province}-${i}`}>
@@ -891,7 +893,7 @@ export function LabelColumns({ left, right, onLiveDrag, onLiveResize, zRanks, on
                       y1={dividerY}
                       y2={dividerY}
                       stroke={theme.textColor}
-                      strokeOpacity={0.14}
+                      strokeOpacity={0.2}
                       strokeWidth={1}
                       vectorEffect="non-scaling-stroke"
                     />
