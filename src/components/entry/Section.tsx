@@ -73,7 +73,8 @@ export function Section({
           open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >
-        <div className="overflow-hidden">
+        {/* 展开时放开 overflow：内部下拉（字号/字体/城市选择）的浮层在分区边界外也要完整可见 */}
+        <div className={open ? 'overflow-visible' : 'overflow-hidden'}>
           <div className="border-t border-stone-100 px-3.5 py-3 md:px-4 md:py-4">{children}</div>
         </div>
       </div>

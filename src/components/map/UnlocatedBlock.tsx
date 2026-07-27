@@ -23,7 +23,13 @@ export function UnlocatedBlock({ students }: { students: StudentEntry[] }) {
         以下 {students.length} 位同学暂未在地图上定位：
       </p>
       <p className="mt-0.5" style={{ color: theme.textColor, fontSize: cqw(12), lineHeight: 1.7 }}>
-        {students.map((s) => (data.anonymizeNames ? privacyName(s.name) : s.name || '（未命名）')).join('、')}
+        {students
+          .map((s) =>
+            data.anonymizeNames
+              ? privacyName(s.name) || '（未命名）'
+              : s.name.trim() || s.university.trim() || '（未命名）',
+          )
+          .join('、')}
       </p>
       <p className="mt-1 opacity-70" style={{ color: theme.textColor, fontSize: cqw(11) }}>
         请回录入页补充Ta们的城市或大学信息

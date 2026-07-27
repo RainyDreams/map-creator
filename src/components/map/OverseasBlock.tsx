@@ -213,22 +213,27 @@ export function OverseasBlock({
         海外 / 境外的同学们：
       </p>
       <ul>
-        {students.map((s) => (
+        {students.map((s) => {
+          const nm = data.anonymizeNames ? privacyName(s.name) : s.name.trim()
+          return (
           <li
             key={s.id}
             className="whitespace-nowrap"
             style={{ color: theme.textColor, fontSize: cqw(size), lineHeight: 1.6 }}
           >
-            <span className="font-semibold" style={{ fontFamily: personFont }}>
-              {data.anonymizeNames ? privacyName(s.name) : s.name || '（未命名）'}
-            </span>
+            {nm !== '' && (
+              <span className="font-semibold" style={{ fontFamily: personFont }}>
+                {nm}
+              </span>
+            )}
             {(s.university.trim() !== '' || s.city.trim() !== '') && (
-              <span className="ml-1.5 opacity-80" style={{ fontFamily: placeFont }}>
+              <span className={nm !== '' ? 'ml-1.5 opacity-80' : 'opacity-80'} style={{ fontFamily: placeFont }}>
                 {[s.university.trim(), s.city.trim()].filter(Boolean).join(' · ')}
               </span>
             )}
           </li>
-        ))}
+          )
+        })}
       </ul>
     </div>
   )

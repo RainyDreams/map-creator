@@ -200,10 +200,10 @@ export interface StudentLineParts {
   groupNames?: string[]
 }
 
-/** 名字一键隐私：只保留姓氏（复姓取首字），形如「张同学」；空名回退占位 */
+/** 名字一键隐私：只保留姓氏（复姓取首字），形如「张同学」；未填姓名时不占位（v1.36.2 起空名不显示） */
 export function privacyName(name: string): string {
   const t = name.trim()
-  if (t === '') return '（未命名）'
+  if (t === '') return ''
   const first = Array.from(t)[0]
   return `${first}同学`
 }
@@ -219,7 +219,7 @@ export function majorScoreText(s: StudentEntry): string {
 }
 
 export function studentLineParts(s: StudentEntry, anonymize?: boolean, provinceOnly?: boolean): Omit<StudentLineParts, 'placeLines' | 'ownLine'> {
-  const name = anonymize ? privacyName(s.name) : s.name.trim() || '（未命名）'
+  const name = anonymize ? privacyName(s.name) : s.name.trim()
   const uni = s.university.trim() || '（未填大学）'
   // 只显示省份模式（v1.29.1）：地点段不拼城市，只留大学
   const city = provinceOnly ? '' : s.city.trim()
@@ -293,7 +293,8 @@ type MeasureFn = (text: string, px: number, slot: 'person' | 'place') => number
 /** 一行的姓名后附加宽度：校徽占位（含呼吸）或无校徽时的姓名-校名间隙 */
 function afterNameW(parts: Omit<StudentLineParts, 'placeLines' | 'ownLine'>, sizes: LineFontSizes): number {
   if (parts.badge) return sizes.place * BADGE_RATIO * (parts.badgeScale ?? sizes.badgeScale ?? 1) + BADGE_GAP
-  return parts.place !== '' || parts.calli ? NAME_PLACE_GAP : 0
+  // 未填姓名（v1.36.2）：姓名-校名间隙不需要，大学直接顶格起排
+  return parts.person !== '' && (parts.place !== '' || parts.calli) ? NAME_PLACE_GAP : 0
 }
 
 /** 同校合并单元的姓名列宽度（组内最长姓名） */
@@ -358,7 +359,7 @@ export function wrapStudentLine(
   const mPerson = (t: string) => (measure ? measure(t, sizes.person, 'person') : textEms(t) * sizes.person)
   const personW = mPerson(parts.person)
   const badgeW = parts.badge ? sizes.place * BADGE_RATIO * (parts.badgeScale ?? sizes.badgeScale ?? 1) + BADGE_GAP : 0
-  const nameGap = !parts.badge && parts.place !== '' ? NAME_PLACE_GAP : 0
+  const nameGap = !parts.badge && parts.person !== '' && parts.place !== '' ? NAME_PLACE_GAP : 0
   const calliW = parts.calli ? calliSize(parts.calli, sizes.place).w : 0
   const indent = personW + badgeW + nameGap + calliW
 
@@ -592,10 +593,10 @@ export function computeLabelLayout(
           ...p,
           person: '',
           groupNames: members.map((m) => {
-            const n = options?.anonymizeNames ? privacyName(m.name) : m.name.trim() || '（未命名）'
+            const n = options?.anonymizeNames ? privacyName(m.name) : m.name.trim()
             // 合并组共享同一行学校信息，成员各自的专业/分数跟在姓名后
             const d = majorScoreText(m)
-            return d !== '' ? `${n} · ${d}` : n
+            return n !== '' && d !== '' ? `${n} · ${d}` : n !== '' ? n : d
           }),
         }
       })

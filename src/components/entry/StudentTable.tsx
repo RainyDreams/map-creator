@@ -81,7 +81,7 @@ export default function StudentTable() {
                 {index + 1}
               </span>
               <span className="shrink-0 text-xs font-medium text-stone-800 md:text-sm">
-                {s.name || '（未命名）'}
+                {s.name.trim() || '（未命名）'}
               </span>
               <span className="min-w-0 flex-1 truncate text-right text-xs text-stone-500 md:text-sm">
                 {s.university || '（未填大学）'}
