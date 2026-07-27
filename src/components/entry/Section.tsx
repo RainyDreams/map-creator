@@ -73,8 +73,9 @@ export function Section({
           open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >
-        {/* 展开时放开 overflow：内部下拉（字号/字体/城市选择）的浮层在分区边界外也要完整可见 */}
-        <div className={open ? 'overflow-visible' : 'overflow-hidden'}>
+        {/* min-w-0 让 grid 子项可缩到分区宽度内（否则行内容 min-content 会撑破右边界）；
+            横向 clip 约束布局、纵向 visible 放行下拉浮层（overflow-x:hidden 会把 y 也算成 auto，故用 clip） */}
+        <div className={open ? 'min-w-0 overflow-x-clip overflow-y-visible' : 'overflow-hidden'}>
           <div className="border-t border-stone-100 px-3.5 py-3 md:px-4 md:py-4">{children}</div>
         </div>
       </div>

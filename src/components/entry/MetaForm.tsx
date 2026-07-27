@@ -81,8 +81,8 @@ function PersonalizePanel({ children }: { children: ReactNode }) {
           open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >
-        {/* 展开时放开 overflow：字号/字体下拉的浮层在面板边界外也要完整可见（折叠动画仍需要 hidden 裁剪） */}
-        <div className={open ? 'overflow-visible' : 'overflow-hidden'}>
+        {/* 同 Section：min-w-0 防撑破、横向 clip、纵向放行下拉浮层 */}
+        <div className={open ? 'min-w-0 overflow-x-clip overflow-y-visible' : 'overflow-hidden'}>
           <div className="space-y-3 border-t border-dashed border-stone-200 px-3 py-3 md:space-y-4">
             {children}
           </div>

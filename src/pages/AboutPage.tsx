@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.36.4',
+    date: '2026-07-27 12:20',
+    items: [
+      '修复移动端窄屏下开关、按钮等控件被顶出分区右边界的问题；省份卡片位置的分段控件在窄屏下会自动换行',
+    ],
+  },
+  {
     version: 'v1.36.3',
     date: '2026-07-27 11:50',
     items: [

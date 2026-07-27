@@ -297,7 +297,8 @@ export function FontPanel() {
       {/* 省份卡片位置：一列/两列为自动布局——切换到它们会重置全部自定义位置（省份卡片 + 老师块）；
           自定义从当前所见状态开始（历史偏移不恢复）；直接拖动卡片也会从当前状态切入自定义 */}
       <div className="mt-2">
-        <div className="flex items-center justify-between">
+        {/* flex-wrap：窄屏（≤360px）下分段控件整体换到下一行，不再把分区撑出右边界 */}
+        <div className="flex flex-wrap items-center justify-between gap-y-1.5">
           <span className="flex items-center gap-1.5 text-xs text-stone-500">
             省份卡片位置
             {/* 行内推荐标注：超高 1.1 倍才建议两列；两列能放回一列时反向建议 */}
