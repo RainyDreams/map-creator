@@ -126,8 +126,11 @@ export function initErrorReporter(): void {
       // 资源加载失败（script/img/link 等）：target 是元素，没有 message
       const target = ev.target as EventTarget | null
       if (target && target !== window && !(ev as ErrorEvent).message) {
-        const el = target as { src?: string; href?: string; tagName?: string }
-        const src = cleanUrl(el.src ?? el.href ?? '')
+        // SVG 元素（如校徽 <image>）的 href 是 SVGAnimatedString 对象而非字符串，
+        // 直接读会拼出 "[object SVGAnimatedString]" 丢失真实地址——取 baseVal
+        const el = target as { src?: string; href?: string | { baseVal?: string }; tagName?: string }
+        const hrefRaw = typeof el.href === 'object' ? (el.href?.baseVal ?? '') : (el.href ?? '')
+        const src = cleanUrl(el.src ?? hrefRaw)
         if (src.includes('clarity')) return
         const p = basePayload('resource', `资源加载失败：${el.tagName ?? 'unknown'} ${src}`)
         enqueue(p)

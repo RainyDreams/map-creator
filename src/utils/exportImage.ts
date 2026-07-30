@@ -19,6 +19,7 @@
  * 代码分割：html-to-image 只在真正导出时动态加载（独立 chunk），不拖慢首屏。
  */
 import { getCachedFontEmbedCss, setCachedFontEmbedCss } from './exportFontCache'
+import { getBadgeDataUrlSync } from './universities'
 
 /** html-to-image 懒加载：首次导出时加载，之后模块缓存复用 */
 async function loadHtmlToImage(): Promise<typeof import('html-to-image')> {
@@ -155,6 +156,81 @@ async function ensureFontsLoaded(): Promise<void> {
   }
 }
 
+/**
+ * 把导出链路里的异常整理成可读信息：html-to-image 在校徽等 <img>/<image>
+ * 加载失败时会以裸 Event reject，直接 String() 只能得到 [object Event]，
+ * 用户日志里完全看不出是哪个资源的问题（2026-07-29 三条导出失败日志实锤）。
+ */
+export function describeError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (err instanceof Event) {
+    const t = err.target as { src?: string; href?: string | { baseVal?: string } } | null
+    const href = typeof t?.href === 'object' ? t?.href?.baseVal : t?.href
+    const src = t?.src ?? href ?? ''
+    return `图像资源加载失败${src ? `（${src.slice(0, 120)}）` : ''}`
+  }
+  return String(err)
+}
+
+/** 等待克隆里的 HTML <img> 全部加载落定（成功或失败都算），最长 3s */
+async function settleCloneImages(clone: HTMLElement): Promise<void> {
+  const pending = Array.from(clone.querySelectorAll('img')).filter((i) => !i.complete)
+  if (pending.length === 0) return
+  await Promise.race([
+    Promise.allSettled(
+      pending.map(
+        (i) =>
+          new Promise<void>((resolve) => {
+            i.addEventListener('load', () => resolve(), { once: true })
+            i.addEventListener('error', () => resolve(), { once: true })
+          }),
+      ),
+    ),
+    new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+  ])
+}
+
+/**
+ * 导出前整理克隆里的图片资源：
+ * - HTML <img> 加载失败（如校徽 404）：直接移除——html-to-image 遇到加载失败的
+ *   img 会以 Event reject，把整个导出拖死；
+ * - SVG <image> 校徽：已预取到 dataURL 的直接内联（导出提速），已确认取不到
+ *   （缓存 null）的移除；未预取过的保留，交给 html-to-image 正常内联。
+ */
+function sanitizeCloneImages(clone: HTMLElement): void {
+  let removed = 0
+  let inlined = 0
+  for (const img of Array.from(clone.querySelectorAll('img'))) {
+    if (!img.complete || img.naturalWidth === 0) {
+      img.remove()
+      removed += 1
+    }
+  }
+  for (const image of Array.from(clone.querySelectorAll('image'))) {
+    const href = image.getAttribute('href') ?? ''
+    if (!href || href.startsWith('data:')) continue
+    if (!href.includes('/api/school-badge')) continue
+    const m = /[?&]name=([^&]+)/.exec(href)
+    if (!m) continue
+    let cached: string | null | undefined
+    try {
+      cached = getBadgeDataUrlSync(decodeURIComponent(m[1]))
+    } catch {
+      continue
+    }
+    if (cached) {
+      image.setAttribute('href', cached)
+      inlined += 1
+    } else if (cached === null) {
+      image.remove()
+      removed += 1
+    }
+  }
+  if (removed > 0 || inlined > 0) {
+    console.info(`[导出] 图片资源整理：内联校徽 ${inlined} 张，移除加载失败图片 ${removed} 个`)
+  }
+}
+
 function nextFrame(): Promise<void> {
   return new Promise((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
@@ -190,6 +266,10 @@ async function withOffscreenClone<T>(
     // 双 rAF：确保克隆节点完成排版与字体应用
     await nextFrame()
     logStep('离屏排版就绪', t)
+    // 等图片落定后清理：加载失败的 img / 取不到的校徽会在 html-to-image
+    // 序列化时以裸 Event reject，必须在此之前移除或内联
+    await settleCloneImages(clone)
+    sanitizeCloneImages(clone)
     return await fn(clone)
   } finally {
     holder.remove()
@@ -271,6 +351,175 @@ async function renderUltra(
   return { dataUrl, width: cw, height: ch }
 }
 
+/** Safari 检测（WebKit 但非 Chrome/Chromium 系；iOS 上 CriOS/FxiOS 同样是 WebKit 内核，一并算入） */
+export function isSafariEngine(): boolean {
+  const ua = navigator.userAgent
+  return /applewebkit/i.test(ua) && !/chrome|chromium|edg|opr\//i.test(ua)
+}
+
+/**
+ * 分层渲染（v1.36.5）：为 Safari 修复导出超时。
+ * 背景：html-to-image 的 toSvg/toPng 会给 DOM 每个元素逐条内联计算样式；
+ * 蹭饭图画布内嵌整幅中国地图 SVG（数千个 path），Safari 上这一步 60s+ 不返回，
+ * 而位图回退用的是同一引擎，必然连环超时（2026-07-29 用户日志实锤）。
+ *
+ * 分层思路：大 SVG 与 HTML 覆盖层分开渲染再合成——
+ * ① 地图 SVG 是自包含矢量（属性即样式），用原生 XMLSerializer 直接序列化（纳秒级），
+ *   注入字体子集后作为 <img> 栅格化；
+ * ② 标题/老师块/水印等 HTML 覆盖层 DOM 很小，把 SVG 换成同尺寸占位 div 后
+ *   交给 html-to-image toPng（透明底）；
+ * ③ 背景层用一个只带主题背景的纯 div 渲染；
+ * ④ 三层按各自偏移绘制到同一 canvas。
+ * 全程绕开「大 DOM 样式内联」，Safari 上耗时从 >150s 降到秒级。
+ */
+async function renderLayered(
+  node: HTMLElement,
+  hti: typeof import('html-to-image'),
+  bg: string,
+  quality: ExportQuality,
+  onProgress?: ExportProgressFn,
+  signal?: AbortSignal,
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  let t = performance.now()
+  const w = node.offsetWidth
+  const h = node.offsetHeight
+  if (w === 0 || h === 0) throw new Error('画布尺寸为 0')
+  // ultra 与 renderUltra 同一目标宽度逻辑；standard 固定 2x（与位图档一致）
+  let cw: number
+  let ch: number
+  if (quality === 'ultra') {
+    const targetW = Math.min(Math.max(ULTRA_MIN_W, Math.round(w * 2)), ULTRA_MAX_W)
+    const scale = targetW / w
+    cw = targetW
+    ch = Math.round(h * scale)
+    if (ch > MAX_SIDE) {
+      ch = MAX_SIDE
+      cw = Math.round(w * (MAX_SIDE / h))
+    }
+  } else {
+    cw = Math.round(w * 2)
+    ch = Math.round(h * 2)
+  }
+  const ratio = cw / w
+
+  /** 在 node（离屏克隆）中找最大的 <svg>（即中国地图；其余小 svg 如图标留在覆盖层） */
+  let mapSvg: SVGSVGElement | null = null
+  let mapRect: DOMRect | null = null
+  const rootRect = node.getBoundingClientRect()
+  for (const el of Array.from(node.querySelectorAll('svg'))) {
+    const r = el.getBoundingClientRect()
+    if (r.width * r.height > ((mapRect?.width ?? 0) * (mapRect?.height ?? 0))) {
+      mapSvg = el as SVGSVGElement
+      mapRect = r
+    }
+  }
+
+  // —— ① 背景层：纯背景 div（无地图 DOM），小尺寸 toPng ——
+  onProgress?.(35, '分层渲染：背景层…')
+  const rootBg = node.style.background || bg
+  const bgDiv = document.createElement('div')
+  bgDiv.style.cssText = `width:${w}px;height:${h}px;background:${rootBg};`
+  const bgHolder = document.createElement('div')
+  bgHolder.style.cssText = 'position:fixed;left:-99999px;top:0;pointer-events:none;'
+  bgHolder.appendChild(bgDiv)
+  document.body.appendChild(bgHolder)
+  let bgImg: HTMLImageElement
+  try {
+    const bgUrl = await withTimeout(
+      hti.toPng(bgDiv, { pixelRatio: ratio }),
+      45000,
+      '背景层渲染',
+    )
+    bgImg = await loadImage(bgUrl)
+  } finally {
+    bgHolder.remove()
+  }
+  throwIfAborted(signal)
+  t = logStep('分层：背景层就绪', t)
+
+  // —— ② 地图层：原生 XMLSerializer 序列化自包含 SVG，注入字体后栅格化 ——
+  let mapImg: HTMLImageElement | null = null
+  let mapPos = { x: 0, y: 0, w: 0, h: 0 }
+  if (mapSvg && mapRect && mapRect.width > 0 && mapRect.height > 0) {
+    onProgress?.(50, '分层渲染：地图矢量层…')
+    let fontEmbedCSS = getCachedFontEmbedCss()
+    if (fontEmbedCSS === null) {
+      fontEmbedCSS = await withTimeout(hti.getFontEmbedCSS(node), 60000, '字体嵌入')
+      setCachedFontEmbedCss(fontEmbedCSS)
+    }
+    const svgClone = mapSvg.cloneNode(true) as SVGSVGElement
+    svgClone.setAttribute('width', String(mapRect.width))
+    svgClone.setAttribute('height', String(mapRect.height))
+    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style')
+    styleEl.textContent = fontEmbedCSS
+    svgClone.insertBefore(styleEl, svgClone.firstChild)
+    const svgText = new XMLSerializer().serializeToString(svgClone)
+    t = logStep(`分层：地图 SVG 序列化完成（${Math.round(svgText.length / 1024)}KB）`, t)
+    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`
+    mapImg = await loadImage(svgUrl)
+    throwIfAborted(signal)
+    mapPos = {
+      x: (mapRect.left - rootRect.left) * ratio,
+      y: (mapRect.top - rootRect.top) * ratio,
+      w: mapRect.width * ratio,
+      h: mapRect.height * ratio,
+    }
+    t = logStep('分层：地图层栅格化就绪', t)
+  }
+
+  // —— ③ 覆盖层：地图换成同尺寸占位 div，html-to-image 只处理小 DOM ——
+  // 注意：克隆根节点带主题渐变背景，必须临时剥掉（背景层已单独渲染），
+  // 否则覆盖层不透明会盖住下面的地图层
+  onProgress?.(68, '分层渲染：文字与覆盖层…')
+  let overlayImg: HTMLImageElement
+  let placeholder: HTMLElement | null = null
+  const origSvgParent = mapSvg?.parentElement ?? null
+  const origSvgNext = mapSvg?.nextSibling ?? null
+  const savedRootBg = node.style.background
+  try {
+    if (mapSvg && mapRect && origSvgParent) {
+      placeholder = document.createElement('div')
+      placeholder.style.cssText = `width:${mapRect.width}px;height:${mapRect.height}px;`
+      origSvgParent.insertBefore(placeholder, mapSvg)
+      mapSvg.remove()
+    }
+    node.style.background = 'none'
+    const overlayUrl = await withTimeout(
+      hti.toPng(node, { pixelRatio: ratio, backgroundColor: 'rgba(0,0,0,0)' }),
+      90000,
+      '覆盖层渲染',
+    )
+    overlayImg = await loadImage(overlayUrl)
+  } finally {
+    // 恢复克隆结构（后续回退路径/复用不受影响）
+    node.style.background = savedRootBg
+    if (placeholder && origSvgParent && mapSvg) {
+      placeholder.remove()
+      origSvgParent.insertBefore(mapSvg, origSvgNext)
+    }
+  }
+  throwIfAborted(signal)
+  t = logStep('分层：覆盖层就绪', t)
+
+  // —— ④ 合成 ——
+  onProgress?.(85, '分层渲染：合成…')
+  const canvas = document.createElement('canvas')
+  canvas.width = cw
+  canvas.height = ch
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('无法创建 2D 画布')
+  ctx.drawImage(bgImg, 0, 0, cw, ch)
+  if (mapImg) ctx.drawImage(mapImg, mapPos.x, mapPos.y, mapPos.w, mapPos.h)
+  ctx.drawImage(overlayImg, 0, 0, cw, ch)
+  t = logStep('分层：合成完成', t)
+  onProgress?.(92, '正在编码 PNG…')
+  const dataUrl = canvas.toDataURL('image/png')
+  throwIfAborted(signal)
+  logStep(`PNG 编码完成（${Math.round(dataUrl.length / 1024)}KB，分层渲染）`, t)
+  return { dataUrl, width: cw, height: ch }
+}
+
 /**
  * 渲染画布为 PNG dataURL（不触发下载），供导出与测试复用。
  * 在按画布屏幕实际宽度排版的离屏克隆上渲染，再矢量放大到超清尺寸，
@@ -295,6 +544,13 @@ export async function renderNodeToPngDataUrl(
   const bg = resolveNodeBg(node)
   const result = await withOffscreenClone(node, async (clone) => {
     throwIfAborted(signal)
+    // Safari/WebKit：html-to-image 对大 SVG 画布的样式内联会卡死（60s/90s 连环超时，
+    // 2026-07-29 用户日志实锤），直接使用分层渲染（v1.36.5）
+    if (isSafariEngine()) {
+      console.info('[导出] 检测到 Safari/WebKit 内核，直接使用分层渲染路径')
+      const r = await renderLayered(clone, hti, bg, quality, onProgress, signal)
+      return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
+    }
     if (quality === 'ultra') {
       try {
         const r = await renderUltra(clone, hti, bg, onProgress, signal)
@@ -302,15 +558,25 @@ export async function renderNodeToPngDataUrl(
       } catch (err) {
         // 用户取消不属于失败，直接向上抛，不回退位图重跑一遍
         if (err instanceof ExportCancelledError) throw err
-        console.warn('[导出] SVG 矢量栅格化失败，回退 pixelRatio 4 位图导出：', err)
-        onProgress?.(40, '矢量栅格化失败，回退高清位图导出…')
-        let t = performance.now()
-        const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 4, backgroundColor: bg }), 90000, '位图回退渲染')
-        throwIfAborted(signal)
-        logStep(`位图回退导出完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
-        const w = clone.offsetWidth * 4
-        const h = clone.offsetHeight * 4
-        return { dataUrl, width: w, height: h, quality, fellBack: true }
+        // 第二回退（v1.36.5）：分层渲染（大 SVG 原生序列化 + 小 DOM 覆盖层）——
+        // 比 toPng 全量位图回退更能扛住「大 SVG 序列化超时」，且仍是矢量质量
+        console.warn(`[导出] SVG 矢量栅格化失败，尝试分层渲染：${describeError(err)}`)
+        onProgress?.(40, '矢量栅格化失败，尝试分层渲染…')
+        try {
+          const r = await renderLayered(clone, hti, bg, quality, onProgress, signal)
+          return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: true }
+        } catch (err2) {
+          if (err2 instanceof ExportCancelledError) throw err2
+          console.warn(`[导出] 分层渲染失败，回退 pixelRatio 4 位图导出：${describeError(err2)}`)
+          onProgress?.(45, '分层渲染失败，回退高清位图导出…')
+          let t = performance.now()
+          const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 4, backgroundColor: bg }), 90000, '位图回退渲染')
+          throwIfAborted(signal)
+          logStep(`位图回退导出完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
+          const w = clone.offsetWidth * 4
+          const h = clone.offsetHeight * 4
+          return { dataUrl, width: w, height: h, quality, fellBack: true }
+        }
       }
     }
     onProgress?.(35, '正在渲染高清位图…')

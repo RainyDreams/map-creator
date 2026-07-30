@@ -5,7 +5,7 @@ import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
 import { slotFontFamily } from '@/utils/fonts'
 import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
-import { exportNodeToPng, renderNodeToPngDataUrl, exportPngFilename, dataUrlToBlob, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
+import { exportNodeToPng, renderNodeToPngDataUrl, exportPngFilename, dataUrlToBlob, describeError, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
 import { track } from '@/utils/analytics'
 import { breadcrumb } from '@/utils/sessionLog'
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
@@ -473,8 +473,8 @@ export default function MapPage() {
         console.info('[导出] 用户取消了导出')
         breadcrumb('导出被用户取消')
       } else {
-        console.error('导出 PNG 失败', err)
-        breadcrumb(`导出失败：${err instanceof Error ? err.message : String(err)}`)
+        console.error('导出 PNG 失败', describeError(err))
+        breadcrumb(`导出失败：${describeError(err)}`)
         setExportError('导出失败，请重试')
       }
     } finally {
