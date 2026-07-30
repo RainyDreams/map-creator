@@ -31,6 +31,8 @@ let loaded = false
 let flushTimer: number | null = null
 /** 是否已插入过截断标记（避免反复插入） */
 let truncatedMark = false
+/** fetch 失败/4xx/5xx 去重键（方法+路径+状态），每会话每种只记一次 */
+const netLogged = new Set<string>()
 
 function loadStored(): void {
   if (loaded) return
@@ -81,7 +83,28 @@ function scheduleFlush(): void {
 
 function stringify(v: unknown): string {
   if (typeof v === 'string') return v
-  if (v instanceof Error) return `${v.name}: ${v.message}`
+  // Error：附堆栈前 3 帧——只留 message 时经常看不出调用链
+  if (v instanceof Error) {
+    const stack = (v.stack ?? '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l !== '' && !l.startsWith('Error'))
+      .slice(0, 3)
+      .join(' ← ')
+    return `${v.name}: ${v.message}${stack ? ` | ${stack}` : ''}`
+  }
+  // Event：html-to-image 等库在图片加载失败时以裸 Event reject，
+  // JSON.stringify 只能得到 {"isTrusted":true}——提取事件类型与目标资源地址
+  if (typeof Event !== 'undefined' && v instanceof Event) {
+    const t = v.target as {
+      tagName?: string
+      src?: string
+      href?: string | { baseVal?: string }
+    } | null
+    const href = typeof t?.href === 'object' ? t?.href?.baseVal : t?.href
+    const where = [t?.tagName, t?.src ?? href ?? ''].filter(Boolean).join(' ')
+    return `[事件 ${v.type}]${where ? ` ${where}` : ''}`
+  }
   try {
     return JSON.stringify(v)
   } catch {
@@ -148,12 +171,21 @@ export function initSessionLog(): void {
       }
     }
 
-    // 任何 JavaScript 报错都要进日志（含堆栈首行定位）；
+    // 任何 JavaScript 报错都要进日志（含堆栈前 2 帧定位）；
     // Clarity 脚本自身的内部异常不是应用错误，过滤掉不污染使用日志
     window.addEventListener('error', (ev) => {
       const e = ev as ErrorEvent
       if ((e.filename ?? '').includes('clarity') || (e.error?.stack ?? '').includes('clarity')) return
-      push('error', [`${e.message} @${e.filename}:${e.lineno}:${e.colno}`])
+      const errStack: string = typeof e.error?.stack === 'string' ? e.error.stack : ''
+      const stackTop = errStack
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l !== '' && !l.startsWith('Error'))
+        .slice(0, 2)
+        .join(' ← ')
+      push('error', [
+        `${e.message} @${e.filename}:${e.lineno}:${e.colno}${stackTop ? ` | ${stackTop}` : ''}`,
+      ])
     })
     // 资源加载失败（script/img/link 等）：不冒泡，必须捕获阶段
     window.addEventListener(
@@ -179,6 +211,40 @@ export function initSessionLog(): void {
       if (reason instanceof Error && (reason.stack ?? '').includes('clarity')) return
       push('error', ['unhandledrejection', stringify(reason)])
     })
+
+    // fetch 失败与 4xx/5xx：API 级错误（如校徽 404、接口 500）此前完全不可见——
+    // 只有当 URL 挂在 <img> 上时才碰巧被资源监听捕获。同一「方法+路径+状态」
+    // 每次会话只记一次（校徽 404 可能连续几十次），控制日志体积；
+    // 路径一律去 query/hash（校名等名单数据不进日志）
+    const origFetch = window.fetch.bind(window)
+    window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const t0 = performance.now()
+      const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const path = cleanUrl(raw)
+      const method = init?.method ?? 'GET'
+      try {
+        const res = await origFetch(input, init)
+        if (res.status >= 400) {
+          const key = `${method} ${path} ${res.status}`
+          if (!netLogged.has(key)) {
+            netLogged.add(key)
+            push('warn', [
+              `[网络] ${method} ${path} → ${res.status}（${Math.round(performance.now() - t0)}ms）`,
+            ])
+          }
+        }
+        return res
+      } catch (err) {
+        const key = `${method} ${path} fail`
+        if (!netLogged.has(key)) {
+          netLogged.add(key)
+          push('warn', [
+            `[网络] ${method} ${path} → 请求失败（${Math.round(performance.now() - t0)}ms）：${stringify(err)}`,
+          ])
+        }
+        throw err
+      }
+    }) as typeof window.fetch
 
     // —— 面包屑：启动信息（版本/路径/视口/语言/网络/触屏） ——
     const touch = 'ontouchstart' in window ? '触屏' : '非触屏'
