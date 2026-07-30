@@ -38,6 +38,9 @@ interface ThreadEntry {
   ts: number
   name?: string
   author?: boolean
+  /** 评论者的 Clarity 标识（便于后台定位用户会话），仅管理端可见 */
+  clarityUser?: string
+  claritySession?: string
 }
 
 function json(data: unknown, status = 200): Response {
@@ -178,7 +181,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const author = keyOk(key) && row.akey !== null && row.akey === key
 
     const thread = parseThread(row.thread)
-    const entry: ThreadEntry = { by: 'user', name, text, ts: Date.now(), ...(author ? { author: true } : {}) }
+    const clarityUser = sanitize(body.clarityUser, 64)
+    const claritySession = sanitize(body.claritySession, 64)
+    const entry: ThreadEntry = {
+      by: 'user',
+      name,
+      text,
+      ts: Date.now(),
+      ...(author ? { author: true } : {}),
+      ...(clarityUser !== '' ? { clarityUser } : {}),
+      ...(claritySession !== '' ? { claritySession } : {}),
+    }
     thread.push(entry)
     const trimmed = thread.slice(-MAX_THREAD_ENTRIES)
 

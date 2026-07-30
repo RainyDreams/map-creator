@@ -475,7 +475,7 @@ export default function MapPage() {
       } else {
         console.error('导出 PNG 失败', describeError(err))
         breadcrumb(`导出失败：${describeError(err)}`)
-        setExportError('导出失败，请重试')
+        setExportError(describeError(err))
       }
     } finally {
       exportAbortRef.current = null
@@ -553,12 +553,8 @@ export default function MapPage() {
         <div className="min-w-0">
           <h1 className="text-sm font-semibold text-stone-700">蹭饭图预览</h1>
           <p className="truncate text-xs text-stone-400">
-            {exportError ?? (
-              <>
-                <span className="max-md:hidden">随录入实时更新 · 超清导出 ≥4000px 宽</span>
-                <span className="md:hidden">随录入实时更新</span>
-              </>
-            )}
+            <span className="max-md:hidden">随录入实时更新 · 超清导出 ≥4000px 宽</span>
+            <span className="md:hidden">随录入实时更新</span>
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -578,6 +574,29 @@ export default function MapPage() {
           </Button>
         </div>
       </header>
+
+      {/* 导出失败提示：简略原因 + 前往问题反馈入口（可关闭） */}
+      {exportError !== null && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">
+          <span className="min-w-0 flex-1 truncate" title={exportError}>
+            导出失败：{exportError.slice(0, 80)}
+          </span>
+          <a
+            href="/feedback"
+            className="shrink-0 rounded bg-rose-600 px-2 py-0.5 font-medium text-white hover:bg-rose-500"
+          >
+            前往问题反馈
+          </a>
+          <button
+            type="button"
+            aria-label="关闭提示"
+            onClick={() => setExportError(null)}
+            className="shrink-0 rounded p-0.5 text-rose-400 hover:bg-rose-100 hover:text-rose-600"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* 移动端常驻提示：可以录入与预览，但建议到电脑端生成导出 */}
       <p className="shrink-0 border-b border-amber-200/60 bg-amber-50 px-4 py-1.5 text-center text-[11px] text-amber-700 md:hidden">

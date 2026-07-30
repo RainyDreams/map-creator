@@ -315,7 +315,14 @@ function IssueDetail({ id, name }: { id: string; name: string }) {
       const res = await fetch('/api/feedback/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: item.id, ...(key !== '' ? { key } : {}), name, text: draft.trim() }),
+        body: JSON.stringify({
+          id: item.id,
+          ...(key !== '' ? { key } : {}),
+          name,
+          text: draft.trim(),
+          clarityUser: clarityCookie('_clck'),
+          claritySession: clarityCookie('_clsk'),
+        }),
       })
       if (res.status === 429) {
         toast.error('评论太频繁了，请过一分钟再试')
@@ -723,7 +730,7 @@ export default function FeedbackPage() {
           <p className="rounded-xl border border-stone-200/70 bg-white/60 p-4 text-sm leading-6 text-stone-500">
             这个小站由一个人开发和维护，目前不计成本地免费开放给大家使用——
             权当是为社会添一块砖、加一片瓦。你的每一条反馈我都会认真看，
-            好的建议会尽量排进后续版本。
+            好的建议会尽量排进后续版本；如果我不忙的话，一般两天以内肯定会有回复。
           </p>
           {formSection}
           <section className="space-y-3">
