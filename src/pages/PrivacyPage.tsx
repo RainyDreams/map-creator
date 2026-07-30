@@ -167,7 +167,7 @@ export default function PrivacyPage() {
           <li>
             当您在反馈表单中<strong className="text-stone-700">主动勾选「附带我的使用日志」</strong>并提交时，
             上述本机使用日志会随反馈一同上传（连同 Clarity 匿名用户/会话标识，用于对照会话录屏，见第四条），
-            上传成功后本机记录即清空、重新开始累积。日志保存 <strong className="text-stone-700">48 小时</strong>后自动删除。
+            上传成功后本机记录即清空、重新开始累积。日志保存 <strong className="text-stone-700">7 天</strong>后自动删除。
             该上传仅在您主动勾选时发生，日志内容仅管理员在排查问题时可见，且日志不包含您的名单数据。
           </li>
         </ul>

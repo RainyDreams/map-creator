@@ -11,7 +11,7 @@
  * 存储：D1（logs 表）。原 KV 版在免费额度下每日写限额极易被烧穿
  * （2026-07-25 线上事故：put() limit exceeded，用户日志全部写入失败），
  * D1 免费额度 10 万行写/天，对这个量级绰绰有余。
- * 记录保留 2 天：低频写路径顺带 DELETE 过期行（0 额外请求）。
+ * 记录保留 7 天：低频写路径顺带 DELETE 过期行（0 额外请求）。
  *
  * 防护设计：
  * 1. 同源校验（Origin/Referer 白名单）；
@@ -33,8 +33,8 @@ const MAX_ENTRIES = 300
 const MAX_TEXT = 500
 const GLOBAL_PER_MIN = 60
 const IP_PER_MIN = 3
-/** 日志保留 2 天（毫秒） */
-const RECORD_MAX_AGE = 2 * 24 * 60 * 60 * 1000
+/** 日志保留 7 天（毫秒） */
+const RECORD_MAX_AGE = 7 * 24 * 60 * 60 * 1000
 const TS_CEILING = 9999999999999
 
 const LEVELS = ['log', 'info', 'warn', 'error'] as const
@@ -159,7 +159,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const revTs = String(TS_CEILING - rec.ts).padStart(13, '0')
     const id = `${revTs}:${randomId()}`
     if (!idCharsOk(id)) return json({ error: 'id_failed' }, 500)
-    // 低频写路径顺带清理 2 天前的过期日志（存储有界，0 额外请求）
+    // 低频写路径顺带清理 7 天前的过期日志（存储有界，0 额外请求）
     await db.prepare('DELETE FROM logs WHERE ts < ?').bind(rec.ts - RECORD_MAX_AGE).run()
     await db.prepare('INSERT INTO logs (id, ts, data) VALUES (?, ?, ?)').bind(id, rec.ts, JSON.stringify(rec)).run()
     return json({ ok: true, id })

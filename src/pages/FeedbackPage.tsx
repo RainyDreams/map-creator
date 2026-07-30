@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   CircleDot,
   Lightbulb,
+  Megaphone,
   MessageSquare,
   MessageSquareHeart,
   RefreshCw,
@@ -37,7 +38,7 @@ import { APP_VERSION } from '@/version'
 const MAX_CONTENT = 1000
 const MAX_COMMENT = 500
 
-type FeedbackKind = 'bug' | 'suggestion' | 'experience'
+type FeedbackKind = 'bug' | 'suggestion' | 'experience' | 'post'
 type FeedbackStatus = 'open' | 'in_progress' | 'done' | 'shelved' | 'closed'
 
 /** 对话流水单条：by=admin 管理员，by=user 访客/作者；author=true 经凭证验证的作者评论 */
@@ -74,7 +75,11 @@ const KIND_META: Record<FeedbackKind, { label: string; icon: typeof Bug; badge: 
   bug: { label: 'Bug 反馈', icon: Bug, badge: 'bg-rose-100 text-rose-700' },
   suggestion: { label: '功能建议', icon: Lightbulb, badge: 'bg-amber-100 text-amber-700' },
   experience: { label: '使用体验', icon: MessageSquareHeart, badge: 'bg-emerald-100 text-emerald-700' },
+  // 官方帖子：管理员发布的纯帖子（不是 issue，不参与状态流转），深色徽标突出官方身份
+  post: { label: '官方帖子', icon: Megaphone, badge: 'bg-stone-900 text-stone-50' },
 }
+/** 用户可以发起的类型（官方帖子只能由管理员发布） */
+const USER_KINDS: FeedbackKind[] = ['bug', 'suggestion', 'experience']
 
 /** GitHub 二元状态映射：done/closed 视为 Closed（紫），其余视为 Open（绿） */
 function isClosedStatus(s?: FeedbackStatus): boolean {
@@ -189,8 +194,10 @@ function IssueList({
     )
   }
 
-  const openCount = items.filter((it) => !isClosedStatus(it.status)).length
-  const closedCount = items.length - openCount
+  // 官方帖子不是 issue：不计入进行中/已完结计数
+  const issues = items.filter((it) => it.kind !== 'post')
+  const openCount = issues.filter((it) => !isClosedStatus(it.status)).length
+  const closedCount = issues.length - openCount
 
   return (
     <div className="overflow-hidden rounded-md border border-stone-200 bg-white">
@@ -211,6 +218,7 @@ function IssueList({
       <ul>
         {items.map((it) => {
           const closed = isClosedStatus(it.status)
+          const isPost = it.kind === 'post'
           const meta = KIND_META[it.kind] ?? KIND_META.suggestion
           const st = STATUS_META[it.status ?? 'open'] ?? STATUS_META.open
           const comments = (it.thread ?? []).length
@@ -223,7 +231,9 @@ function IssueList({
                 className="block w-full px-4 py-3 text-left transition-colors hover:bg-stone-50"
               >
                 <div className="flex items-start gap-2.5">
-                  {closed ? (
+                  {isPost ? (
+                    <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-stone-700" />
+                  ) : closed ? (
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
                   ) : (
                     <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
@@ -238,14 +248,16 @@ function IssueList({
                       >
                         {meta.label}
                       </span>
-                      <span
-                        className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px]', st.badge)}
-                      >
-                        {st.label}
-                      </span>
+                      {!isPost && (
+                        <span
+                          className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px]', st.badge)}
+                        >
+                          {st.label}
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-xs text-stone-400">
-                      #{short} · {it.name} 提出于 {format(new Date(it.ts), 'yyyy-MM-dd HH:mm')}
+                      #{short} · {it.name} {isPost ? '发布于' : '提出于'} {format(new Date(it.ts), 'yyyy-MM-dd HH:mm')}
                     </p>
                   </div>
                   {comments > 0 && (
@@ -349,6 +361,7 @@ function IssueDetail({ id, name }: { id: string; name: string }) {
   }
 
   const closed = isClosedStatus(item.status)
+  const isPost = item.kind === 'post'
   const meta = KIND_META[item.kind] ?? KIND_META.suggestion
   const st = STATUS_META[item.status ?? 'open'] ?? STATUS_META.open
   const thread = item.thread ?? []
@@ -366,31 +379,42 @@ function IssueDetail({ id, name }: { id: string; name: string }) {
         返回反馈列表
       </Link>
 
-      {/* issue 头部：标题 + 状态徽标（GitHub issue header） */}
+      {/* issue 头部：标题 + 状态徽标（GitHub issue header）；官方帖子不是 issue，只显示类型徽标 */}
       <div className="space-y-2 border-b border-stone-200 pb-4">
         <h2 className="text-xl leading-8 font-semibold break-words text-stone-900">
           {issueTitle(item.content)}
           <span className="ml-2 font-normal text-stone-400">#{item.id.slice(-6)}</span>
         </h2>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px]">
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium text-white',
-              closed ? 'bg-purple-600' : 'bg-emerald-600',
-            )}
-          >
-            {closed ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDot className="h-3.5 w-3.5" />}
-            {closed ? '已完结' : '进行中'}
-          </span>
-          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px]', meta.badge)}>
-            {meta.label}
-          </span>
-          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px]', st.badge)}>
-            {st.label}
-          </span>
+          {isPost ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-2.5 py-1 font-medium text-white">
+              <Megaphone className="h-3.5 w-3.5" />
+              官方帖子
+            </span>
+          ) : (
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium text-white',
+                closed ? 'bg-purple-600' : 'bg-emerald-600',
+              )}
+            >
+              {closed ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDot className="h-3.5 w-3.5" />}
+              {closed ? '已完结' : '进行中'}
+            </span>
+          )}
+          {!isPost && (
+            <>
+              <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px]', meta.badge)}>
+                {meta.label}
+              </span>
+              <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px]', st.badge)}>
+                {st.label}
+              </span>
+            </>
+          )}
           <span className="text-stone-500">
             <span className="font-medium text-stone-700">{item.name}</span> 于{' '}
-            {format(new Date(item.ts), 'yyyy-MM-dd HH:mm')} 提出 · {commentTotal} 条评论
+            {format(new Date(item.ts), 'yyyy-MM-dd HH:mm')} {isPost ? '发布' : '提出'} · {commentTotal} 条评论
           </span>
         </div>
       </div>
@@ -400,8 +424,8 @@ function IssueDetail({ id, name }: { id: string; name: string }) {
         <CommentCard
           who={item.name}
           ts={item.ts}
-          verb="提出了这条反馈"
-          badges={<RoleBadge tone="author">作者</RoleBadge>}
+          verb={isPost ? '发布了这条帖子' : '提出了这条反馈'}
+          badges={isPost ? <RoleBadge tone="owner">站主</RoleBadge> : <RoleBadge tone="author">作者</RoleBadge>}
           text={item.content}
         />
         {thread.map((e, i) =>
@@ -473,7 +497,7 @@ export default function FeedbackPage() {
   const [sending, setSending] = useState(false)
   const [items, setItems] = useState<FeedbackItem[] | null>(null)
   const [loadError, setLoadError] = useState(false)
-  /** 附带我的使用日志（反馈 Bug 时默认勾选；日志仅保留 48 小时） */
+  /** 附带我的使用日志（反馈 Bug 时默认勾选；日志仅保留 7 天） */
   const [attachLog, setAttachLog] = useState(true)
 
   // 切到 Bug 反馈时默认带上日志（用户可手动取消），切走时不打扰用户的选择
@@ -619,7 +643,7 @@ export default function FeedbackPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(KIND_META) as FeedbackKind[]).map((k) => {
+          {USER_KINDS.map((k) => {
             const meta = KIND_META[k]
             const Icon = meta.icon
             const active = kind === k
@@ -675,7 +699,7 @@ export default function FeedbackPage() {
               className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-stone-800"
             />
             <span>
-              附带我的使用日志（仅保留 48 小时）：包含自上次上传以来（从未上传过则自首次访问以来）
+              附带我的使用日志（仅保留 7 天）：包含自上次上传以来（从未上传过则自首次访问以来）
               的控制台记录、页面报错与关键操作足迹，帮助我们定位问题；上传后本机记录清空、重新开始；
               不包含你的名单数据
             </span>
