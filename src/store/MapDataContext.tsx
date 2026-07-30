@@ -292,7 +292,54 @@ function normalizeData(raw: unknown): MapData | null {
       typeof d.badgeScale === 'number' && Number.isFinite(d.badgeScale)
         ? Math.min(2, Math.max(0.5, d.badgeScale))
         : 1,
+    // v1.38 迁移：旧数据无 decorations 字段时回退空表；逐项校验结构并限幅
+    decorations: normalizeDecorations(d.decorations),
   }
+}
+
+/** v1.38 迁移：逐项校验装饰元素结构（位置限幅在 1500×3000 设计 px 内，防损坏数据） */
+function normalizeDecorations(raw: unknown): MapData['decorations'] {
+  if (!Array.isArray(raw)) return []
+  const out: MapData['decorations'] = []
+  for (const item of raw) {
+    const it = item as Partial<MapData['decorations'][number]> | null
+    if (!it || typeof it !== 'object') continue
+    if (it.kind !== 'text' && it.kind !== 'image') continue
+    if (typeof it.id !== 'string' || it.id === '') continue
+    const clamp = (v: unknown, min: number, max: number, base: number): number =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? Math.min(max, Math.max(min, Math.round(v)))
+        : base
+    if (it.kind === 'text') {
+      const text = typeof it.text === 'string' ? it.text.slice(0, 30) : ''
+      if (text.trim() === '') continue
+      out.push({
+        id: it.id,
+        kind: 'text',
+        text,
+        dataUrl: '',
+        x: clamp(it.x, 0, 1500, 100),
+        y: clamp(it.y, 0, 3000, 100),
+        size: clamp(it.size, 10, 60, 20),
+        color:
+          typeof it.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(it.color) ? it.color : '',
+      })
+    } else {
+      if (typeof it.dataUrl !== 'string' || !it.dataUrl.startsWith('data:image/')) continue
+      out.push({
+        id: it.id,
+        kind: 'image',
+        text: '',
+        dataUrl: it.dataUrl,
+        x: clamp(it.x, 0, 1500, 100),
+        y: clamp(it.y, 0, 3000, 100),
+        size: clamp(it.size, 40, 500, 160),
+        color: '',
+      })
+    }
+    if (out.length >= 20) break // 装饰元素上限 20 个，防异常数据撑爆存储
+  }
+  return out
 }
 
 /** v1.22 迁移：逐项校验省份卡片拆分结构（至少两张卡；跨卡去重；全空卡视为未拆分） */

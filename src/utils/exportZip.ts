@@ -7,6 +7,7 @@
  * 3. images/calligraphy/*.png —— 用户上传的大学毛笔字图片
  * 4. images/badges/* —— 单个学生的自定义校徽图片
  * 5. fonts/* —— 用户上传的自定义字体文件
+ * 6. images/decorations/* —— 用户上传的装饰图片（v1.38 起）
  *
  * 图片与字体以独立文件存放在 zip 内，data.json 中以相对路径引用；
  * 导入时按引用重建 dataURL，作为「新画布」导入（不覆盖现有画布）。
@@ -47,6 +48,7 @@ export interface ImportedCanvasZip {
     badges: number
     fonts: number
     hasBadge: boolean
+    decorations: number
   }
 }
 
@@ -198,7 +200,35 @@ export function exportFullCanvasZip(canvas: FullCanvasInput): void {
     fontMeta.push({ id: font.id, name: font.name, file: path })
   }
 
-  // 5. data.json（配置主体，图片/字体以路径引用）
+  // 5. 装饰元素：图片抽离为独立文件，data.json 中只留配置 + 相对路径
+  const decorationsMeta: Array<{
+    id: string
+    kind: 'text' | 'image'
+    text: string
+    x: number
+    y: number
+    size: number
+    color: string
+    image?: string
+  }> = []
+  for (const d of canvas.data.decorations ?? []) {
+    if (d.kind === 'image' && d.dataUrl !== '') {
+      const path = uniquePath(
+        used,
+        `images/decorations/${sanitizeFilename(d.id) || 'deco'}.${extFromDataUrl(d.dataUrl)}`,
+      )
+      files[path] = dataUrlToUint8Array(d.dataUrl)
+      decorationsMeta.push({
+        id: d.id, kind: 'image', text: '', x: d.x, y: d.y, size: d.size, color: '', image: path,
+      })
+    } else {
+      decorationsMeta.push({
+        id: d.id, kind: 'text', text: d.text, x: d.x, y: d.y, size: d.size, color: d.color,
+      })
+    }
+  }
+
+  // 6. data.json（配置主体，图片/字体以路径引用）
   const payload = {
     format: FORMAT,
     version: 1,
@@ -208,6 +238,7 @@ export function exportFullCanvasZip(canvas: FullCanvasInput): void {
       ...canvas.data,
       calligraphy: calligraphyMeta,
       badgeOverrides: badgeOverrideMeta,
+      decorations: decorationsMeta,
     },
     theme: canvas.theme,
     fontSlots: canvas.fontSlots,
@@ -274,6 +305,7 @@ interface ZipStats {
   badges: number
   fonts: number
   hasBadge: boolean
+  decorations: number
 }
 
 /** 解析 zip 备份文件；非法时抛出带中文信息的 Error */
@@ -357,6 +389,43 @@ function importFullFormat(
     }
   }
 
+  // 装饰元素：路径 → dataURL（旧备份无此字段时为空表）
+  const decorations: MapData['decorations'] = []
+  if (Array.isArray((data as { decorations?: unknown }).decorations)) {
+    for (const item of (data as { decorations: unknown[] }).decorations) {
+      const m = item as {
+        id?: unknown; kind?: unknown; text?: unknown
+        x?: unknown; y?: unknown; size?: unknown; color?: unknown; image?: unknown
+      }
+      if (!m || typeof m !== 'object' || typeof m.id !== 'string') continue
+      if (m.kind === 'text') {
+        decorations.push({
+          id: m.id,
+          kind: 'text',
+          text: typeof m.text === 'string' ? m.text : '',
+          dataUrl: '',
+          x: typeof m.x === 'number' ? m.x : 100,
+          y: typeof m.y === 'number' ? m.y : 100,
+          size: typeof m.size === 'number' ? m.size : 20,
+          color: typeof m.color === 'string' ? m.color : '',
+        })
+      } else if (m.kind === 'image') {
+        const dataUrl = restoreDataUrl(entries, m.image)
+        if (!dataUrl) continue // 引用文件缺失的装饰图片直接丢弃（normalize 也会拦）
+        decorations.push({
+          id: m.id,
+          kind: 'image',
+          text: '',
+          dataUrl,
+          x: typeof m.x === 'number' ? m.x : 100,
+          y: typeof m.y === 'number' ? m.y : 100,
+          size: typeof m.size === 'number' ? m.size : 160,
+          color: '',
+        })
+      }
+    }
+  }
+
   const stats: ZipStats = {
     students: Array.isArray(data.students) ? data.students.length : 0,
     teachers: Array.isArray(data.teachers) ? data.teachers.length : 0,
@@ -364,12 +433,13 @@ function importFullFormat(
     badges: Object.values(badgeOverrides).filter((b) => b.dataUrl).length,
     fonts: customFonts.length,
     hasBadge: badge !== null,
+    decorations: decorations.length,
   }
 
   return {
     payload: {
       name: typeof p.name === 'string' ? p.name : '',
-      data: { ...data, calligraphy, badgeOverrides },
+      data: { ...data, calligraphy, badgeOverrides, decorations },
       theme: p.theme,
       fontSlots: p.fontSlots,
       badge,
@@ -411,6 +481,7 @@ function importLegacyFormat(
     badges: Object.values(badgeOverrides).filter((b) => b.dataUrl).length,
     fonts: 0,
     hasBadge: false,
+    decorations: 0,
   }
 
   return {

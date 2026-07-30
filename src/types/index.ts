@@ -168,6 +168,29 @@ export interface MapData {
   provinceSplits: Record<string, string[][]>
   /** 班徽显示大小（px，v1.24 起可调；范围 24–96，默认 48），渲染在地图页标题区 */
   badgeSize: number
+  /**
+   * 画布装饰元素（v1.38）：用户自行添加的文本框与图片，便于装饰留白处。
+   * 位置为画布设计 px（相对画布左上角，1500px 宽基准），可自由拖动（限幅在画布内）；
+   * 随 data.json 进 ZIP 全量备份（图片抽离为独立文件），导出 PNG 时一并渲染
+   */
+  decorations: DecorationItem[]
+}
+
+/** 画布装饰元素：文本框 或 图片 */
+export interface DecorationItem {
+  id: string
+  kind: 'text' | 'image'
+  /** kind=text 的文本内容（单行，≤30 字；kind=image 时为空串） */
+  text: string
+  /** kind=image 的图片 dataURL（上传时压缩到最长边 600px PNG；kind=text 时为空串） */
+  dataUrl: string
+  /** 位置（画布设计 px，相对画布左上角） */
+  x: number
+  y: number
+  /** kind=text 时为字号（10–60，默认 20）；kind=image 时为显示宽度（40–500，默认 160） */
+  size: number
+  /** 文本颜色（'' = 跟随主题正文色；仅 kind=text 有效） */
+  color: string
 }
 
 export const EMPTY_MAP_DATA: MapData = {
@@ -209,6 +232,7 @@ export const EMPTY_MAP_DATA: MapData = {
   provinceSplits: {},
   cardTextAlign: {},
   badgeSize: 48,
+  decorations: [],
 }
 
 /** 拆分卡片键：`省份名#i`（0 起）；未拆分的省份直接用省份名作卡片键 */

@@ -14,6 +14,7 @@ import { isMobileOrPad } from '@/utils/device'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import { APP_VERSION } from '@/version'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
+import { DecorationBlocks } from '@/components/map/DecorationBlocks'
 import { OverseasBlock } from '@/components/map/OverseasBlock'
 import { StatsBlock } from '@/components/map/StatsBlock'
 import { UnlocatedBlock } from '@/components/map/UnlocatedBlock'
@@ -717,6 +718,9 @@ export default function MapPage() {
 
             {/* 海外/境外名单块：右下角锚定，可自由拖动（同老师块交互）；未定位提示单独堆叠在右下 */}
             <OverseasBlock students={overseas} flowRef={flowRef} footerRef={footerRef} onLiveDy={setLiveOverseasDy} reserveDesign={baseReserveRightOverseas} />
+
+            {/* 装饰元素：用户自行添加的文本框/图片（录入页「装饰元素」面板管理），画布内自由拖动，随导出进 PNG */}
+            <DecorationBlocks />
             {unlocated.length > 0 && (
               <div className="absolute right-4 bottom-12 z-10 flex max-w-[42%] flex-col items-end gap-2">
                 <UnlocatedBlock students={unlocated} />
