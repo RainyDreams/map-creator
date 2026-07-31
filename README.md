@@ -66,5 +66,12 @@ npm run build:all    # 生产构建（含 /debug 调试产物）
 
 ## License
 
-暂未指定开源许可证——源代码公开仅供学习参考，保留所有权利。
-如需转载、二次开发或商用，请先联系作者取得授权。
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+本项目采用 **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans)**（知识共享 署名—非商业性使用—相同方式共享 4.0 国际）许可协议：
+
+- **署名** — 须注明原作者（赤峰二中2026届 & 海南大学人工智能2026级 张新越）及来源链接；
+- **非商业性使用** — 不得用于任何商业目的；
+- **相同方式共享** — 二次作品须以同一协议发布。
+
+详见 [LICENSE](LICENSE)。商用授权请单独联系作者。
