@@ -16,6 +16,7 @@ import { FontSelect } from '@/components/entry/FontSelect'
 import { SizeSelect } from '@/components/entry/SizeSelect'
 import { Section } from '@/components/entry/Section'
 import { breadcrumb } from '@/utils/sessionLog'
+import { BADGE_AUTO_FETCH_ENABLED } from '@/utils/universities'
 import { recommendFontSizes, recommendLabelFit, applyProvinceSplits } from '@/components/map/labels'
 import { isGeoReady, loadGeoFeatures } from '@/components/map/geo'
 import { resolveProvince } from '@/utils/geo'
@@ -487,6 +488,11 @@ export function FontPanel() {
       <div className="mt-3 border-t border-stone-100 pt-2.5 text-[11px] font-medium tracking-wide text-stone-400">
         校徽
       </div>
+      {!BADGE_AUTO_FETCH_ENABLED && (
+        <p className="mt-1.5 text-[10px] leading-relaxed text-amber-600">
+          校徽自动获取临时关闭中；你仍可在学生名单中为每位同学手动上传校徽图片。
+        </p>
+      )}
       {/* 校徽显示开关：关闭后地图与导出图中都不渲染校徽，大学文字照常 */}
       <div className="mt-2 flex items-center justify-between">
         <Label htmlFor="badge-toggle" className="text-xs text-stone-500">

@@ -60,6 +60,14 @@ interface CfEvent {
 }
 
 export const onRequestGet = async ({ request, waitUntil }: CfEvent): Promise<Response> => {
+  // 临时关闭（v1.40）：应要求暂停对 urongda.com 的引用，自动校徽获取整体下线。
+  // 保留完整代理实现以便恢复——恢复时删除此短路即可；前端另有
+  // BADGE_AUTO_FETCH_ENABLED 开关（src/utils/universities.ts）需一并拨回 true。
+  return Response.json(
+    { error: '校徽自动获取已临时关闭，可手动上传校徽图片' },
+    { status: 503 },
+  )
+
   const name = new URL(request.url).searchParams.get('name') ?? ''
   const slug = badgeSlugOf(name)
   if (!slug) {

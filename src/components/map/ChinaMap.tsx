@@ -201,15 +201,29 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     let i = 0
     // 拆分卡片（省份名#i）共用其基础省份的填色，只占一个色槽；
     // 单独定义的颜色（provinceColors）优先，但仍占用色板槽位——
-    // 设置某省自定义颜色不会改变其他省的循环配色
+    // 设置某省自定义颜色不会改变其他省的循环配色；
+    // 'auto' 值对有同学省份等价于未设置（跟随色板循环）
     for (const name of groups.keys()) {
       const base = baseProvince(name)
       if (m.has(base)) continue
-      m.set(base, data.provinceColors[base] ?? actives[i % actives.length])
+      const c = data.provinceColors[base]
+      m.set(base, c && c !== 'auto' ? c : actives[i % actives.length])
       i += 1
     }
+    // 无同学省份的三态填色（v1.40）：#hex 自定义 > 'auto' 主题自动填充 > 缺省底色。
+    // 'auto' 的省份按地理顺序（geoFeatures 数组序）在它们之间确定性循环主题色板，
+    // 不占用有同学省份的色板槽位；未设置的无同学省份不进 map，渲染时回落 provinceBase
+    const autos: string[] = []
+    for (const f of getGeoFeatures()) {
+      if (!f.name || m.has(f.name)) continue
+      const c = data.provinceColors[f.name]
+      if (c === 'auto') autos.push(f.name)
+      else if (c) m.set(f.name, c)
+    }
+    autos.forEach((name, idx) => m.set(name, actives[idx % actives.length]))
     return m
-  }, [groups, theme.provinceActive, data.provinceColors])
+    // geoReady 必须在依赖里：geoFeatures 异步加载，未就绪时无同学省份的填色会丢失
+  }, [groups, theme.provinceActive, data.provinceColors, geoReady])
 
   /** 城市级定位圆点：每省一个主点（引线起点/点簇中心），多城市时逐城一个小副点 */
   const dots = useMemo(() => {

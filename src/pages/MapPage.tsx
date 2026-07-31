@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
 import { slotFontFamily } from '@/utils/fonts'
-import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, type UniInfo } from '@/utils/universities'
+import { getBadgeDataUrlSync, getUniInfoSync, prefetchBadgeDataUrls, prefetchUniversities, BADGE_AUTO_FETCH_ENABLED, type UniInfo } from '@/utils/universities'
 import { exportNodeToPng, renderNodeToPngDataUrl, exportPngFilename, dataUrlToBlob, describeError, ExportCancelledError, type ExportQuality } from '@/utils/exportImage'
 import { track } from '@/utils/analytics'
 import { breadcrumb } from '@/utils/sessionLog'
@@ -325,7 +325,10 @@ export default function MapPage() {
       const key = s.university.trim()
       if (key === '') continue
       const info: UniInfo | undefined = getUniInfoSync(key)
-      const hasBadge = data.showBadges && info?.b != null
+      // 校徽自动获取临时关闭（v1.40，BADGE_AUTO_FETCH_ENABLED=false）时按无校徽处理：
+      // 不预留校徽位、不渲染 <image>，彻底避免向 /api/school-badge 发请求；
+      // 用户手动上传的校徽走 badgeOverrides 通道，不受影响
+      const hasBadge = data.showBadges && BADGE_AUTO_FETCH_ENABLED && info?.b != null
       m.set(key, {
         rank: info?.r ?? null,
         badge: hasBadge,

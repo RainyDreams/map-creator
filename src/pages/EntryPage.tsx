@@ -21,6 +21,7 @@ import StudentTable from '@/components/entry/StudentTable'
 import TeacherTable from '@/components/entry/TeacherTable'
 import ThemePicker from '@/components/theme/ThemePicker'
 import { FontPanel } from '@/components/entry/FontPanel'
+import { ProvinceColorPanel } from '@/components/entry/ProvinceColorPanel'
 import { DecorationPanel } from '@/components/entry/DecorationPanel'
 
 /**
@@ -93,6 +94,7 @@ export default function EntryPage() {
         <p className="px-1 pt-2 text-[11px] font-medium tracking-wide text-stone-400">外观</p>
         <ThemePicker />
         <FontPanel />
+        <ProvinceColorPanel />
         <DecorationPanel />
 
         <p className="pb-2 text-center text-xs text-stone-400">

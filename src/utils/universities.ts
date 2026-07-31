@@ -82,6 +82,13 @@ export function schoolBadgeUrl(university: string): string {
   return `/api/school-badge?name=${encodeURIComponent(university.trim())}`
 }
 
+/**
+ * 校徽自动获取总开关（v1.40 临时关闭）：false 时预取直接短路，
+ * 不再向 /api/school-badge 发任何请求；手动上传的自定义校徽（badgeOverrides）不受影响。
+ * 恢复时拨回 true，并删除 functions/api/school-badge.ts 顶部的 503 短路。
+ */
+export const BADGE_AUTO_FETCH_ENABLED = false
+
 /* ---------- 校徽 dataURL 预取缓存：渲染与导出都直接用内联数据，避免导出时逐张重新 fetch ---------- */
 
 /** key 为原始校名（trim 后）；value 为 dataURL，null 表示取不到（404/失败） */
@@ -99,6 +106,8 @@ export function getBadgeDataUrlSync(university: string): string | null | undefin
  * html-to-image 看到 data: 协议会跳过网络内联步骤，首次导出也能明显提速。
  */
 export async function prefetchBadgeDataUrls(universities: string[]): Promise<void> {
+  // 校徽自动获取临时关闭（v1.40）：不发任何请求，已缓存的会话内数据仍可渲染
+  if (!BADGE_AUTO_FETCH_ENABLED) return
   const todo = [...new Set(
     universities.map((s) => s.trim()).filter((s) => s !== '' && !badgeCache.has(s) && !badgeInflight.has(s)),
   )]
