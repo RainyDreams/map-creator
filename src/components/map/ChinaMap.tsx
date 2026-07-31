@@ -199,15 +199,17 @@ export function ChinaMap({ groups, reserveLeftBottom, reserveRightBottom, uniInf
     const m = new Map<string, string>()
     const actives = theme.provinceActive
     let i = 0
-    // 拆分卡片（省份名#i）共用其基础省份的填色，只占一个色槽
+    // 拆分卡片（省份名#i）共用其基础省份的填色，只占一个色槽；
+    // 单独定义的颜色（provinceColors）优先，但仍占用色板槽位——
+    // 设置某省自定义颜色不会改变其他省的循环配色
     for (const name of groups.keys()) {
       const base = baseProvince(name)
       if (m.has(base)) continue
-      m.set(base, actives[i % actives.length])
+      m.set(base, data.provinceColors[base] ?? actives[i % actives.length])
       i += 1
     }
     return m
-  }, [groups, theme.provinceActive])
+  }, [groups, theme.provinceActive, data.provinceColors])
 
   /** 城市级定位圆点：每省一个主点（引线起点/点簇中心），多城市时逐城一个小副点 */
   const dots = useMemo(() => {

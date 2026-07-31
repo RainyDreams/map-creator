@@ -294,6 +294,19 @@ function normalizeData(raw: unknown): MapData | null {
         : 1,
     // v1.38 迁移：旧数据无 decorations 字段时回退空表；逐项校验结构并限幅
     decorations: normalizeDecorations(d.decorations),
+    // v1.39 迁移：旧数据无 provinceColors 字段时回退空表；键为省份名、值须为 #rrggbb
+    provinceColors: (() => {
+      const raw = d.provinceColors
+      if (!raw || typeof raw !== 'object') return {}
+      const out: MapData['provinceColors'] = {}
+      for (const [k, v] of Object.entries(raw)) {
+        if (k.trim() === '' || typeof v !== 'string') continue
+        if (!/^#[0-9a-fA-F]{6}$/.test(v)) continue
+        out[k] = v
+        if (Object.keys(out).length >= 40) break // 上限 40 条，防异常数据
+      }
+      return out
+    })(),
   }
 }
 

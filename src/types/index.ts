@@ -169,6 +169,12 @@ export interface MapData {
   /** 班徽显示大小（px，v1.24 起可调；范围 24–96，默认 48），渲染在地图页标题区 */
   badgeSize: number
   /**
+   * 省份地图颜色单独定义（v1.39）：省份名 → #rrggbb。
+   * 在学生名单模态框的省份分组头部设置；缺省 = 跟随主题色板循环；
+   * 设置某省自定义颜色不影响其他省的色板循环顺序
+   */
+  provinceColors: Record<string, string>
+  /**
    * 画布装饰元素（v1.38）：用户自行添加的文本框与图片，便于装饰留白处。
    * 位置为画布设计 px（相对画布左上角，1500px 宽基准），可自由拖动（限幅在画布内）；
    * 随 data.json 进 ZIP 全量备份（图片抽离为独立文件），导出 PNG 时一并渲染
@@ -232,6 +238,7 @@ export const EMPTY_MAP_DATA: MapData = {
   provinceSplits: {},
   cardTextAlign: {},
   badgeSize: 48,
+  provinceColors: {},
   decorations: [],
 }
 
