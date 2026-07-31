@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.39.1',
+    date: '2026-07-31 08:55',
+    items: [
+      '「学生名单」分区新增「上传 Excel 名单」快捷按钮：不用再点开顶部「导入」面板，在学生名单处即可直接上传按模板填写的 Excel——同一条解析与预览链路（导入前可预览、可选追加或替换）',
+    ],
+  },
+  {
     version: 'v1.39.0',
     date: '2026-07-31 08:40',
     items: [

@@ -11,6 +11,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { StudentGroupModal } from '@/components/entry/StudentGroupModal'
+import { ExcelImportButton } from '@/components/entry/ExcelImportButton'
 import { useMapData } from '@/store/MapDataContext'
 import { breadcrumb } from '@/utils/sessionLog'
 import type { StudentEntry } from '@/types'
@@ -119,6 +120,8 @@ export default function StudentTable() {
           <PencilLine className="h-4 w-4" />
           {students.length === 0 ? '打开录入面板，添加同学' : '编辑名单 / 添加同学'}
         </Button>
+        {/* 上传名单 Excel 的快捷入口（与「导入」面板同一条解析/预览链路） */}
+        <ExcelImportButton />
         {/* 名字一键隐私：仅影响地图与导出图片的显示，原始名单保留在本机 */}
         <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50/60 px-3 py-2">
           <span className="min-w-0">
