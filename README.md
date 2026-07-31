@@ -1,73 +1,130 @@
-# React + TypeScript + Vite
+# 蹭饭图生成器
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> 聚是一团火，散是满天星。
+> 高考结束后，把全班同学的去向画在一张中国地图上——谁去了哪座城市、哪所大学，一目了然。
 
-Currently, two official plugins are available:
+**在线体验：[map.linkbrain.top](https://map.linkbrain.top)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+「蹭饭图」是高中毕业季的传统项目：一张中国地图，标注每位同学录取的城市与大学，寓意"以后走到哪儿都有饭蹭"。本工具把这件事做成了网页：录入名单 → 自动生成高清地图 → 导出图片分享，全程在浏览器本地完成，无需注册、免费使用。
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 功能特性
 
-## Expanding the ESLint configuration
+### 名单录入
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **手动录入**：响应式界面，电脑端高效、手机端可用（移动端独立 Tab 栏）
+- **Excel 模板导入/导出**：下载模板 → 填写「姓名 / 大学」→ 上传解析，导入前可预览、可选追加或替换；正确处理文件编码
+- **多级城市选择**：全国省/市两级下拉（精确到地级市），支持按大学名自动推断城市（预设院校库 + 校名地名匹配）
+- **境外同学**：可标记为海外/境外，不指向地图，单独成块列出国家/地区
+- **老师名单**：可选填，标题可自定义，位置与字号均可调
+- **更详细的信息**：可选开关，为每位同学录入录取专业与高考分数（留存于数据，按需上图）
+- **多画布管理**：可创建多张画布，新建时先命名
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 地图与排版
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **高清中国地图**：SVG 矢量渲染，含南海诸岛小插图与十段线
+- **省份卡片**：按省分组展示名单，引线连接地图定位点（支持曲线引线）
+  - 一列 / 两列 / 竖版（卡片集中于地图下方）/ 自定义位置四种排布
+  - 卡片可自由拖动（电脑直接拖，手机先点选再拖），拖动自动切换自定义模式，可一键重置
+  - 画布边界随卡片位置自动扩缩，左右留白动态界定
+  - 拖动时辅助对齐线 + 5px 自动吸附
+  - 卡片可选中后八向拖拽调整大小；一键统一所有卡片宽度
+- **省份拆卡**：一个省人太多？可手动拆成多张卡（甚至按城市拆），卡片间人员可互相拖动
+- **同校合并**：同大学的多名同学姓名竖排，右侧只显示一次校徽 + 校名，校与校之间虚线分隔
+- **省份调色**：每个省份在地图上的填色可单独定义；无同学省份支持三态（默认底色 / 主题自动填充 / 自定义）
+- **主题与颜色**：多套预设主题 + 完全自定义配色
+- **字体系统**：标题/省份/姓名/城市大学/老师独立字体与字号；预设开源字体（子集化按需加载，只下载用到的字符区间）+ 用户上传字体；智能字号推荐（行内标注，不弹窗强迫）
+- **卡片样式**：背景开关、圆角、颜色、不透明度、边缘羽化、文字左右对齐
+- **装饰元素**：画布上自由添加文本框与图片，拖动摆放，装饰留白
+- **校徽**：支持为每位同学手动上传校徽图片、单独隐藏、个人与全局大小倍率（自动匹配功能目前临时关闭）
+- **毛笔字图片**：可上传透明底横版 PNG 替代大学文字，大小可调
+- **其他**：名字一键隐私（只显示「姓+同学」）、只显示省份模式、卡片人数统计小块、画布下方分布统计表
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 导出与分享
+
+- **导出高清 PNG**：离屏克隆渲染，超清档位固定输出 4000px 宽，不受本机屏幕分辨率限制；导出有进度与预计剩余时间、可中断取消；失败时给出可读错误与一键反馈入口
+- **ZIP 全量备份/导入**：画布数据 + 所有上传图片（校徽、毛笔字、装饰、班徽）+ 每张卡片位置，完整打包，换设备无损迁移
+- **移动端导出**：预览大图后下载；微信环境自动识别并引导长按保存
+- **分享为链接**：生成短链接在其他设备继续编辑（当前临时置灰）
+
+### 隐私与安全
+
+- **本地优先**：所有名单数据默认保存在浏览器 localStorage，不上传服务器
+- 正版域名校验（多处处混淆实现 + 安全响应头，禁止 iframe 嵌套引用）
+- 反馈/分享接口带限流与恶意内容防护
+
+---
+
+## 技术栈
+
+| 层 | 技术 |
+| --- | --- |
+| 前端 | React 19 · TypeScript · Vite 7 · Tailwind CSS · shadcn/ui（Radix） |
+| 路由/状态 | React Router 7 · React Context + localStorage 持久化 |
+| 地图 | 自绘 SVG（GeoJSON 异步按需加载，不打包进主 bundle） |
+| 导出 | html-to-image（SVG 序列化 → Canvas 栅格化，含位图回退路径） |
+| 表格 | SheetJS（xlsx，浏览器本地解析） |
+| 后端 | Cloudflare Pages Functions（无独立服务器） |
+| 存储 | Cloudflare D1（反馈/分享）· KV（限流计数） |
+| 部署 | Cloudflare Pages（Wrangler CLI） |
+
+### 后端接口（Pages Functions）
+
+- `GET /api/provinces`、`GET /api/cities?province=...` — 省市数据查询（大 JSON 存服务端，避免全量加载到前端；支持多省合并查询）
+- `GET /api/universities?name=...` — 院校信息（软科排名/城市补全）
+- `POST /api/feedback` 等 — 问题反馈（类 GitHub Issues：状态流转、管理员回复、用户追加、日志附件）
+- `POST /api/logs`、`POST /api/error-report` — 会话日志与 JS 错误自动上报
+- `GET /api/share` — 短链接分享（临时关闭入口）
+- `GET /api/school-badge` — 校徽代理（**当前 503 短路，临时关闭**）
+
+> 管理端（反馈管理 / 日志 / 统计分析）是独立项目，部署在单独域名，不在本仓库。
+
+---
+
+## 本地开发
+
+```bash
+# 安装依赖
+npm install
+
+# 开发服务器
+npm run dev
+
+# 生产构建（tsc 类型检查 + vite build）
+npm run build
+
+# 完整构建（含 /debug 调试页：带模块路径标注，便于排查）
+npm run build:all
+
+# 部署到 Cloudflare Pages（需先 wrangler login）
+npx wrangler pages deploy dist --project-name=cengfan-map --branch=main
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 工程化约定
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- 大功能**按需分包**：Excel 导入导出、JSON 导入导出、图片导出、静态页面（用户协议/隐私政策/关于）均为独立 chunk，首屏只加载核心，未加载时界面有骨架/加载动画
+- 地图 GeoJSON、字体等静态资源**不编入主 JS**，按需异步加载，保证主包哈希稳定（配合版本检测与更新进度条）
+- 编译产物文件名不含下划线，hash 命名，长缓存
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+
+## 数据与版权说明
+
+- 地图为**国家版图示意图**（含南海诸岛及断续线），仅用于标注示意，不代表高校实际校址；使用时请保持地图完整
+- 院校排序参考**软科中国大学排名（2025 主榜）**公开榜单，仅用于名单展示顺序，不构成对任何院校的评价
+- 校徽著作权归各院校所有，如院校或权利方认为使用不当，请联系我们移除
+- 本应用免费提供给所有毕业生使用，由个人独立开发与维护
+
+## 作者与版权
+
+© 2026 赤峰二中2026届 & 海南大学人工智能2026级 张新越
+
+- 网站：[map.linkbrain.top](https://map.linkbrain.top)
+- 微信公众号：零本
+- 问题反馈：站内「问题反馈」页（一般两天内回复）
+
+## License
+
+暂未指定开源许可证——源代码公开仅供学习参考，保留所有权利。
+如需转载、二次开发或商用，请先联系作者取得授权。
