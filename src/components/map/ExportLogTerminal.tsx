@@ -37,7 +37,7 @@ export default function ExportLogTerminal() {
           className="ml-1.5 text-[9px] tracking-wider text-stone-500"
           style={{ fontFamily: MONO }}
         >
-          export.exe — 进程日志
+          导出进程
         </span>
       </div>
       <div
