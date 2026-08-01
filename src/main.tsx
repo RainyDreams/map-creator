@@ -9,6 +9,7 @@ import App from './App.tsx'
 import { useWechatShare } from './hooks/useWechatShare.ts'
 import { initErrorReporter } from './utils/errorReporter.ts'
 import { initSessionLog } from './utils/sessionLog.ts'
+import { scheduleExportPrewarm } from './utils/exportPrewarm.ts'
 import { checkEnvironment } from './utils/guard.ts'
 
 // 启动标记：index.html 的镜像兜底加载器据此判断入口是否成功执行；
@@ -90,4 +91,7 @@ if (_allow) {
       </BrowserRouter>
     </StrictMode>,
   )
+  // 闲时预热导出（引擎 chunk + 字体嵌入 CSS）：用户浏览/填名单的空档完成，
+  // 点导出时直接命中缓存进入渲染；省流量模式与弱网自动跳过
+  scheduleExportPrewarm()
 }

@@ -20,6 +20,7 @@ import {
 } from '@/utils/fonts'
 import { fetchShareState, pushShareUpdate, type ShareRole } from '@/utils/share'
 import { invalidateFontEmbedCache, setExportCustomFonts } from '@/utils/exportFontCache'
+import { scheduleExportPrewarm } from '@/utils/exportPrewarm'
 
 const STORAGE_KEY = 'cenfan-map-store-v2'
 const LEGACY_KEY = 'cenfan-map-data-v1'
@@ -791,8 +792,9 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
 
   const setFontSlot = useCallback(
     (slot: FontSlot, fontId: string) => {
-      // 字体变了，导出用的字体嵌入 CSS 缓存必须重算
+      // 字体变了，导出用的字体嵌入 CSS 缓存必须重算；闲时重新预热
       invalidateFontEmbedCache()
+      scheduleExportPrewarm()
       setPersisted((prev) => ({
         ...prev,
         canvases: prev.canvases.map((c) =>
@@ -808,6 +810,7 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
   const addCustomFont = useCallback(
     (font: CustomFont) => {
       invalidateFontEmbedCache()
+      scheduleExportPrewarm()
       setPersisted((prev) => ({
         ...prev,
         customFonts: [...prev.customFonts.filter((f) => f.id !== font.id), font],
@@ -819,6 +822,7 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
   const removeCustomFont = useCallback(
     (fontId: string) => {
       invalidateFontEmbedCache()
+      scheduleExportPrewarm()
       setPersisted((prev) => ({
         ...prev,
         customFonts: prev.customFonts.filter((f) => f.id !== fontId),

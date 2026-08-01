@@ -19,7 +19,7 @@
  * 代码分割：html-to-image 只在真正导出时动态加载（独立 chunk），不拖慢首屏。
  */
 import { getCachedFontEmbedCss, setCachedFontEmbedCss } from './exportFontCache'
-import { buildFontEmbedCSS } from './exportFonts'
+import { buildFontEmbedCSS, ensureCanvasFontsLoaded, fontEmbedCssCoversNow } from './exportFonts'
 import { pushExportLog, resetExportLog } from './exportLog'
 import { getBadgeDataUrlByFileSync } from './universities'
 
@@ -142,58 +142,13 @@ function dualLog(user: string, detail?: string): void {
 }
 
 /**
- * 导出前确保画布字体已加载，否则 SVG/位图里会渲染成兜底字体。
- * 注意：不要 await document.fonts.ready——它会等文档里所有挂起的字体
- * （包括未使用、还在懒加载的，如个别 CDN 字体），永远等不完，
- * 导致每次导出都把安全超时打满（实测每次白等 4s）。只显式 load 画布
- * 实际用到的家族即可；会话内第一次等过后，后续导出只做极短兜底确认。
- */
-let fontsSettled = false
-async function ensureFontsLoaded(): Promise<void> {
-  const cap = fontsSettled ? 400 : 2500
-  // 逐家族记录加载结果：慢网络下部分家族超预算时，日志能看出是哪几个没就绪
-  const FAMILIES: [string, string][] = [
-    ['20px "MaShanZheng"', '蹭饭图'],
-    ['700 20px "AlimamaShuHeiTi"', '2026'],
-    ['20px "NotoSansSC"', '北京'],
-    ['20px "ZCOOLXiaoWei"', '北京'],
-    ['20px "ZCOOLQingKeHuangYou"', '北京'],
-    ['20px "JetBrainsMono"', 'map'],
-  ]
-  let done = false
-  try {
-    await Promise.race([
-      (async () => {
-        const results = await Promise.allSettled(
-          FAMILIES.map(([font, text]) => document.fonts.load(font, text)),
-        )
-        done = true
-        const failed = results
-          .map((r, i) => (r.status === 'rejected' ? FAMILIES[i][0] : null))
-          .filter(Boolean)
-        if (failed.length > 0) {
-          console.warn(`[导出] 部分画布字体加载失败（导出将用回退字体）：${failed.join('、')}`)
-        }
-      })(),
-      new Promise((resolve) => setTimeout(resolve, cap)),
-    ])
-    if (!done) {
-      console.warn(
-        `[导出] 画布字体加载超出预算（${cap}ms）仍未就绪——网络较慢，导出按当前已加载字体继续（可能与屏幕所见一致使用回退字体）`,
-      )
-    }
-    fontsSettled = true
-  } catch {
-    // 字体加载失败不阻断导出，按兜底字体出图
-    fontsSettled = true
-  }
-}
-
-/**
  * 把导出链路里的异常整理成可读信息（详细轨，进上传日志）：
  * - Error：name + message + 堆栈前 2 帧——只留 message 经常看不出是哪个机制抛的；
  * - html-to-image 在校徽等 <img>/<image> 加载失败时以裸 Event reject，
  *   直接 String() 只能得到 [object Event]，提取目标资源地址。
+ *
+ * 注：画布字体加载保障（ensureCanvasFontsLoaded）已移至 exportFonts，
+ * 与闲时预热共用同一路径，保证预热产出的字体覆盖集与导出时一致。
  */
 export function describeError(err: unknown): string {
   if (err instanceof Error) {
@@ -312,7 +267,7 @@ async function withOffscreenClone<T>(
   )
   pushExportLog(`画布克隆就绪（排版宽度 ${baseW}px）`)
   try {
-    await ensureFontsLoaded()
+    await ensureCanvasFontsLoaded()
     t = logStep('画布字体就绪', t)
     // 双 rAF：确保克隆节点完成排版与字体应用
     await nextFrame()
@@ -611,6 +566,12 @@ export async function renderNodeToPngDataUrl(
     // 失败降级跳过），全部渲染路径复用——html-to-image 收到 fontEmbedCSS
     // （即使空串）即跳过自己无超时的字体抓取，慢网络下不再连环超时
     let fontEmbedCSS = getCachedFontEmbedCss()
+    // 闲时预热的缓存可能被后续字体变更甩在身后：对照覆盖标记与当前需求，
+    // 不一致就当未缓存处理，重新构建（v1.42.4）
+    if (fontEmbedCSS !== null && !fontEmbedCssCoversNow(fontEmbedCSS)) {
+      console.info('[导出] 字体嵌入缓存与当前画布字体不一致（预热后字体有变化），重新构建')
+      fontEmbedCSS = null
+    }
     if (fontEmbedCSS === null) {
       pushExportLog('正在嵌入字体文件…')
       try {

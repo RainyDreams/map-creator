@@ -134,6 +134,55 @@ async function fetchFontWithMirror(url: string): Promise<{ dataUrl: string; via:
 }
 
 /**
+ * 导出前确保画布字体已加载，否则 SVG/位图里会渲染成兜底字体。
+ * 注意：不要 await document.fonts.ready——它会等文档里所有挂起的字体
+ * （包括未使用、还在懒加载的），永远等不完。只显式 load 画布
+ * 实际用到的家族即可；会话内第一次等过后，后续只做极短兜底确认。
+ * （v1.42.4 从 exportImage 移到本模块：闲时预热与导出共用同一路径，
+ *   保证预热产出的字体覆盖集与导出时一致）
+ */
+let fontsSettled = false
+export async function ensureCanvasFontsLoaded(): Promise<void> {
+  const cap = fontsSettled ? 400 : 2500
+  // 逐家族记录加载结果：慢网络下部分家族超预算时，日志能看出是哪几个没就绪
+  const FAMILIES: [string, string][] = [
+    ['20px "MaShanZheng"', '蹭饭图'],
+    ['700 20px "AlimamaShuHeiTi"', '2026'],
+    ['20px "NotoSansSC"', '北京'],
+    ['20px "ZCOOLXiaoWei"', '北京'],
+    ['20px "ZCOOLQingKeHuangYou"', '北京'],
+    ['20px "JetBrainsMono"', 'map'],
+  ]
+  let done = false
+  try {
+    await Promise.race([
+      (async () => {
+        const results = await Promise.allSettled(
+          FAMILIES.map(([font, text]) => document.fonts.load(font, text)),
+        )
+        done = true
+        const failed = results
+          .map((r, i) => (r.status === 'rejected' ? FAMILIES[i][0] : null))
+          .filter(Boolean)
+        if (failed.length > 0) {
+          console.warn(`[导出] 部分画布字体加载失败（导出将用回退字体）：${failed.join('、')}`)
+        }
+      })(),
+      new Promise((resolve) => setTimeout(resolve, cap)),
+    ])
+    if (!done) {
+      console.warn(
+        `[导出] 画布字体加载超出预算（${cap}ms）仍未就绪——网络较慢，按当前已加载字体继续（与屏幕所见一致使用回退字体）`,
+      )
+    }
+    fontsSettled = true
+  } catch {
+    // 字体加载失败不阻断导出，按兜底字体出图
+    fontsSettled = true
+  }
+}
+
+/**
  * 构建字体嵌入 CSS。永不 reject：任何文件失败都只跳过并告警，
  * 全失败时返回空串（html-to-image 收到空串同样跳过自己的字体抓取，
  * 导出以回退字体完成）。
@@ -155,6 +204,7 @@ export async function buildFontEmbedCSS(): Promise<string> {
       `[导出] 字体分片判定：待嵌 ${used.length} 个（${used.map((d) => d.file).join('、') || '无'}）；` +
         `未使用跳过 ${FONT_FILES.length - used.length} 个`,
     )
+    const okFiles: string[] = []
     const results = await Promise.all(
       used.map(async (def) => {
         const t1 = performance.now()
@@ -163,6 +213,7 @@ export async function buildFontEmbedCSS(): Promise<string> {
           console.info(
             `[导出] 字体分片就绪：${def.file}（${Math.round(performance.now() - t1)}ms，${via}）`,
           )
+          okFiles.push(def.file)
           const range = def.range ? `unicode-range:${def.range};` : ''
           return `@font-face{font-family:'${def.family}';font-style:normal;font-weight:${def.weight};${range}src:${`url("${dataUrl}")`} format('woff2');}`
         } catch (err) {
@@ -176,16 +227,22 @@ export async function buildFontEmbedCSS(): Promise<string> {
     )
     // 用户上传的自定义字体：FontFace API 注册、不在样式表里，html-to-image 从来
     // 嵌不进去（自定义字体导出曾静默变回退字体）；dataURL 直接内嵌，零请求
+    const customIds: string[] = []
     for (const font of getExportCustomFonts()) {
       results.push(
         `@font-face{font-family:'${customFontFamilyName(font)}';src:url("${font.dataUrl}");}`,
       )
+      customIds.push(`c:${font.id}`)
     }
-    const css = results.filter(Boolean).join('\n')
+    // 覆盖标记（v1.42.4）：记录本份 CSS 实际嵌入了哪些分片/自定义字体——
+    // 闲时预热的缓存可能被后续字体变更甩在身后，导出前用
+    // fontEmbedCssCoversNow() 对照标记与当前需求，不一致就重建
+    const marker = `${MARK_PREFIX}${[...okFiles, ...customIds].join(',')} */`
+    const css = `${marker}\n${results.filter(Boolean).join('\n')}`
     const ok = results.filter(Boolean).length
     console.info(
       `[导出] 字体嵌入构建完成（${Math.round(css.length / 1024)}KB，${ok}/${used.length} 个分片` +
-        `${getExportCustomFonts().length > 0 ? `，含 ${getExportCustomFonts().length} 个自定义字体` : ''}` +
+        `${customIds.length > 0 ? `，含 ${customIds.length} 个自定义字体` : ''}` +
         `，+${Math.round(performance.now() - t)}ms）`,
     )
     return css
@@ -195,4 +252,33 @@ export async function buildFontEmbedCSS(): Promise<string> {
     )
     return ''
   }
+}
+
+/** 覆盖标记前缀：CSS 首行注释里记录已嵌入的分片文件名与自定义字体 id */
+const MARK_PREFIX = '/* cf-fonts:v1:'
+
+/**
+ * 校验缓存的字体嵌入 CSS 是否仍覆盖当前画布所需：
+ * 逐个对照「现在通过 document.fonts.check 的分片 / 已注册的自定义字体」
+ * 与 CSS 首行标记——任一缺失即视为不覆盖（预热后字体有变化 / 预热时
+ * 网络慢导致分片缺失），调用方应丢弃缓存重新构建。
+ */
+export function fontEmbedCssCoversNow(css: string): boolean {
+  if (!css.startsWith(MARK_PREFIX)) return false
+  const end = css.indexOf(' */')
+  if (end < 0) return false
+  const marked = new Set(css.slice(MARK_PREFIX.length, end).split(',').filter(Boolean))
+  for (const def of FONT_FILES) {
+    let on = false
+    try {
+      on = document.fonts.check(def.checkFont, def.checkText)
+    } catch {
+      on = false
+    }
+    if (on && !marked.has(def.file)) return false
+  }
+  for (const font of getExportCustomFonts()) {
+    if (!marked.has(`c:${font.id}`)) return false
+  }
+  return true
 }
