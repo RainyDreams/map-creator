@@ -107,16 +107,16 @@ export function getGeoFeatures(): GeoFeature[] {
 
 /**
  * 从 /data/china.json 加载并预编译地图数据（Promise 级去重，全局只请求一次）。
- * 每次尝试带 8 秒超时（AbortController）——挂起的请求无法触发重试，必须主动中止；
- * 网络抖动（如 QUIC 协商失败）时自动重试 2 次；最终失败时清空 Promise 允许下次重试，
- * 并在控制台输出原因，便于弱网/无头环境诊断。
+ * 超时 60 秒（AbortController）：弱网下 582KB 可能需要几十秒——
+ * 过短的超时会把快要下完的请求掐死再重试，反而制造重复流量并永远加载失败；
+ * 仅在真正 stall 时中止重试 1 次。最终失败时清空 Promise 允许下次重试。
  */
-const GEO_FETCH_TIMEOUT = 8000
+const GEO_FETCH_TIMEOUT = 60000
 export function loadGeoFeatures(): Promise<GeoFeature[]> {
   if (geoFeatures.length > 0) return Promise.resolve(geoFeatures)
   loadPromise ??= (async () => {
     let lastErr: unknown = null
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       const ctrl = new AbortController()
       const timer = setTimeout(() => ctrl.abort(), GEO_FETCH_TIMEOUT)
       try {
@@ -132,8 +132,8 @@ export function loadGeoFeatures(): Promise<GeoFeature[]> {
         return geoFeatures
       } catch (err) {
         lastErr = err
-        console.warn(`[geo] china.json 第 ${attempt}/3 次加载失败：`, err)
-        if (attempt < 3) await new Promise((r) => setTimeout(r, 400 * attempt))
+        console.warn(`[geo] china.json 第 ${attempt}/2 次加载失败：`, err)
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 400 * attempt))
       } finally {
         clearTimeout(timer)
       }

@@ -16,9 +16,9 @@
 /fonts/*
   Cache-Control: public, max-age=2592000, s-maxage=31536000, immutable
 
-# 静态数据（地图轮廓等大文件）：浏览器 1 天、CDN 7 天，30 天内可用陈旧副本
+# 静态数据（地图轮廓等大文件，极少变更）：浏览器 7 天、CDN 30 天，90 天内可用陈旧副本
 /data/*
-  Cache-Control: public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000
+  Cache-Control: public, max-age=604800, s-maxage=2592000, stale-while-revalidate=7776000
 
 # 站内图片（logo/二维码/文章插图，稳定文件名）：浏览器 1 天、CDN 30 天，可陈旧副本
 /images/*
