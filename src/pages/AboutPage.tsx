@@ -5,6 +5,13 @@ import { APP_VERSION } from '@/version'
 
 const changelog = [
   {
+    version: 'v1.42.7',
+    date: '2026-08-02 00:50',
+    items: [
+      '页面切换新增全屏加载动画：切换到问题反馈、用户协议、隐私政策、关于等按需加载的页面时，显示与全站风格一致的全屏加载遮罩；150 毫秒内能打开的页面不闪 Loading',
+    ],
+  },
+  {
     version: 'v1.42.6',
     date: '2026-08-02 00:40',
     items: [

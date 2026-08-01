@@ -7,7 +7,7 @@ import EntryPage from '@/pages/EntryPage'
 import MapPage from '@/pages/MapPage'
 import SiteFooter from '@/components/layout/SiteFooter'
 import { ConsentDialog } from '@/components/ConsentDialog'
-import { ClipboardList, Info, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { ClipboardList, Info, Loader2, Map as MapIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { onGotoMapExport } from '@/utils/exportBus'
 import { takeShareIdFromUrl, fetchShareState } from '@/utils/share'
@@ -21,16 +21,25 @@ const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
 const FeedbackPage = lazy(() => import('@/pages/FeedbackPage'))
 
-/** 懒加载页面的占位骨架：与全站 stone 风格一致的脉冲占位块 */
-function PageSkeleton() {
+/**
+ * 路由级全屏加载动画（v1.42.7）：懒加载页面 chunk 下载期间覆盖全屏，
+ * 风格与全站一致（stone 底 + 旋转指示器）。
+ * 150ms 防闪烁延迟：chunk 已缓存秒开时不闪 Loading。
+ */
+function RouteLoading() {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => setShow(true), 150)
+    return () => window.clearTimeout(t)
+  }, [])
   return (
-    <div className="mx-auto max-w-2xl animate-pulse space-y-4 px-6 py-10">
-      <div className="h-7 w-40 rounded-md bg-stone-200" />
-      <div className="h-4 w-full rounded bg-stone-200/80" />
-      <div className="h-4 w-11/12 rounded bg-stone-200/80" />
-      <div className="h-4 w-4/5 rounded bg-stone-200/70" />
-      <div className="h-4 w-full rounded bg-stone-200/60" />
-      <div className="h-4 w-2/3 rounded bg-stone-200/60" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-100">
+      {show && (
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
+          <p className="text-xs text-stone-400">页面加载中…</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -237,7 +246,7 @@ function Creator() {
           <MapPage />
         ) : (
           <div className="h-full overflow-y-auto">
-            <Suspense fallback={<PageSkeleton />}>
+            <Suspense fallback={<RouteLoading />}>
               <AboutPage />
             </Suspense>
           </div>
@@ -321,7 +330,7 @@ export default function App() {
 
   return (
     <MapDataProvider>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<RouteLoading />}>
         <Routes>
           <Route path="/" element={<Creator />} />
           {/* Pages 会把 debug.html 规范化重定向到 /debug，调试入口与正式入口共用 Creator */}
