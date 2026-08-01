@@ -118,16 +118,18 @@ async function fetchFontDataUrl(url: string): Promise<string> {
   }
 }
 
-/** 主站失败时走静态镜像重试一次（镜像未配置则直接抛原错误） */
-async function fetchFontWithMirror(url: string): Promise<string> {
+/** 主站失败时走静态镜像重试一次（镜像未配置则直接抛原错误）；
+    返回数据来源（主站/镜像）供详细日志记录 */
+async function fetchFontWithMirror(url: string): Promise<{ dataUrl: string; via: string }> {
   try {
-    return await fetchFontDataUrl(url)
+    return { dataUrl: await fetchFontDataUrl(url), via: '主站' }
   } catch (err) {
     const mirror = (
       (window as unknown as { __CF_MIRROR_ORIGIN__?: string }).__CF_MIRROR_ORIGIN__ ?? ''
     ).replace(/\/+$/, '')
     if (!mirror) throw err
-    return await fetchFontDataUrl(`${mirror}${url}`)
+    console.warn(`[导出] 字体分片主站抓取失败，走镜像重试：${url}（${err instanceof Error ? err.message : String(err)}）`)
+    return { dataUrl: await fetchFontDataUrl(`${mirror}${url}`), via: '镜像' }
   }
 }
 
@@ -148,15 +150,24 @@ export async function buildFontEmbedCSS(): Promise<string> {
         return false
       }
     })
+    // 分片判定明细（详细轨）：排查「导出字体不对/嵌入体积异常」时看这一行
+    console.info(
+      `[导出] 字体分片判定：待嵌 ${used.length} 个（${used.map((d) => d.file).join('、') || '无'}）；` +
+        `未使用跳过 ${FONT_FILES.length - used.length} 个`,
+    )
     const results = await Promise.all(
       used.map(async (def) => {
+        const t1 = performance.now()
         try {
-          const dataUrl = await fetchFontWithMirror(`/fonts/${def.file}`)
+          const { dataUrl, via } = await fetchFontWithMirror(`/fonts/${def.file}`)
+          console.info(
+            `[导出] 字体分片就绪：${def.file}（${Math.round(performance.now() - t1)}ms，${via}）`,
+          )
           const range = def.range ? `unicode-range:${def.range};` : ''
           return `@font-face{font-family:'${def.family}';font-style:normal;font-weight:${def.weight};${range}src:${`url("${dataUrl}")`} format('woff2');}`
         } catch (err) {
           console.warn(
-            `[导出] 字体分片嵌入失败已跳过：${def.family}（${def.file}），` +
+            `[导出] 字体分片嵌入失败已跳过：${def.family}（${def.file}，耗时 ${Math.round(performance.now() - t1)}ms），` +
               `该部分文字将以回退字体导出。原因：${err instanceof Error ? err.message : String(err)}`,
           )
           return ''

@@ -20,14 +20,18 @@
  */
 import { getCachedFontEmbedCss, setCachedFontEmbedCss } from './exportFontCache'
 import { buildFontEmbedCSS } from './exportFonts'
+import { pushExportLog, resetExportLog } from './exportLog'
 import { getBadgeDataUrlByFileSync } from './universities'
 
 /** html-to-image 懒加载：首次导出时加载，之后模块缓存复用 */
 async function loadHtmlToImage(): Promise<typeof import('html-to-image')> {
-  console.info('[导出] 正在加载图像渲染模块…')
+  dualLog('加载渲染引擎…', '正在加载图像渲染模块…')
   const t = performance.now()
   const mod = await import('html-to-image')
-  console.info(`[导出] 图像渲染模块加载完成（+${Math.round(performance.now() - t)}ms）`)
+  dualLog(
+    `渲染引擎就绪（+${Math.round(performance.now() - t)}ms）`,
+    `图像渲染模块加载完成（+${Math.round(performance.now() - t)}ms）`,
+  )
   return mod
 }
 
@@ -127,6 +131,17 @@ function logStep(step: string, since: number): number {
 }
 
 /**
+ * 双轨日志（v1.42.3）：
+ * - user 行进导出模态框的终端窗（简略、可读，缓解等待焦虑）；
+ * - detail 行进 console（详细技术细节，sessionLog 捕获后随反馈上传）。
+ * detail 省略时两轨同行。
+ */
+function dualLog(user: string, detail?: string): void {
+  pushExportLog(user)
+  console.info(`[导出] ${detail ?? user}`)
+}
+
+/**
  * 导出前确保画布字体已加载，否则 SVG/位图里会渲染成兜底字体。
  * 注意：不要 await document.fonts.ready——它会等文档里所有挂起的字体
  * （包括未使用、还在懒加载的，如个别 CDN 字体），永远等不完，
@@ -136,20 +151,37 @@ function logStep(step: string, since: number): number {
 let fontsSettled = false
 async function ensureFontsLoaded(): Promise<void> {
   const cap = fontsSettled ? 400 : 2500
+  // 逐家族记录加载结果：慢网络下部分家族超预算时，日志能看出是哪几个没就绪
+  const FAMILIES: [string, string][] = [
+    ['20px "MaShanZheng"', '蹭饭图'],
+    ['700 20px "AlimamaShuHeiTi"', '2026'],
+    ['20px "NotoSansSC"', '北京'],
+    ['20px "ZCOOLXiaoWei"', '北京'],
+    ['20px "ZCOOLQingKeHuangYou"', '北京'],
+    ['20px "JetBrainsMono"', 'map'],
+  ]
+  let done = false
   try {
     await Promise.race([
       (async () => {
-        await Promise.all([
-          document.fonts.load('20px "MaShanZheng"', '蹭饭图'),
-          document.fonts.load('700 20px "AlimamaShuHeiTi"', '2026'),
-          document.fonts.load('20px "NotoSansSC"', '北京'),
-          document.fonts.load('20px "ZCOOLXiaoWei"', '北京'),
-          document.fonts.load('20px "ZCOOLQingKeHuangYou"', '北京'),
-          document.fonts.load('20px "JetBrainsMono"', 'map'),
-        ])
+        const results = await Promise.allSettled(
+          FAMILIES.map(([font, text]) => document.fonts.load(font, text)),
+        )
+        done = true
+        const failed = results
+          .map((r, i) => (r.status === 'rejected' ? FAMILIES[i][0] : null))
+          .filter(Boolean)
+        if (failed.length > 0) {
+          console.warn(`[导出] 部分画布字体加载失败（导出将用回退字体）：${failed.join('、')}`)
+        }
       })(),
       new Promise((resolve) => setTimeout(resolve, cap)),
     ])
+    if (!done) {
+      console.warn(
+        `[导出] 画布字体加载超出预算（${cap}ms）仍未就绪——网络较慢，导出按当前已加载字体继续（可能与屏幕所见一致使用回退字体）`,
+      )
+    }
     fontsSettled = true
   } catch {
     // 字体加载失败不阻断导出，按兜底字体出图
@@ -158,12 +190,21 @@ async function ensureFontsLoaded(): Promise<void> {
 }
 
 /**
- * 把导出链路里的异常整理成可读信息：html-to-image 在校徽等 <img>/<image>
- * 加载失败时会以裸 Event reject，直接 String() 只能得到 [object Event]，
- * 用户日志里完全看不出是哪个资源的问题（2026-07-29 三条导出失败日志实锤）。
+ * 把导出链路里的异常整理成可读信息（详细轨，进上传日志）：
+ * - Error：name + message + 堆栈前 2 帧——只留 message 经常看不出是哪个机制抛的；
+ * - html-to-image 在校徽等 <img>/<image> 加载失败时以裸 Event reject，
+ *   直接 String() 只能得到 [object Event]，提取目标资源地址。
  */
 export function describeError(err: unknown): string {
-  if (err instanceof Error) return err.message
+  if (err instanceof Error) {
+    const stack = (err.stack ?? '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l !== '' && !l.startsWith('Error'))
+      .slice(0, 2)
+      .join(' ← ')
+    return `${err.name}: ${err.message}${stack ? ` | ${stack}` : ''}`
+  }
   if (err instanceof Event) {
     const t = err.target as { src?: string; href?: string | { baseVal?: string } } | null
     const href = typeof t?.href === 'object' ? t?.href?.baseVal : t?.href
@@ -227,7 +268,9 @@ function sanitizeCloneImages(clone: HTMLElement): void {
     }
   }
   if (removed > 0 || inlined > 0) {
-    console.info(`[导出] 图片资源整理：内联校徽 ${inlined} 张，移除加载失败图片 ${removed} 个`)
+    dualLog(
+      `图片资源整理：内联校徽 ${inlined} 张${removed > 0 ? `，移除加载失败图片 ${removed} 个` : ''}`,
+    )
   }
 }
 
@@ -260,12 +303,20 @@ async function withOffscreenClone<T>(
   holder.appendChild(clone)
   document.body.appendChild(holder)
   t = logStep(`离屏克隆完成，排版宽度 ${baseW}px`, t)
+  // DOM 规模统计（详细轨）：路径数量级直接反映 html-to-image 样式内联的工作量，
+  // 排查「序列化慢」时先看这里
+  console.info(
+    `[导出] 克隆 DOM 统计：元素 ${clone.querySelectorAll('*').length}，` +
+      `img ${clone.querySelectorAll('img').length}，svg ${clone.querySelectorAll('svg').length}，` +
+      `path ${clone.querySelectorAll('svg path').length}，text ${clone.querySelectorAll('svg text').length}`,
+  )
+  pushExportLog(`画布克隆就绪（排版宽度 ${baseW}px）`)
   try {
     await ensureFontsLoaded()
     t = logStep('画布字体就绪', t)
     // 双 rAF：确保克隆节点完成排版与字体应用
     await nextFrame()
-    logStep('离屏排版就绪', t)
+    t = logStep('离屏排版就绪', t)
     // 等图片落定后清理：加载失败的 img / 取不到的校徽会在 html-to-image
     // 序列化时以裸 Event reject，必须在此之前移除或内联
     await settleCloneImages(clone)
@@ -309,6 +360,7 @@ async function renderUltra(
   const h = node.offsetHeight
   if (w === 0 || h === 0) throw new Error('画布尺寸为 0')
   onProgress?.(30, '正在序列化矢量图（内嵌字体）…')
+  pushExportLog('正在生成矢量图（内嵌字体）…')
   // 注意：不要开 cacheBust——它会给字体/图片 URL 追加随机参数，绕过浏览器 HTTP 缓存，
   // 每次导出重新下载 ~10MB 字体子集，是导出慢的主要原因；同源资源用浏览器缓存即可。
   // fontEmbedCSS 由 renderNodeToPngDataUrl 统一构建（自建构建器，带超时与降级），
@@ -316,6 +368,7 @@ async function renderUltra(
   const svgUrl = await withTimeout(toSvg(node, { backgroundColor: bg, fontEmbedCSS }), 60000, 'SVG 序列化')
   throwIfAborted(signal)
   t = logStep(`SVG 序列化完成（${Math.round(svgUrl.length / 1024)}KB）`, t)
+  pushExportLog(`矢量图生成完成（${Math.round(svgUrl.length / 1024)}KB）`)
   const targetW = Math.min(Math.max(ULTRA_MIN_W, Math.round(w * 2)), ULTRA_MAX_W)
   const scale = targetW / w
   let cw = targetW
@@ -325,7 +378,9 @@ async function renderUltra(
     ch = MAX_SIDE
     cw = Math.round(w * (MAX_SIDE / h))
   }
+  console.info(`[导出] 栅格化目标：${cw}×${ch}（屏幕宽 ${w}px，倍率 ${scale.toFixed(2)}）`)
   onProgress?.(62, `正在按 ${cw}×${ch} 超清栅格化…`)
+  pushExportLog(`正在超清栅格化到 ${cw}×${ch}…`)
   const img = await loadImage(svgUrl)
   throwIfAborted(signal)
   t = logStep(`SVG 载入完成，开始栅格化到 ${cw}×${ch}`, t)
@@ -339,9 +394,11 @@ async function renderUltra(
   ctx.drawImage(img, 0, 0, cw, ch)
   t = logStep('canvas 绘制完成', t)
   onProgress?.(88, '正在编码 PNG…')
+  pushExportLog('正在编码 PNG…')
   const dataUrl = canvas.toDataURL('image/png')
   throwIfAborted(signal)
   logStep(`PNG 编码完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
+  pushExportLog(`PNG 编码完成（${Math.round(dataUrl.length / 1024)}KB）`)
   return { dataUrl, width: cw, height: ch }
 }
 
@@ -411,6 +468,8 @@ async function renderLayered(
 
   // —— ① 背景层：纯背景 div（无地图 DOM），小尺寸 toPng ——
   onProgress?.(35, '分层渲染：背景层…')
+  pushExportLog('分层渲染 ①/④：背景层…')
+  console.info(`[导出] 分层渲染启动：目标 ${cw}×${ch}（倍率 ${ratio.toFixed(2)}），地图 SVG ${mapSvg ? '已定位' : '未找到'}`)
   const rootBg = node.style.background || bg
   const bgDiv = document.createElement('div')
   bgDiv.style.cssText = `width:${w}px;height:${h}px;background:${rootBg};`
@@ -438,6 +497,7 @@ async function renderLayered(
   let mapPos = { x: 0, y: 0, w: 0, h: 0 }
   if (mapSvg && mapRect && mapRect.width > 0 && mapRect.height > 0) {
     onProgress?.(50, '分层渲染：地图矢量层…')
+    pushExportLog('分层渲染 ②/④：地图矢量层…')
     const svgClone = mapSvg.cloneNode(true) as SVGSVGElement
     svgClone.setAttribute('width', String(mapRect.width))
     svgClone.setAttribute('height', String(mapRect.height))
@@ -463,6 +523,7 @@ async function renderLayered(
   // 注意：克隆根节点带主题渐变背景，必须临时剥掉（背景层已单独渲染），
   // 否则覆盖层不透明会盖住下面的地图层
   onProgress?.(68, '分层渲染：文字与覆盖层…')
+  pushExportLog('分层渲染 ③/④：文字与覆盖层…')
   let overlayImg: HTMLImageElement
   let placeholder: HTMLElement | null = null
   const origSvgParent = mapSvg?.parentElement ?? null
@@ -496,6 +557,7 @@ async function renderLayered(
 
   // —— ④ 合成 ——
   onProgress?.(85, '分层渲染：合成…')
+  pushExportLog('分层渲染 ④/④：合成三层画面…')
   const canvas = document.createElement('canvas')
   canvas.width = cw
   canvas.height = ch
@@ -524,8 +586,17 @@ export async function renderNodeToPngDataUrl(
   signal?: AbortSignal,
 ): Promise<{ dataUrl: string } & ExportResult> {
   const tStart = performance.now()
-  console.info(
-    `[导出] 开始导出：清晰度=${quality}，画布屏幕尺寸 ${node.offsetWidth}×${node.offsetHeight}`,
+  resetExportLog()
+  // 环境画像（详细轨）：引擎/网络/内存/核数/dpr 是排查「为什么这台机器导出失败」的第一手信息
+  const conn = (navigator as { connection?: { effectiveType?: string; downlink?: number } })
+    .connection
+  const mem = (navigator as { deviceMemory?: number }).deviceMemory
+  dualLog(
+    `开始导出（${quality === 'ultra' ? '超清' : '标准'}模式，画布 ${node.offsetWidth}×${node.offsetHeight}）`,
+    `开始导出：清晰度=${quality}，画布屏幕尺寸 ${node.offsetWidth}×${node.offsetHeight}，` +
+      `引擎=${isSafariEngine() ? 'WebKit' : 'Chromium/其他'}，网络=${conn?.effectiveType ?? 'unknown'}` +
+      `${conn?.downlink ? `/${conn.downlink}Mbps` : ''}，内存=${mem ?? '?'}GB，` +
+      `核数=${navigator.hardwareConcurrency ?? '?'}，dpr=${window.devicePixelRatio}`,
   )
   onProgress?.(4, '正在加载图像渲染模块…')
   // 动态加载 html-to-image（首屏不下载；第二次导出直接命中模块缓存，秒回）
@@ -541,10 +612,12 @@ export async function renderNodeToPngDataUrl(
     // （即使空串）即跳过自己无超时的字体抓取，慢网络下不再连环超时
     let fontEmbedCSS = getCachedFontEmbedCss()
     if (fontEmbedCSS === null) {
+      pushExportLog('正在嵌入字体文件…')
       try {
         fontEmbedCSS = await withTimeout(buildFontEmbedCSS(), 45000, '字体嵌入')
       } catch (err) {
         console.warn(`[导出] 字体嵌入未完成，按回退字体继续导出：${describeError(err)}`)
+        pushExportLog('字体嵌入超时，按回退字体继续导出')
         fontEmbedCSS = ''
       }
       // 空串不缓存（下次导出重试）；非空跨导出复用
@@ -554,6 +627,7 @@ export async function renderNodeToPngDataUrl(
     // 2026-07-29 用户日志实锤），直接使用分层渲染（v1.36.5）
     if (isSafariEngine()) {
       console.info('[导出] 检测到 Safari/WebKit 内核，直接使用分层渲染路径')
+      pushExportLog('检测到 Safari 内核，使用分层渲染方案')
       const r = await renderLayered(clone, hti, bg, quality, fontEmbedCSS, onProgress, signal)
       return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
     }
@@ -567,6 +641,7 @@ export async function renderNodeToPngDataUrl(
         // 第二回退（v1.36.5）：分层渲染（大 SVG 原生序列化 + 小 DOM 覆盖层）——
         // 比 toPng 全量位图回退更能扛住「大 SVG 序列化超时」，且仍是矢量质量
         console.warn(`[导出] SVG 矢量栅格化失败，尝试分层渲染：${describeError(err)}`)
+        pushExportLog('矢量渲染遇到问题，切换分层渲染方案重试…')
         onProgress?.(40, '矢量栅格化失败，尝试分层渲染…')
         try {
           const r = await renderLayered(clone, hti, bg, quality, fontEmbedCSS, onProgress, signal)
@@ -574,6 +649,7 @@ export async function renderNodeToPngDataUrl(
         } catch (err2) {
           if (err2 instanceof ExportCancelledError) throw err2
           console.warn(`[导出] 分层渲染失败，回退 pixelRatio 4 位图导出：${describeError(err2)}`)
+          pushExportLog('分层渲染也失败，回退高清位图导出（最后一道保险）…')
           onProgress?.(45, '分层渲染失败，回退高清位图导出…')
           let t = performance.now()
           const dataUrl = await withTimeout(
@@ -583,6 +659,7 @@ export async function renderNodeToPngDataUrl(
           )
           throwIfAborted(signal)
           logStep(`位图回退导出完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
+          pushExportLog(`位图导出完成（${Math.round(dataUrl.length / 1024)}KB）`)
           const w = clone.offsetWidth * 4
           const h = clone.offsetHeight * 4
           return { dataUrl, width: w, height: h, quality, fellBack: true }
@@ -590,6 +667,7 @@ export async function renderNodeToPngDataUrl(
       }
     }
     onProgress?.(35, '正在渲染高清位图…')
+    pushExportLog('正在渲染高清位图…')
     let t = performance.now()
     const dataUrl = await withTimeout(
       toPng(clone, { pixelRatio: 2, backgroundColor: bg, fontEmbedCSS }),
@@ -598,6 +676,7 @@ export async function renderNodeToPngDataUrl(
     )
     throwIfAborted(signal)
     logStep(`位图渲染完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
+    pushExportLog(`位图渲染完成（${Math.round(dataUrl.length / 1024)}KB）`)
     onProgress?.(88, '正在编码 PNG…')
     return {
       dataUrl,
@@ -607,7 +686,11 @@ export async function renderNodeToPngDataUrl(
       fellBack: false,
     }
   })
-  console.info(`[导出] 渲染全部完成，总耗时 ${Math.round(performance.now() - tStart)}ms`)
+  const totalMs = Math.round(performance.now() - tStart)
+  dualLog(
+    `渲染全部完成，总耗时 ${totalMs < 10000 ? (totalMs / 1000).toFixed(1) : Math.round(totalMs / 1000)}s`,
+    `渲染全部完成，总耗时 ${totalMs}ms（路径=${result.fellBack ? '回退' : '主路径'}，输出 ${result.width}×${result.height}）`,
+  )
   return result
 }
 
@@ -660,6 +743,7 @@ export async function exportNodeToPng(
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
   }
   console.info(`[导出] 已触发浏览器下载：${filename}`)
+  pushExportLog(`完成，开始下载：${filename}`)
   onProgress?.(100, '完成')
   return meta
 }

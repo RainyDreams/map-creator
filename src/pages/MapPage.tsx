@@ -12,6 +12,7 @@ import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { isMobileOrPad } from '@/utils/device'
 import { ChinaMap } from '@/components/map/ChinaMap'
+import ExportLogTerminal from '@/components/map/ExportLogTerminal'
 import { APP_VERSION } from '@/version'
 import { TeachersBlock } from '@/components/map/TeachersBlock'
 import { DecorationBlocks } from '@/components/map/DecorationBlocks'
@@ -93,7 +94,7 @@ function ExportProgressDialog({
       <div
         role="dialog"
         aria-label="导出进度"
-        className="w-80 rounded-xl border border-stone-200 bg-white p-5 shadow-2xl"
+        className="w-80 rounded-xl border border-stone-200 bg-white p-5 shadow-2xl sm:w-[22rem]"
       >
         <div className="mb-3 flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin text-stone-500" />
@@ -114,6 +115,10 @@ function ExportProgressDialog({
               ? '即将完成'
               : `预计还需约 ${progress.etaSeconds} 秒`}
         </p>
+        {/* CMD 风格进程终端：实时显示导出在做什么，缓解等待焦虑（只读不可复制） */}
+        <div className="mt-3">
+          <ExportLogTerminal />
+        </div>
         {/* 红色取消按钮：导出可中断，避免长导出把用户困在进度框里 */}
         <button
           type="button"
