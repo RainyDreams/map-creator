@@ -97,7 +97,7 @@ export function FontSelect({ value, onChange, ariaLabel }: FontSelectProps) {
   const currentName = 'name' in current ? current.name : String(value)
 
   return (
-    <div ref={rootRef} className="relative min-w-[6.5rem] flex-1">
+    <div ref={rootRef} className="relative min-w-0 flex-1">
       <button
         type="button"
         aria-label={ariaLabel}
