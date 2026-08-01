@@ -13,6 +13,7 @@ import { onGotoMapExport } from '@/utils/exportBus'
 import { takeShareIdFromUrl, fetchShareState } from '@/utils/share'
 import { takeSharePayloadFromHash, type ShareLinkPayload } from '@/utils/shareLink'
 import { ShareImportLanding } from '@/components/ShareImportLanding'
+import { RouteLoadingProvider } from '@/components/layout/RouteLoadingOverlay'
 import { track, trackSessionOnce } from '@/utils/analytics'
 
 /** 协议/隐私/关于页按需加载（独立 chunk），首屏不下载 */
@@ -330,17 +331,19 @@ export default function App() {
 
   return (
     <MapDataProvider>
-      <Suspense fallback={<RouteLoading />}>
-        <Routes>
-          <Route path="/" element={<Creator />} />
-          {/* Pages 会把 debug.html 规范化重定向到 /debug，调试入口与正式入口共用 Creator */}
-          <Route path="/debug" element={<Creator />} />
-          <Route path="/agreement" element={<AgreementPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/feedback" element={<FeedbackPage />} />
-        </Routes>
-      </Suspense>
+      <RouteLoadingProvider>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/" element={<Creator />} />
+            {/* Pages 会把 debug.html 规范化重定向到 /debug，调试入口与正式入口共用 Creator */}
+            <Route path="/debug" element={<Creator />} />
+            <Route path="/agreement" element={<AgreementPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/feedback" element={<FeedbackPage />} />
+          </Routes>
+        </Suspense>
+      </RouteLoadingProvider>
       {importPayload !== null && (
         <ShareImportLanding payload={importPayload} onClose={() => setImportPayload(null)} />
       )}

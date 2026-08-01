@@ -1,9 +1,17 @@
-import { Link } from 'react-router'
 import { Globe, MapPin, Sparkles } from 'lucide-react'
 import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLayout'
 import { APP_VERSION } from '@/version'
+import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
+  {
+    version: 'v1.42.8',
+    date: '2026-08-02 00:45',
+    items: [
+      '修复调试入口 /debug 打开白屏（上轮部署漏打包调试页面，已补回并纳入固定构建流程）',
+      '修复页面切换时全屏加载动画不显示的问题：改用「点击即提示、页面就绪自动收起」的机制，150 毫秒内能打开的页面不闪 Loading，显示后最短保留 400 毫秒不一闪而过',
+    ],
+  },
   {
     version: 'v1.42.7',
     date: '2026-08-02 00:50',
@@ -623,15 +631,15 @@ export default function AboutPage() {
       <section className="space-y-2">
         <SectionTitle>相关链接</SectionTitle>
         <p className="flex flex-wrap gap-x-4 gap-y-1">
-          <Link to="/agreement" className="text-amber-700 underline-offset-2 hover:underline">
+          <AppLink to="/agreement" className="text-amber-700 underline-offset-2 hover:underline">
             用户协议
-          </Link>
-          <Link to="/privacy" className="text-amber-700 underline-offset-2 hover:underline">
+          </AppLink>
+          <AppLink to="/privacy" className="text-amber-700 underline-offset-2 hover:underline">
             隐私政策
-          </Link>
-          <Link to="/feedback" className="text-amber-700 underline-offset-2 hover:underline">
+          </AppLink>
+          <AppLink to="/feedback" className="text-amber-700 underline-offset-2 hover:underline">
             问题反馈
-          </Link>
+          </AppLink>
         </p>
       </section>
     </StaticPageLayout>

@@ -1,6 +1,6 @@
-import { Link } from 'react-router'
 import type { ReactNode } from 'react'
 import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLayout'
+import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 /** 条下款：加粗款号 + 正文 */
 function Clause({ n, children }: { n: string; children: ReactNode }) {
@@ -161,7 +161,7 @@ export default function AgreementPage() {
         </Clause>
         <Clause n="5.3">
           关于本服务如何处理信息的完整说明，请见本服务公示的
-          <Link to="/privacy" className="text-amber-700 underline-offset-2 hover:underline">《隐私政策》</Link>。
+          <AppLink to="/privacy" className="text-amber-700 underline-offset-2 hover:underline">《隐私政策》</AppLink>。
           《隐私政策》构成本协议不可分割的组成部分。
         </Clause>
       </section>
@@ -316,9 +316,9 @@ export default function AgreementPage() {
 
       <p className="rounded-xl border border-amber-200/70 bg-white/70 p-4 text-xs leading-6 text-stone-500">
         相关页面：
-        <Link to="/privacy" className="text-amber-700 underline-offset-2 hover:underline">隐私政策</Link>
+        <AppLink to="/privacy" className="text-amber-700 underline-offset-2 hover:underline">隐私政策</AppLink>
         {' · '}
-        <Link to="/about" className="text-amber-700 underline-offset-2 hover:underline">关于</Link>
+        <AppLink to="/about" className="text-amber-700 underline-offset-2 hover:underline">关于</AppLink>
       </p>
     </StaticPageLayout>
   )

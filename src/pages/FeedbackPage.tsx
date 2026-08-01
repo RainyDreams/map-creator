@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
+import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 import { format } from 'date-fns'
 import {
   ArrowLeft,
@@ -349,9 +350,9 @@ function IssueDetail({ id, name }: { id: string; name: string }) {
       <div className="rounded-md border border-stone-200 bg-white p-8 text-center text-stone-500">
         {error}
         <div className="mt-4">
-          <Link to="/feedback" className="text-sm text-sky-700 hover:underline">
+          <AppLink to="/feedback" className="text-sm text-sky-700 hover:underline">
             ← 返回反馈列表
-          </Link>
+          </AppLink>
         </div>
       </div>
     )
@@ -378,13 +379,13 @@ function IssueDetail({ id, name }: { id: string; name: string }) {
 
   return (
     <div className="space-y-4">
-      <Link
+      <AppLink
         to="/feedback"
         className="inline-flex items-center gap-1 text-sm text-stone-400 transition-colors hover:text-stone-700"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         返回反馈列表
-      </Link>
+      </AppLink>
 
       {/* issue 头部：标题 + 状态徽标（GitHub issue header）；官方帖子不是 issue，只显示类型徽标 */}
       <div className="space-y-2 border-b border-stone-200 pb-4">

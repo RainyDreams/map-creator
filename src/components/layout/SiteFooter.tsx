@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router'
+import { useLocation } from 'react-router'
+import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 import { APP_VERSION } from '@/version'
 import { checkNewReplies, REPLY_EVENT } from '@/utils/replyNotify'
 
@@ -93,19 +94,19 @@ export default function SiteFooter() {
       </p>
       <p className="flex items-center justify-center gap-x-2">
         {/* 移动端已有「关于」Tab，用户协议/隐私政策/关于三个链接仅桌面端显示 */}
-        <Link to="/agreement" className="hidden transition-colors hover:text-stone-700 md:inline">
+        <AppLink to="/agreement" className="hidden transition-colors hover:text-stone-700 md:inline">
           用户协议
-        </Link>
+        </AppLink>
         <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
-        <Link to="/privacy" className="hidden transition-colors hover:text-stone-700 md:inline">
+        <AppLink to="/privacy" className="hidden transition-colors hover:text-stone-700 md:inline">
           隐私政策
-        </Link>
+        </AppLink>
         <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
-        <Link to="/about" className="hidden transition-colors hover:text-stone-700 md:inline">
+        <AppLink to="/about" className="hidden transition-colors hover:text-stone-700 md:inline">
           关于
-        </Link>
+        </AppLink>
         <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
-        <Link
+        <AppLink
           to="/feedback"
           onClick={markFeedbackSeen}
           className="relative text-red-800 transition-colors hover:text-red-900 md:text-stone-400 md:hover:text-stone-700"
@@ -117,7 +118,7 @@ export default function SiteFooter() {
               className="absolute -right-1 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500"
             />
           )}
-        </Link>
+        </AppLink>
         <span aria-hidden className="text-stone-300">·</span>
         {/* 公众号二维码：桌面悬浮展开、移动端点按展开；再次点击或移出即收起。
             桌面显示「微信公众号 · [零本图]」，移动端窄屏只显示零本图片 */}

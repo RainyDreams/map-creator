@@ -1,6 +1,6 @@
-import { Link } from 'react-router'
 import { ShieldCheck } from 'lucide-react'
 import StaticPageLayout, { SectionTitle } from '@/components/layout/StaticPageLayout'
+import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 export default function PrivacyPage() {
   return (
@@ -245,9 +245,9 @@ export default function PrivacyPage() {
 
       <p className="rounded-xl border border-amber-200/70 bg-white/70 p-4 text-xs leading-6 text-stone-500">
         相关页面：
-        <Link to="/agreement" className="text-amber-700 underline-offset-2 hover:underline">用户协议</Link>
+        <AppLink to="/agreement" className="text-amber-700 underline-offset-2 hover:underline">用户协议</AppLink>
         {' · '}
-        <Link to="/about" className="text-amber-700 underline-offset-2 hover:underline">关于</Link>
+        <AppLink to="/about" className="text-amber-700 underline-offset-2 hover:underline">关于</AppLink>
       </p>
     </StaticPageLayout>
   )
