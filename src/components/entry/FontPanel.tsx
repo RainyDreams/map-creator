@@ -211,8 +211,19 @@ export function FontPanel() {
       <div className="space-y-2.5">
         {SLOTS.map((slot) => (
           <div key={slot} className="flex items-center gap-2">
-            <span className="w-20 shrink-0 text-xs text-stone-500 md:w-24">
+            <span className="flex w-20 shrink-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-stone-500 md:w-24">
               {FONT_SLOT_LABELS[slot]}
+              {/* 行内推荐标注：与当前值不同才出现，点击应用该槽位的推荐字号；放在标签下侧，不挤占字体选择框宽度 */}
+              {sizeRec && sizeRec.sizes[slot] !== data.labelSizes[slot] && (
+                <button
+                  type="button"
+                  onClick={() => applySizeRec(slot)}
+                  title={`按当前人数与空间，推荐使用 ${sizeRec.sizes[slot]}px（点击应用）`}
+                  className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
+                >
+                  推荐 {sizeRec.sizes[slot]}px
+                </button>
+              )}
             </span>
             <FontSelect
               value={fontSlots[slot]}
@@ -231,17 +242,6 @@ export function FontPanel() {
               }}
               ariaLabel={`${FONT_SLOT_LABELS[slot]}字号`}
             />
-            {/* 行内推荐标注：与当前值不同才出现，点击应用该槽位的推荐字号 */}
-            {sizeRec && sizeRec.sizes[slot] !== data.labelSizes[slot] && (
-              <button
-                type="button"
-                onClick={() => applySizeRec(slot)}
-                title={`按当前人数与空间，推荐使用 ${sizeRec.sizes[slot]}px（点击应用）`}
-                className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-1 text-[10px] whitespace-nowrap text-amber-700 transition-colors hover:bg-amber-100"
-              >
-                推荐 {sizeRec.sizes[slot]}px
-              </button>
-            )}
           </div>
         ))}
         {/* 老师名单只有字号可调（字体跟随标题/姓名/地点槽位） */}
@@ -287,7 +287,7 @@ export function FontPanel() {
       )}
 
       <p className="mt-2.5 text-[11px] leading-relaxed text-stone-400">
-        预设字体均为免费可商用字体（马善政毛笔体 / 思源黑体为 SIL OFL，站酷系列、阿里妈妈数黑体官方免费商用）。
+        预设字体均为免费可商用字体：「毛笔体」即马善政毛笔体，与钟齐志莽行书、龙藏体、思源黑体同为 SIL OFL 开源许可；站酷系列、阿里妈妈数黑体为官方免费商用。
         上传的字体仅保存在你自己的浏览器中。
       </p>
 

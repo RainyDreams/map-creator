@@ -199,7 +199,8 @@ export default function AgreementPage() {
       <section className="space-y-2">
         <SectionTitle>第七条　第三方素材与字体声明</SectionTitle>
         <Clause n="7.1">
-          本服务内嵌使用的字体及其许可：（一）「马善政」毛笔楷书（MaShanZheng）与「思源黑体」
+          本服务内嵌使用的字体及其许可：（一）「马善政」毛笔楷书（MaShanZheng，界面中显示为「毛笔体」）、
+          「钟齐志莽行书」（Zhi Mang Xing）、「龙藏体」（Long Cang）与「思源黑体」
           （Noto Sans SC 子集），均依据 SIL Open Font License 1.1（SIL 开源字体许可证）发布；
           （二）阿里妈妈数黑体，由阿里妈妈出品并授权免费商用；（三）站酷小薇体、站酷高端黑，
           由站酷（ZCOOL）出品并授权免费商用。上述字体均以子集形式内嵌，字体版权归其各自权利人所有；

@@ -5,6 +5,16 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v1.43.0',
+    date: '2026-08-02 01:40',
+    items: [
+      '新增两款手写风格字体：钟齐志莽行书、龙藏体（均为 SIL OFL 免费商用，子集化分片加载，只下载用到的字符区间）',
+      '「马善政毛笔体」在字体列表中更名为「毛笔体」；关于页新增「字体说明」板块，列明全部字体名称与许可',
+      '字体下拉弹层重做：弹层挂到页面顶层渲染，不再被折叠面板/侧栏裁掉一截；宽度自适应内容（字体全称完整显示），右边界钳制在屏幕内，下方空间不足时向上展开',
+      '排版设计面板行布局调整：「推荐字号」徽标移到标签下侧，字体选择框不再被挤成一条缝，能完整显示当前字体名',
+    ],
+  },
+  {
     version: 'v1.42.9',
     date: '2026-08-02 01:10',
     items: [
@@ -565,6 +575,18 @@ export default function AboutPage() {
           浏览器与边缘节点长缓存（immutable），不向源站反复请求；
           未收录的院校可在学生名单中<strong>手动上传校徽图片</strong>。
           校徽著作权归各院校所有，如院校或权利方认为使用不当，请联系我们移除。
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <SectionTitle>字体说明</SectionTitle>
+        <p>
+          画布字体均为<strong>免费可商用字体</strong>，已做子集化与分片加载（只下载用到的字符区间）：
+          列表中的<strong>「毛笔体」即马善政毛笔楷书（Ma Shan Zheng）</strong>，
+          手写风格的<strong>钟齐志莽行书</strong>、<strong>龙藏体</strong>，
+          以及<strong>思源黑体</strong>，均依据 SIL Open Font License 1.1 发布；
+          <strong>站酷小薇体、站酷高端黑</strong>与<strong>阿里妈妈数黑体</strong>为官方免费商用字体；
+          右下角网址水印使用 <strong>JetBrains Mono</strong>（SIL OFL 1.1）。
         </p>
       </section>
 

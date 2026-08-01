@@ -38,8 +38,20 @@ export const PRESET_FONTS: FontDef[] = [
   },
   {
     id: 'mashanzheng',
-    name: '马善政毛笔体',
+    name: '毛笔体',
     family: '"MaShanZheng","Kaiti SC","STKaiti","KaiTi","楷体",serif',
+  },
+  {
+    id: 'zhimangxing',
+    name: '钟齐志莽行书',
+    family: '"ZhiMangXing","MaShanZheng","Kaiti SC","STKaiti","KaiTi","楷体",serif',
+    note: '手写',
+  },
+  {
+    id: 'longcang',
+    name: '龙藏体',
+    family: '"LongCang","MaShanZheng","Kaiti SC","STKaiti","KaiTi","楷体",serif',
+    note: '手写',
   },
   {
     id: 'notosans',

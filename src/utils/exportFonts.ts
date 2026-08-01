@@ -75,6 +75,8 @@ const FONT_FILES: FontFileDef[] = [
     checkText: '2',
   },
   ...splitFamily('MaShanZheng'),
+  ...splitFamily('ZhiMangXing'),
+  ...splitFamily('LongCang'),
   ...splitFamily('NotoSansSC'),
   ...splitFamily('ZCOOLXiaoWei'),
   ...splitFamily('ZCOOLQingKeHuangYou'),
@@ -147,6 +149,8 @@ export async function ensureCanvasFontsLoaded(): Promise<void> {
   // 逐家族记录加载结果：慢网络下部分家族超预算时，日志能看出是哪几个没就绪
   const FAMILIES: [string, string][] = [
     ['20px "MaShanZheng"', '蹭饭图'],
+    ['20px "ZhiMangXing"', '北京'],
+    ['20px "LongCang"', '北京'],
     ['700 20px "AlimamaShuHeiTi"', '2026'],
     ['20px "NotoSansSC"', '北京'],
     ['20px "ZCOOLXiaoWei"', '北京'],

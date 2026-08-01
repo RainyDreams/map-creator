@@ -2,6 +2,8 @@
  * 画布字体注册（均为免费可商用字体的子集化 woff2）：
  * - AlimamaShuHeiTi：阿里妈妈数黑体，仅 ASCII（8.6KB 不切分），专供年份数字
  * - MaShanZheng：马善政毛笔体（SIL OFL），标题/省份名
+ * - ZhiMangXing：钟齐志莽行书（SIL OFL），手写风格
+ * - LongCang：龙藏体（SIL OFL），手写风格
  * - NotoSansSC：思源黑体（SIL OFL），干净正文
  * - ZCOOLXiaoWei：站酷小薇体（免费可商用），宋体感标题
  * - ZCOOLQingKeHuangYou：站酷高端黑（免费可商用），粗展示
@@ -11,6 +13,56 @@
  * 浏览器只下载页面实际用到的字符区间，没用到生僻字就不拉 cjk-b 分片；
  * font-display: swap 保证渐进式渲染。
  */
+@font-face {
+  font-family: 'ZhiMangXing';
+  src: url('/fonts/ZhiMangXing-subset-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
+}
+@font-face {
+  font-family: 'ZhiMangXing';
+  src: url('/fonts/ZhiMangXing-subset-cjk-a.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-7FFF;
+}
+@font-face {
+  font-family: 'ZhiMangXing';
+  src: url('/fonts/ZhiMangXing-subset-cjk-b.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+8000-9FFF;
+}
+
+@font-face {
+  font-family: 'LongCang';
+  src: url('/fonts/LongCang-subset-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
+}
+@font-face {
+  font-family: 'LongCang';
+  src: url('/fonts/LongCang-subset-cjk-a.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-7FFF;
+}
+@font-face {
+  font-family: 'LongCang';
+  src: url('/fonts/LongCang-subset-cjk-b.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+8000-9FFF;
+}
+
 @font-face {
   font-family: 'AlimamaShuHeiTi';
   src: url('/fonts/AlimamaShuHeiTi-Bold-subset.woff2') format('woff2');
