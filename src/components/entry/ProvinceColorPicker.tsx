@@ -85,7 +85,7 @@ export function ProvinceColorPicker({ prov, allowAuto = false }: ProvinceColorPi
               cur === undefined ? DEFAULT_STRIPE : cur === 'auto' ? autoGradient : undefined,
           }}
         />
-        颜色
+        {cur === undefined ? '默认' : '颜色'}
       </button>
       {open && (
         <span className="absolute top-full right-0 z-30 mt-1 flex w-44 flex-col gap-1.5 rounded-lg border border-stone-200 bg-white p-2 shadow-lg">

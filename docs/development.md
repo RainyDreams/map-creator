@@ -69,7 +69,7 @@ app/
 
 - 地图为自绘 SVG：GeoJSON 异步加载（`public/data/china.json`），省份填色、城市定位点、引线、标注列全部矢量计算；桌面/移动两个 ChinaMap 实例并存（CSS 隐藏其一），注意 id 需按实例唯一；
 - 导出 PNG（`src/utils/exportImage.ts`，独立 chunk 动态加载）：离屏克隆画布 → 等字体就绪 → SVG 序列化 → Canvas 栅格化；矢量路径失败时回退 pixelRatio 位图路径；全程有阶段日志与可取消按钮；
-- 校徽等图片导出前已预取为 dataURL 内联，避免导出时逐张走网络。
+- 校徽为彩色图片（`/api/school-badge` 代理 urongda CDN，边缘缓存 + immutable 1 年）；自动校徽与用户上传校徽在导出前都已预取为 dataURL 内联，避免导出时逐张走网络。
 
 ## 五、工程化约定
 
@@ -88,11 +88,14 @@ app/
 | `GET /api/provinces` | 省份列表 | _data JSON |
 | `GET /api/cities?province=a&province=b` | 城市查询，支持多省合并一次请求 | _data JSON |
 | `GET /api/universities?name=...` | 院校排名/城市补全 | _data JSON |
+| `GET /api/school-badge?name=...` | 校徽图片代理（urongda CDN；边缘缓存 + immutable 1 年，404 短缓存） | 无（代理） |
 | `POST/GET /api/feedback` | 问题反馈（类 GitHub Issues：状态/回复/追加） | D1 |
 | `POST /api/logs` | 会话日志上传（保留约一周） | D1 |
 | `POST /api/error-report` | JS 错误自动上报 | D1 |
 | `GET/POST /api/share` | 短链接分享（前端入口当前临时置灰） | D1 |
-| `GET /api/school-badge` | 校徽代理（**当前 503 短路，临时关闭**） | — |
+
+校徽图片经 `/api/school-badge` 接口代理自 urongda.com 公开 CDN（240w WebP），
+边缘缓存命中即回、浏览器与 CDN 缓存 1 年（immutable），不捆绑任何校徽文件。
 
 管理端（反馈管理/日志查看/统计分析）是**独立仓库、独立域名**的项目，不在这里。
 

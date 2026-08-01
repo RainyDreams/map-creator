@@ -4,10 +4,11 @@
  * 图片来源为 urongda.com 的公开 CDN（cdn.urongda.com，240w webp）。
  * 按需求：前端不直接访问第三方站点，一律经由本 Pages Function 服务端代理取图。
  *
- * 缓存策略（重点：源站冷启动慢，首次回源可能超时 502）：
- * 1. Cloudflare 边缘缓存（caches.default）命中即回，跨请求/跨节点复用；
- * 2. 回源 fetch 带 cf.cacheTtl（Workers 子请求缓存）+ 失败自动重试一次；
- * 3. 响应附加长缓存头（浏览器 1 天 / CDN 30 天 / SWR 90 天）。
+ * 缓存策略（极致：校徽图片按 slug 内容不变，可放心长缓存）：
+ * 1. Cloudflare 边缘缓存（caches.default）命中即回，跨请求/跨节点复用，
+ *    未收录的 404 也短缓存，避免重复穿透；
+ * 2. 回源 fetch 带 cf.cacheTtl（Workers 子请求缓存 1 年）+ 失败自动重试一次；
+ * 3. 响应附加 immutable 缓存头（浏览器/CDN 均 1 年，校徽内容不变故安全）。
  * 未收录校徽时返回 404 JSON，前端据此不渲染图标。
  */
 import universitiesData from './_data/universities.json'
@@ -32,7 +33,8 @@ function badgeSlugOf(query: string): string | null {
 }
 
 const CACHE_HEADERS = {
-  'Cache-Control': 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=7776000',
+  // 校徽图片按 slug 内容不变：浏览器与 CDN 都缓存 1 年并标记 immutable
+  'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
   'X-Badge-Source': 'urongda-cdn',
 }
 
@@ -43,7 +45,7 @@ async function fetchUpstream(upstream: string): Promise<Response | null> {
       const res = await fetch(upstream, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; cengfan-map-badge-proxy/1.0)' },
         signal: AbortSignal.timeout(9000),
-        cf: { cacheTtl: 2592000, cacheEverything: true },
+        cf: { cacheTtl: 31536000, cacheEverything: true },
       } as RequestInit)
       if (res.ok && res.body) return res
     } catch {
@@ -60,23 +62,36 @@ interface CfEvent {
 }
 
 export const onRequestGet = async ({ request, waitUntil }: CfEvent): Promise<Response> => {
-  // 临时关闭（v1.40）：应要求暂停对 urongda.com 的引用，自动校徽获取整体下线。
-  // 保留完整代理实现以便恢复——恢复时删除此短路即可；前端另有
-  // BADGE_AUTO_FETCH_ENABLED 开关（src/utils/universities.ts）需一并拨回 true。
-  return Response.json(
-    { error: '校徽自动获取已临时关闭，可手动上传校徽图片' },
-    { status: 503 },
-  )
+  // 紧急关闭（2026-08-01，应要求）：不再回源 urongda，只服务已入边缘缓存的校徽；
+  // 缓存未命中一律 503，前端按"取不到"处理（不渲染自动校徽），
+  // 用户手动上传的校徽不受影响。恢复时删除此短路块即可。
+  {
+    const edgeCache0 = (caches as unknown as { default: Cache }).default
+    const cacheKey0 = new Request(new URL(request.url).toString(), { method: 'GET' })
+    const cached0 = await edgeCache0.match(cacheKey0)
+    if (cached0) return cached0
+    return Response.json(
+      { error: '校徽服务临时维护中，可手动上传校徽图片' },
+      { status: 503 },
+    )
+  }
+
+  const edgeCache = (caches as unknown as { default: Cache }).default
+  const cacheKey = new Request(new URL(request.url).toString(), { method: 'GET' })
 
   const name = new URL(request.url).searchParams.get('name') ?? ''
   const slug = badgeSlugOf(name)
   if (!slug) {
-    return Response.json({ error: `未收录该校徽：${name}` }, { status: 404 })
+    // 未收录：404 也在边缘短缓存 1 天，避免同一校名反复穿透到 Function
+    const notFound = Response.json(
+      { error: `未收录该校徽：${name}` },
+      { status: 404, headers: { 'Cache-Control': 'public, max-age=86400, s-maxage=86400' } },
+    )
+    waitUntil(edgeCache.put(cacheKey, notFound.clone()))
+    return notFound
   }
 
   // 1) 边缘缓存命中：直接返回（解决"首次 502、第二次就好"的冷启动问题）
-  const edgeCache = (caches as unknown as { default: Cache }).default
-  const cacheKey = new Request(new URL(request.url).toString(), { method: 'GET' })
   const cached = await edgeCache.match(cacheKey)
   if (cached) return cached
 

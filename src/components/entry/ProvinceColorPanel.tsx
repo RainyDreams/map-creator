@@ -59,6 +59,7 @@ export function ProvinceColorPanel() {
       titleHint="可选"
       summary={customized > 0 ? `已自定义 ${customized} 省` : '跟随主题'}
       mobileOpen={false}
+      desktopOpen={false}
     >
       {!geoReady ? (
         <p className="text-xs text-stone-400">地图数据加载中…</p>

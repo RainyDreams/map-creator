@@ -3,10 +3,18 @@
   X-Frame-Options: DENY
   Content-Security-Policy: frame-ancestors 'none'
 
+# 构建产物（Vite 内容哈希文件名，内容变则文件名变）：浏览器/CDN 1 年，immutable
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 画布字体子集（内容稳定，更新时改文件名）：浏览器 30 天、CDN 1 年
+/fonts/*
+  Cache-Control: public, max-age=2592000, s-maxage=31536000, immutable
+
 # 静态数据（地图轮廓等大文件）：浏览器 1 天、CDN 7 天，30 天内可用陈旧副本
 /data/*
   Cache-Control: public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000
 
-# 画布字体子集（带文件内容语义的稳定文件名，更新频率低）：浏览器 1 天、CDN 7 天，可陈旧副本
-/fonts/*
-  Cache-Control: public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000
+# 站内图片（logo/二维码/文章插图，稳定文件名）：浏览器 1 天、CDN 30 天，可陈旧副本
+/images/*
+  Cache-Control: public, max-age=86400, s-maxage=2592000, stale-while-revalidate=7776000

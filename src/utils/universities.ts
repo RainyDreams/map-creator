@@ -83,11 +83,12 @@ export function schoolBadgeUrl(university: string): string {
 }
 
 /**
- * 校徽自动获取总开关（v1.40 临时关闭）：false 时预取直接短路，
+ * 校徽自动获取总开关：false 时预取直接短路，
  * 不再向 /api/school-badge 发任何请求；手动上传的自定义校徽（badgeOverrides）不受影响。
- * 恢复时拨回 true，并删除 functions/api/school-badge.ts 顶部的 503 短路。
+ * v1.42 起恢复开启：代理接口已上极限缓存（边缘缓存 + immutable 1 年），
+ * 源站压力可忽略。
  */
-export const BADGE_AUTO_FETCH_ENABLED = false
+export const BADGE_AUTO_FETCH_ENABLED = true
 
 /* ---------- 校徽 dataURL 预取缓存：渲染与导出都直接用内联数据，避免导出时逐张重新 fetch ---------- */
 

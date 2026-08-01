@@ -166,19 +166,9 @@
     </script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // ==================== 静态资源镜像兜底 · 配置 ====================
-      // 阿里云镜像站部署好后，把下面空字符串改成镜像站地址（例如 https://mirror.example.com），
-      // 重新构建部署即可生效；保持空字符串 = 兜底关闭。
-      // 镜像站内容来源：npm run build:mirror 生成 mirror-pack 目录，上传到你的服务器即可。
-      // 服务器配置教程见 docs/mirror-setup.md
       window.__CF_MIRROR_ORIGIN__ = ''
     </script>
     <script>
-      // ==================== 静态资源镜像兜底 · 加载器 ====================
-      // 触发条件（满足其一即把资源换到镜像站重新加载，页面地址不变）：
-      //   1) /assets/ 下的 JS/CSS 加载失败（error 事件，捕获阶段监听）；
-      //   2) 12 秒后应用仍未启动（请求 stalled 不会触发 error，整体兜底）。
-      // 入口模块从镜像加载后，其内部的相对 import 会自然全部走镜像，无需逐 chunk 处理。
       !(function () {
         var MIRROR = (window.__CF_MIRROR_ORIGIN__ || '').replace(/\/+$/, '')
         if (!MIRROR) return
