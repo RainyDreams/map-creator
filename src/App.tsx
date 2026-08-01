@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Routes, Route, useLocation } from 'react-router'
 import { MapDataProvider, useMapData } from '@/store/MapDataContext'
 import { Toaster } from '@/components/ui/sonner'
@@ -14,13 +14,15 @@ import { takeShareIdFromUrl, fetchShareState } from '@/utils/share'
 import { takeSharePayloadFromHash, type ShareLinkPayload } from '@/utils/shareLink'
 import { ShareImportLanding } from '@/components/ShareImportLanding'
 import { RouteLoadingProvider } from '@/components/layout/RouteLoadingOverlay'
+import { RouteErrorBoundary } from '@/components/layout/RouteErrorBoundary'
+import { lazyWithReload, clearLazyReloadFlag } from '@/utils/lazyWithReload'
 import { track, trackSessionOnce } from '@/utils/analytics'
 
-/** 协议/隐私/关于页按需加载（独立 chunk），首屏不下载 */
-const AgreementPage = lazy(() => import('@/pages/AgreementPage'))
-const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
-const AboutPage = lazy(() => import('@/pages/AboutPage'))
-const FeedbackPage = lazy(() => import('@/pages/FeedbackPage'))
+/** 协议/隐私/关于页按需加载（独立 chunk），首屏不下载；分块拉取失败自动硬刷新自愈一次 */
+const AgreementPage = lazyWithReload(() => import('@/pages/AgreementPage'))
+const PrivacyPage = lazyWithReload(() => import('@/pages/PrivacyPage'))
+const AboutPage = lazyWithReload(() => import('@/pages/AboutPage'))
+const FeedbackPage = lazyWithReload(() => import('@/pages/FeedbackPage'))
 
 /**
  * 路由级全屏加载动画（v1.42.7）：懒加载页面 chunk 下载期间覆盖全屏，
@@ -327,23 +329,27 @@ export default function App() {
   useEffect(() => {
     trackSessionOnce()
     track('pv')
+    // 应用成功挂载：重置分块加载失败的自动刷新标记，允许下次失败再自愈一次
+    clearLazyReloadFlag()
   }, [pathname])
 
   return (
     <MapDataProvider>
-      <RouteLoadingProvider>
-        <Suspense fallback={<RouteLoading />}>
-          <Routes>
-            <Route path="/" element={<Creator />} />
-            {/* Pages 会把 debug.html 规范化重定向到 /debug，调试入口与正式入口共用 Creator */}
-            <Route path="/debug" element={<Creator />} />
-            <Route path="/agreement" element={<AgreementPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/feedback" element={<FeedbackPage />} />
-          </Routes>
-        </Suspense>
-      </RouteLoadingProvider>
+      <RouteErrorBoundary>
+        <RouteLoadingProvider>
+          <Suspense fallback={<RouteLoading />}>
+            <Routes>
+              <Route path="/" element={<Creator />} />
+              {/* Pages 会把 debug.html 规范化重定向到 /debug，调试入口与正式入口共用 Creator */}
+              <Route path="/debug" element={<Creator />} />
+              <Route path="/agreement" element={<AgreementPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/feedback" element={<FeedbackPage />} />
+            </Routes>
+          </Suspense>
+        </RouteLoadingProvider>
+      </RouteErrorBoundary>
       {importPayload !== null && (
         <ShareImportLanding payload={importPayload} onClose={() => setImportPayload(null)} />
       )}

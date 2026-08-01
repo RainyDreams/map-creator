@@ -5,6 +5,13 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v1.42.9',
+    date: '2026-08-02 01:10',
+    items: [
+      '修复版本更新后部分页面打不开（整页空白）的问题：页面分块加载失败时会自动刷新一次自愈；仍失败则显示「页面加载失败」提示和重新加载按钮，不再直接白屏',
+    ],
+  },
+  {
     version: 'v1.42.8',
     date: '2026-08-02 00:45',
     items: [
