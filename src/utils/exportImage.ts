@@ -19,6 +19,7 @@
  * 代码分割：html-to-image 只在真正导出时动态加载（独立 chunk），不拖慢首屏。
  */
 import { getCachedFontEmbedCss, setCachedFontEmbedCss } from './exportFontCache'
+import { buildFontEmbedCSS } from './exportFonts'
 import { getBadgeDataUrlByFileSync } from './universities'
 
 /** html-to-image 懒加载：首次导出时加载，之后模块缓存复用 */
@@ -298,6 +299,7 @@ async function renderUltra(
   node: HTMLElement,
   hti: typeof import('html-to-image'),
   bg: string,
+  fontEmbedCSS: string,
   onProgress?: ExportProgressFn,
   signal?: AbortSignal,
 ): Promise<{ dataUrl: string; width: number; height: number }> {
@@ -309,15 +311,8 @@ async function renderUltra(
   onProgress?.(30, '正在序列化矢量图（内嵌字体）…')
   // 注意：不要开 cacheBust——它会给字体/图片 URL 追加随机参数，绕过浏览器 HTTP 缓存，
   // 每次导出重新下载 ~10MB 字体子集，是导出慢的主要原因；同源资源用浏览器缓存即可。
-  // 字体嵌入 CSS 会话级缓存：getFontEmbedCSS 要抓取并 base64 内嵌全部字体子集
-  // （SVG 序列化耗时大头），字体是静态子集，跨导出复用；切换字体时缓存失效。
-  // 60s 超时兜底：资源紧张时 toSvg 可能永不 resolve，超时回退位图导出而非无限卡住
-  let fontEmbedCSS = getCachedFontEmbedCss()
-  if (fontEmbedCSS === null) {
-    fontEmbedCSS = await withTimeout(hti.getFontEmbedCSS(node), 60000, '字体嵌入')
-    setCachedFontEmbedCss(fontEmbedCSS)
-    t = logStep(`字体嵌入完成（${Math.round(fontEmbedCSS.length / 1024)}KB，会话内仅此次）`, t)
-  }
+  // fontEmbedCSS 由 renderNodeToPngDataUrl 统一构建（自建构建器，带超时与降级），
+  // html-to-image 收到该参数即跳过自己的字体抓取；60s 超时兜底防 toSvg 永不 resolve
   const svgUrl = await withTimeout(toSvg(node, { backgroundColor: bg, fontEmbedCSS }), 60000, 'SVG 序列化')
   throwIfAborted(signal)
   t = logStep(`SVG 序列化完成（${Math.round(svgUrl.length / 1024)}KB）`, t)
@@ -376,6 +371,7 @@ async function renderLayered(
   hti: typeof import('html-to-image'),
   bg: string,
   quality: ExportQuality,
+  fontEmbedCSS: string,
   onProgress?: ExportProgressFn,
   signal?: AbortSignal,
 ): Promise<{ dataUrl: string; width: number; height: number }> {
@@ -424,8 +420,9 @@ async function renderLayered(
   document.body.appendChild(bgHolder)
   let bgImg: HTMLImageElement
   try {
+    // 纯背景 div 无任何文字，skipFonts 让 html-to-image 完全跳过字体处理
     const bgUrl = await withTimeout(
-      hti.toPng(bgDiv, { pixelRatio: ratio }),
+      hti.toPng(bgDiv, { pixelRatio: ratio, skipFonts: true }),
       45000,
       '背景层渲染',
     )
@@ -441,11 +438,6 @@ async function renderLayered(
   let mapPos = { x: 0, y: 0, w: 0, h: 0 }
   if (mapSvg && mapRect && mapRect.width > 0 && mapRect.height > 0) {
     onProgress?.(50, '分层渲染：地图矢量层…')
-    let fontEmbedCSS = getCachedFontEmbedCss()
-    if (fontEmbedCSS === null) {
-      fontEmbedCSS = await withTimeout(hti.getFontEmbedCSS(node), 60000, '字体嵌入')
-      setCachedFontEmbedCss(fontEmbedCSS)
-    }
     const svgClone = mapSvg.cloneNode(true) as SVGSVGElement
     svgClone.setAttribute('width', String(mapRect.width))
     svgClone.setAttribute('height', String(mapRect.height))
@@ -484,8 +476,9 @@ async function renderLayered(
       mapSvg.remove()
     }
     node.style.background = 'none'
+    // fontEmbedCSS 复用统一构建结果，html-to-image 跳过自己的字体抓取
     const overlayUrl = await withTimeout(
-      hti.toPng(node, { pixelRatio: ratio, backgroundColor: 'rgba(0,0,0,0)' }),
+      hti.toPng(node, { pixelRatio: ratio, backgroundColor: 'rgba(0,0,0,0)', fontEmbedCSS }),
       90000,
       '覆盖层渲染',
     )
@@ -543,16 +536,30 @@ export async function renderNodeToPngDataUrl(
   const bg = resolveNodeBg(node)
   const result = await withOffscreenClone(node, async (clone) => {
     throwIfAborted(signal)
+    // 字体嵌入 CSS 统一在此构建一次（自建构建器：按用量嵌入、单文件 25s 超时、
+    // 失败降级跳过），全部渲染路径复用——html-to-image 收到 fontEmbedCSS
+    // （即使空串）即跳过自己无超时的字体抓取，慢网络下不再连环超时
+    let fontEmbedCSS = getCachedFontEmbedCss()
+    if (fontEmbedCSS === null) {
+      try {
+        fontEmbedCSS = await withTimeout(buildFontEmbedCSS(), 45000, '字体嵌入')
+      } catch (err) {
+        console.warn(`[导出] 字体嵌入未完成，按回退字体继续导出：${describeError(err)}`)
+        fontEmbedCSS = ''
+      }
+      // 空串不缓存（下次导出重试）；非空跨导出复用
+      if (fontEmbedCSS) setCachedFontEmbedCss(fontEmbedCSS)
+    }
     // Safari/WebKit：html-to-image 对大 SVG 画布的样式内联会卡死（60s/90s 连环超时，
     // 2026-07-29 用户日志实锤），直接使用分层渲染（v1.36.5）
     if (isSafariEngine()) {
       console.info('[导出] 检测到 Safari/WebKit 内核，直接使用分层渲染路径')
-      const r = await renderLayered(clone, hti, bg, quality, onProgress, signal)
+      const r = await renderLayered(clone, hti, bg, quality, fontEmbedCSS, onProgress, signal)
       return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
     }
     if (quality === 'ultra') {
       try {
-        const r = await renderUltra(clone, hti, bg, onProgress, signal)
+        const r = await renderUltra(clone, hti, bg, fontEmbedCSS, onProgress, signal)
         return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: false }
       } catch (err) {
         // 用户取消不属于失败，直接向上抛，不回退位图重跑一遍
@@ -562,14 +569,18 @@ export async function renderNodeToPngDataUrl(
         console.warn(`[导出] SVG 矢量栅格化失败，尝试分层渲染：${describeError(err)}`)
         onProgress?.(40, '矢量栅格化失败，尝试分层渲染…')
         try {
-          const r = await renderLayered(clone, hti, bg, quality, onProgress, signal)
+          const r = await renderLayered(clone, hti, bg, quality, fontEmbedCSS, onProgress, signal)
           return { dataUrl: r.dataUrl, width: r.width, height: r.height, quality, fellBack: true }
         } catch (err2) {
           if (err2 instanceof ExportCancelledError) throw err2
           console.warn(`[导出] 分层渲染失败，回退 pixelRatio 4 位图导出：${describeError(err2)}`)
           onProgress?.(45, '分层渲染失败，回退高清位图导出…')
           let t = performance.now()
-          const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 4, backgroundColor: bg }), 90000, '位图回退渲染')
+          const dataUrl = await withTimeout(
+            toPng(clone, { pixelRatio: 4, backgroundColor: bg, fontEmbedCSS }),
+            90000,
+            '位图回退渲染',
+          )
           throwIfAborted(signal)
           logStep(`位图回退导出完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
           const w = clone.offsetWidth * 4
@@ -580,7 +591,11 @@ export async function renderNodeToPngDataUrl(
     }
     onProgress?.(35, '正在渲染高清位图…')
     let t = performance.now()
-    const dataUrl = await withTimeout(toPng(clone, { pixelRatio: 2, backgroundColor: bg }), 60000, '位图渲染')
+    const dataUrl = await withTimeout(
+      toPng(clone, { pixelRatio: 2, backgroundColor: bg, fontEmbedCSS }),
+      60000,
+      '位图渲染',
+    )
     throwIfAborted(signal)
     logStep(`位图渲染完成（${Math.round(dataUrl.length / 1024)}KB）`, t)
     onProgress?.(88, '正在编码 PNG…')

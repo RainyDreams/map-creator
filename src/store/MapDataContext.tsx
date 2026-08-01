@@ -19,7 +19,7 @@ import {
   type FontSlot,
 } from '@/utils/fonts'
 import { fetchShareState, pushShareUpdate, type ShareRole } from '@/utils/share'
-import { invalidateFontEmbedCache } from '@/utils/exportFontCache'
+import { invalidateFontEmbedCache, setExportCustomFonts } from '@/utils/exportFontCache'
 
 const STORAGE_KEY = 'cenfan-map-store-v2'
 const LEGACY_KEY = 'cenfan-map-data-v1'
@@ -589,9 +589,11 @@ export function MapDataProvider({ children }: { children: ReactNode }) {
     }
   }, [persisted])
 
-  // 启动与变更时注册自定义字体（FontFace API，幂等）
+  // 启动与变更时注册自定义字体（FontFace API，幂等）；
+  // 同步给导出模块做字体嵌入（自定义字体是 dataURL，嵌入零网络请求）
   useEffect(() => {
     void ensureCustomFontsLoaded(customFonts)
+    setExportCustomFonts(customFonts)
   }, [customFonts])
 
   /* ---------------- 分享协同同步引擎 ----------------

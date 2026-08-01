@@ -1,0 +1,187 @@
+/**
+ * 导出用的字体嵌入 CSS 构建器（v1.42.2）。
+ *
+ * 为什么不用 html-to-image 的 getFontEmbedCSS：
+ * 它对每个字体 URL 裸 fetch()、无超时——慢网络/边缘节点抖动时永不 resolve，
+ * 把 SVG 序列化、分层渲染、位图回退三条路径连环拖死（2026-08-01 用户日志实锤：
+ * 字体嵌入 60s、背景层 45s、位图 90s 全部超时）。
+ *
+ * 本构建器的策略：
+ * 1. 只嵌入画布实际用到的字体分片——document.fonts.check 判定（浏览器按需
+ *    加载 unicode-range 分片，已加载即画面在用），没用到生僻字就不嵌 cjk-b；
+ * 2. 每个文件独立 25s 超时、并行抓取，失败/超时只跳过该文件（导出降级为
+ *    回退字体继续，与 font-display:swap 下用户屏幕上看到的画面一致），
+ *    绝不让整个导出失败；
+ * 3. fetch 用 force-cache 吃满浏览器 HTTP 缓存（/fonts/* 是 immutable），
+ *    主站失败时若配置了静态镜像（window.__CF_MIRROR_ORIGIN__）自动走镜像重试；
+ * 4. 用户上传的自定义字体本就是 dataURL，直接内嵌，零网络请求。
+ */
+import { getExportCustomFonts } from './exportFontCache'
+import { customFontFamilyName } from './fonts'
+
+/** 单个字体分片描述（与 index.css / components/map/fonts.css 的 @font-face 一一对应） */
+interface FontFileDef {
+  family: string
+  /** public/fonts 下的文件名 */
+  file: string
+  weight: number
+  /** unicode-range（无则省略，如 AlimamaShuHeiTi 全量小文件） */
+  range?: string
+  /** document.fonts.check 用的字体简写与代表字符（命中该分片的 unicode-range） */
+  checkFont: string
+  checkText: string
+}
+
+const RANGE_LATIN = 'U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF'
+const RANGE_CJK_A = 'U+4E00-7FFF'
+const RANGE_CJK_B = 'U+8000-9FFF'
+
+/** 三片分族的通用定义生成器 */
+function splitFamily(family: string): FontFileDef[] {
+  return [
+    {
+      family,
+      file: `${family}-subset-latin.woff2`,
+      weight: 400,
+      range: RANGE_LATIN,
+      checkFont: `20px "${family}"`,
+      checkText: 'A',
+    },
+    {
+      family,
+      file: `${family}-subset-cjk-a.woff2`,
+      weight: 400,
+      range: RANGE_CJK_A,
+      checkFont: `20px "${family}"`,
+      checkText: '中', // U+4E2D，落在 cjk-a
+    },
+    {
+      family,
+      file: `${family}-subset-cjk-b.woff2`,
+      weight: 400,
+      range: RANGE_CJK_B,
+      checkFont: `20px "${family}"`,
+      checkText: '蹭', // U+8E6D，落在 cjk-b
+    },
+  ]
+}
+
+const FONT_FILES: FontFileDef[] = [
+  {
+    family: 'AlimamaShuHeiTi',
+    file: 'AlimamaShuHeiTi-Bold-subset.woff2',
+    weight: 700,
+    checkFont: '700 20px "AlimamaShuHeiTi"',
+    checkText: '2',
+  },
+  ...splitFamily('MaShanZheng'),
+  ...splitFamily('NotoSansSC'),
+  ...splitFamily('ZCOOLXiaoWei'),
+  ...splitFamily('ZCOOLQingKeHuangYou'),
+  {
+    family: 'JetBrainsMono',
+    file: 'jetbrains-mono-latin-400.woff2',
+    weight: 400,
+    checkFont: '20px "JetBrainsMono"',
+    checkText: 'm',
+  },
+  {
+    family: 'JetBrainsMono',
+    file: 'jetbrains-mono-latin-500.woff2',
+    weight: 500,
+    checkFont: '500 20px "JetBrainsMono"',
+    checkText: 'm',
+  },
+]
+
+/** 单文件抓取超时：HTTP 缓存命中是毫秒级，25s 只兜冷缓存+慢网络 */
+const FETCH_TIMEOUT_MS = 25000
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('字体数据读取失败'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function fetchFontDataUrl(url: string): Promise<string> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS)
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, cache: 'force-cache' })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await blobToDataUrl(await res.blob())
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** 主站失败时走静态镜像重试一次（镜像未配置则直接抛原错误） */
+async function fetchFontWithMirror(url: string): Promise<string> {
+  try {
+    return await fetchFontDataUrl(url)
+  } catch (err) {
+    const mirror = (
+      (window as unknown as { __CF_MIRROR_ORIGIN__?: string }).__CF_MIRROR_ORIGIN__ ?? ''
+    ).replace(/\/+$/, '')
+    if (!mirror) throw err
+    return await fetchFontDataUrl(`${mirror}${url}`)
+  }
+}
+
+/**
+ * 构建字体嵌入 CSS。永不 reject：任何文件失败都只跳过并告警，
+ * 全失败时返回空串（html-to-image 收到空串同样跳过自己的字体抓取，
+ * 导出以回退字体完成）。
+ */
+export async function buildFontEmbedCSS(): Promise<string> {
+  const t = performance.now()
+  try {
+    // 只嵌实际用到的分片：浏览器按需加载 unicode-range 分片，
+    // check 通过 = 画面在用该分片（离屏克隆与屏幕画布同文同字体）
+    const used = FONT_FILES.filter((def) => {
+      try {
+        return document.fonts.check(def.checkFont, def.checkText)
+      } catch {
+        return false
+      }
+    })
+    const results = await Promise.all(
+      used.map(async (def) => {
+        try {
+          const dataUrl = await fetchFontWithMirror(`/fonts/${def.file}`)
+          const range = def.range ? `unicode-range:${def.range};` : ''
+          return `@font-face{font-family:'${def.family}';font-style:normal;font-weight:${def.weight};${range}src:${`url("${dataUrl}")`} format('woff2');}`
+        } catch (err) {
+          console.warn(
+            `[导出] 字体分片嵌入失败已跳过：${def.family}（${def.file}），` +
+              `该部分文字将以回退字体导出。原因：${err instanceof Error ? err.message : String(err)}`,
+          )
+          return ''
+        }
+      }),
+    )
+    // 用户上传的自定义字体：FontFace API 注册、不在样式表里，html-to-image 从来
+    // 嵌不进去（自定义字体导出曾静默变回退字体）；dataURL 直接内嵌，零请求
+    for (const font of getExportCustomFonts()) {
+      results.push(
+        `@font-face{font-family:'${customFontFamilyName(font)}';src:url("${font.dataUrl}");}`,
+      )
+    }
+    const css = results.filter(Boolean).join('\n')
+    const ok = results.filter(Boolean).length
+    console.info(
+      `[导出] 字体嵌入构建完成（${Math.round(css.length / 1024)}KB，${ok}/${used.length} 个分片` +
+        `${getExportCustomFonts().length > 0 ? `，含 ${getExportCustomFonts().length} 个自定义字体` : ''}` +
+        `，+${Math.round(performance.now() - t)}ms）`,
+    )
+    return css
+  } catch (err) {
+    console.warn(
+      `[导出] 字体嵌入构建异常，按回退字体继续导出：${err instanceof Error ? err.message : String(err)}`,
+    )
+    return ''
+  }
+}
