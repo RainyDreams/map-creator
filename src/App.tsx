@@ -305,6 +305,13 @@ export default function App() {
     if (p) setImportPayload(p)
   }, [])
 
+  // 通知「功能更新」遮罩：应用框架首帧已提交渲染，可撤除遮罩——
+  // 字体等后台资源继续加载（font-display:swap 渐进显示），
+  // 不再等 window.load 把所有字体下载完才撤；index.html 侧保留 load 兜底
+  useEffect(() => {
+    window.dispatchEvent(new Event('cenfan:app-ready'))
+  }, [])
+
   // 匿名使用统计：会话每天一次 + 页面访问计数（仅事件名，不含路径参数；需用户已同意协议）
   const { pathname } = useLocation()
   useEffect(() => {

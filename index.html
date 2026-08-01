@@ -149,7 +149,10 @@
             if (_fill) _fill.style.width = _p + '%'
             if (_pct) _pct.textContent = Math.round(_p) + '%'
           }, 120)
-          window.addEventListener('load', function () {
+          var _done = false
+          function _finish() {
+            if (_done) return
+            _done = true
             window.setTimeout(function () {
               window.clearInterval(_timer)
               if (_fill) _fill.style.width = '100%'
@@ -163,7 +166,12 @@
                 }, 320)
               }, 350)
             }, Math.max(0, 900 - (Date.now() - _t0)))
-          })
+          }
+          // 主撤除时机（v1.42.6）：应用框架首帧渲染完成即撤——字体等后台资源
+          // 继续加载（font-display:swap 渐进显示），不再等 load 把字体下载完
+          window.addEventListener('cenfan:app-ready', _finish)
+          // 兜底：入口异常时 load 也会撤（资源加载失败不影响 load 触发）
+          window.addEventListener('load', _finish)
         } catch (e) {}
       })()
     </script>
