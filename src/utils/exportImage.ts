@@ -19,7 +19,7 @@
  * 代码分割：html-to-image 只在真正导出时动态加载（独立 chunk），不拖慢首屏。
  */
 import { getCachedFontEmbedCss, setCachedFontEmbedCss } from './exportFontCache'
-import { getBadgeDataUrlSync } from './universities'
+import { getBadgeDataUrlByFileSync } from './universities'
 
 /** html-to-image 懒加载：首次导出时加载，之后模块缓存复用 */
 async function loadHtmlToImage(): Promise<typeof import('html-to-image')> {
@@ -209,12 +209,11 @@ function sanitizeCloneImages(clone: HTMLElement): void {
   for (const image of Array.from(clone.querySelectorAll('image'))) {
     const href = image.getAttribute('href') ?? ''
     if (!href || href.startsWith('data:')) continue
-    if (!href.includes('/api/school-badge')) continue
-    const m = /[?&]name=([^&]+)/.exec(href)
-    if (!m) continue
+    if (!href.includes('/badges/')) continue
+    const file = decodeURIComponent(href.slice(href.lastIndexOf('/badges/') + 8))
     let cached: string | null | undefined
     try {
-      cached = getBadgeDataUrlSync(decodeURIComponent(m[1]))
+      cached = getBadgeDataUrlByFileSync(file)
     } catch {
       continue
     }

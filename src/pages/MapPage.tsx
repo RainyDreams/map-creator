@@ -325,8 +325,8 @@ export default function MapPage() {
       const key = s.university.trim()
       if (key === '') continue
       const info: UniInfo | undefined = getUniInfoSync(key)
-      // 校徽自动获取临时关闭（v1.40，BADGE_AUTO_FETCH_ENABLED=false）时按无校徽处理：
-      // 不预留校徽位、不渲染 <image>，彻底避免向 /api/school-badge 发请求；
+      // 校徽为本地自托管静态文件（/badges/<哈希文件名>，immutable 长缓存）：
+      // b（校徽文件名）有值时才预留校徽位并渲染 <image>；
       // 用户手动上传的校徽走 badgeOverrides 通道，不受影响
       const hasBadge = data.showBadges && BADGE_AUTO_FETCH_ENABLED && info?.b != null
       m.set(key, {

@@ -12,7 +12,7 @@ export interface UniInfo {
   p: string | null
   /** 软科 2025 主榜排名；501 表示 500+；null 表示未上榜/未收录 */
   r: number | null
-  /** 校徽 slug（有值即可请求 /api/school-badge?name=...） */
+  /** 本地自托管校徽文件名（/badges/<file>，有值即有校徽） */
   b: string | null
 }
 
@@ -77,16 +77,21 @@ export async function prefetchUniversities(names: string[]): Promise<Map<string,
   return fresh
 }
 
-/** 校徽图片地址（经本站 Pages Function 代理，不直连第三方） */
+/**
+ * 校徽图片地址（v1.42.1 起为本地自托管静态文件 /badges/<内容哈希文件名>，
+ * immutable 长缓存；不再代理第三方站点）。
+ * 文件名来自 /api/universities 返回的 b 字段，调用前需先 prefetchUniversities；
+ * 缓存未预热时返回空串，调用方均在校徽存在（b != null）的分支内使用。
+ */
 export function schoolBadgeUrl(university: string): string {
-  return `/api/school-badge?name=${encodeURIComponent(university.trim())}`
+  const file = getUniInfoSync(university)?.b
+  return file ? `/badges/${encodeURIComponent(file)}` : ''
 }
 
 /**
- * 校徽自动获取总开关：false 时预取直接短路，
- * 不再向 /api/school-badge 发任何请求；手动上传的自定义校徽（badgeOverrides）不受影响。
- * v1.42 起恢复开启：代理接口已上极限缓存（边缘缓存 + immutable 1 年），
- * 源站压力可忽略。
+ * 校徽自动获取总开关：false 时预取直接短路，不请求任何校徽文件；
+ * 手动上传的自定义校徽（badgeOverrides）不受影响。
+ * v1.42.1 起校徽为本地自托管静态文件（/badges/，2961 所，immutable 缓存）。
  */
 export const BADGE_AUTO_FETCH_ENABLED = true
 
@@ -94,11 +99,18 @@ export const BADGE_AUTO_FETCH_ENABLED = true
 
 /** key 为原始校名（trim 后）；value 为 dataURL，null 表示取不到（404/失败） */
 const badgeCache = new Map<string, string | null>()
+/** key 为校徽文件名（/badges/<file> 的 file）；与 badgeCache 同步写入，供导出按 href 反查 */
+const badgeFileCache = new Map<string, string | null>()
 const badgeInflight = new Map<string, Promise<void>>()
 
 /** 同步读校徽 dataURL 缓存；未预取过返回 undefined */
 export function getBadgeDataUrlSync(university: string): string | null | undefined {
   return badgeCache.get(university.trim())
+}
+
+/** 同步按文件名读校徽 dataURL 缓存（导出整理克隆时按 <image> href 反查）；未预取过返回 undefined */
+export function getBadgeDataUrlByFileSync(file: string): string | null | undefined {
+  return badgeFileCache.get(file)
 }
 
 /**
@@ -107,7 +119,6 @@ export function getBadgeDataUrlSync(university: string): string | null | undefin
  * html-to-image 看到 data: 协议会跳过网络内联步骤，首次导出也能明显提速。
  */
 export async function prefetchBadgeDataUrls(universities: string[]): Promise<void> {
-  // 校徽自动获取临时关闭（v1.40）：不发任何请求，已缓存的会话内数据仍可渲染
   if (!BADGE_AUTO_FETCH_ENABLED) return
   const todo = [...new Set(
     universities.map((s) => s.trim()).filter((s) => s !== '' && !badgeCache.has(s) && !badgeInflight.has(s)),
@@ -115,10 +126,16 @@ export async function prefetchBadgeDataUrls(universities: string[]): Promise<voi
   await Promise.all(
     todo.map((name) => {
       const task = (async () => {
+        const file = getUniInfoSync(name)?.b ?? ''
         try {
-          const res = await fetch(schoolBadgeUrl(name))
+          if (file === '') {
+            badgeCache.set(name, null)
+            return
+          }
+          const res = await fetch(`/badges/${encodeURIComponent(file)}`)
           if (!res.ok) {
             badgeCache.set(name, null) // 404 等：记住"没有"，不再反复请求
+            badgeFileCache.set(file, null)
             return
           }
           const blob = await res.blob()
@@ -129,6 +146,7 @@ export async function prefetchBadgeDataUrls(universities: string[]): Promise<voi
             fr.readAsDataURL(blob)
           })
           badgeCache.set(name, dataUrl)
+          badgeFileCache.set(file, dataUrl)
         } catch {
           // 网络失败不写缓存，下次还会重试
         } finally {

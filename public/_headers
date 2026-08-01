@@ -7,6 +7,11 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# 校徽图片（内容哈希文件名，2961 所自托管）：浏览器/CDN 1 年，immutable
+# 一人访问即入 Cloudflare 边缘缓存，其他访客直接从最近节点读取
+/badges/*
+  Cache-Control: public, max-age=31536000, immutable
+
 # 画布字体子集（内容稳定，更新时改文件名）：浏览器 30 天、CDN 1 年
 /fonts/*
   Cache-Control: public, max-age=2592000, s-maxage=31536000, immutable

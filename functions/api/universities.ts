@@ -8,8 +8,12 @@
  *
  * 匹配规则（与前端正则一致）：精确 → 去括号校区后缀 → 括号内为城市时用校区城市 → 双向包含模糊。
  * 缓存：CDN 长缓存 + stale-while-revalidate，数据集为静态内容。
+ * 校徽字段 b 自 v1.42.1 起为本地自托管校徽文件名（_data/badge-files.json，
+ * 2961 所高校，/badges/<文件名> 静态加载，内容哈希命名 + immutable 缓存），
+ * 不再代理任何第三方站点。
  */
 import universitiesData from './_data/universities.json'
+import badgeFilesData from './_data/badge-files.json'
 import cityProvinceData from '../../src/assets/city-province.json'
 
 /** name -> [city|null, provinceFull|null, rank|null, badgeSlug|null]（尾部 null 已压缩） */
@@ -18,6 +22,26 @@ const DATA = universitiesData as unknown as Record<string, RawEntry>
 const CITY_TO_PROVINCE = cityProvinceData as unknown as Record<string, string>
 
 const NAMES = Object.keys(DATA)
+
+/** 校名 → 本地校徽文件名（自托管 /badges/，2961 所） */
+const BADGE_FILES = badgeFilesData as unknown as Record<string, string>
+const BADGE_NAMES = Object.keys(BADGE_FILES)
+
+/** 校名 → 本地校徽文件名：精确 → 去括号基名 → 包含匹配（取最长键） */
+function badgeFileOf(query: string): string | null {
+  const name = query.trim()
+  if (!name) return null
+  const base = name.replace(/[（(].*$/, '').trim()
+  const direct = BADGE_FILES[name] ?? BADGE_FILES[base]
+  if (direct) return direct
+  let best: string | null = null
+  for (const k of BADGE_NAMES) {
+    if (base.includes(k) || k.includes(base)) {
+      if (best === null || k.length > best.length) best = k
+    }
+  }
+  return best ? BADGE_FILES[best] : null
+}
 
 interface UniInfo {
   n: string | null
@@ -119,7 +143,8 @@ export const onRequestGet = ({ request }: { request: Request }): Response => {
     )
   }
 
-  const results = queries.map((q) => ({ q, ...lookup(q) }))
+  // b 字段以本地自托管校徽文件名为准（lookup 内部的 slug 兜底仅为历史数据结构保留，一律覆盖）
+  const results = queries.map((q) => ({ q, ...lookup(q), b: badgeFileOf(q) }))
   return Response.json(
     { results },
     {
