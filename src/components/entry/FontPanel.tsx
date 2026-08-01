@@ -521,6 +521,16 @@ export function FontPanel() {
           />
         </div>
       )}
+      {/* 校徽来源署名（低打扰：10px 浅灰小字，置于校徽设置区末尾） */}
+      {data.showBadges && (
+        <p className="mt-1.5 text-[10px] leading-relaxed text-stone-300">
+          自动匹配的校徽图片来源于
+          <a href="https://www.urongda.com" target="_blank" rel="noreferrer" className="underline decoration-stone-200 underline-offset-2 hover:text-stone-400">
+            优荣达
+          </a>
+          ，著作权归各院校所有。
+        </p>
+      )}
 
       {/* ============ 卡片样式 ============ */}
       <div className="mt-3 border-t border-stone-100 pt-2.5 text-[11px] font-medium tracking-wide text-stone-400">

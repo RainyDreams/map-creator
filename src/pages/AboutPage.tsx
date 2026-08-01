@@ -497,8 +497,9 @@ export default function AboutPage() {
           用户可在录入弹窗中随时拖动改为手动顺序。
         </p>
         <p>
-          校徽图片由本站<strong>自托管</strong>（已收录 2900 余所高校，200px JPEG），
-          浏览器与边缘节点长缓存（immutable），不依赖任何第三方站点；
+          校徽图片来源于<strong>优荣达（<a href="https://www.urongda.com" target="_blank" rel="noreferrer">urongda.com</a>）</strong>，
+          经本站压缩优化后自托管（已收录 2900 余所高校，200px JPEG），
+          浏览器与边缘节点长缓存（immutable），不向源站反复请求；
           未收录的院校可在学生名单中<strong>手动上传校徽图片</strong>。
           校徽著作权归各院校所有，如院校或权利方认为使用不当，请联系我们移除。
         </p>
