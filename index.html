@@ -140,12 +140,15 @@
           if (_hs) _hs.textContent = 'build ' + _hash
           var _sp = document.getElementById('cfUpdateSplash')
           var _p = 0
+          var _t0 = Date.now()
+          // 时间驱动的渐近曲线（v1.42.5）：起步快、随后缓速逼近 92% 但几乎不停滞，
+          // 慢网络下进度条始终在动；加载完成由下方 load 监听补到 100%
           var _timer = window.setInterval(function () {
-            _p = Math.min(92, _p + 1 + Math.random() * 4)
+            var _el = (Date.now() - _t0) / 1000
+            _p = 92 * (1 - Math.exp(-_el / 7))
             if (_fill) _fill.style.width = _p + '%'
             if (_pct) _pct.textContent = Math.round(_p) + '%'
           }, 120)
-          var _t0 = Date.now()
           window.addEventListener('load', function () {
             window.setTimeout(function () {
               window.clearInterval(_timer)
