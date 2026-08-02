@@ -70,7 +70,10 @@ export default function SiteFooter() {
   return (
     <footer className="shrink-0 border-t border-stone-200 bg-stone-50 px-3 py-2.5 text-center text-[11px] leading-5 text-stone-400">
       <p>
-        © {year} 赤峰二中2026届&海南大学人工智能2026级张同学 · 蹭饭图生成器 v{APP_VERSION}
+        {/* 移动端窄屏：署名仅保留海南大学，不显示赤峰二中，避免一行挤不下 */}
+        <span className="md:hidden">© {year} 海南大学人工智能2026级张同学</span>
+        <span className="hidden md:inline">© {year} 赤峰二中2026届&amp;海南大学人工智能2026级张同学</span>
+        {' '}· 蹭饭图生成器 v{APP_VERSION}
       </p>
       <p className="hidden flex-wrap items-center justify-center gap-x-2 gap-y-0.5 md:flex">
         <a

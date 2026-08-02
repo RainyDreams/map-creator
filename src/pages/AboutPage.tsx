@@ -5,6 +5,15 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v1.43.2',
+    date: '2026-08-03 00:15',
+    items: [
+      '移动端页脚署名精简：窄屏下只显示「海南大学人工智能2026级」，不再两行拥挤',
+      '问题反馈页新增公众号二维码：建议发视频/截图类问题直接发公众号私信，排查更方便、回复更快',
+      '2.0 发布文章《蹭饭图生成器 2.0 正式发布》上线（/article3/），全部插图使用虚构示例数据',
+    ],
+  },
+  {
     version: 'v1.43.1',
     date: '2026-08-02 22:15',
     items: [

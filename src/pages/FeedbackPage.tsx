@@ -733,6 +733,19 @@ export default function FeedbackPage() {
             权当是为社会添一块砖、加一片瓦。你的每一条反馈我都会认真看，
             好的建议会尽量排进后续版本；如果我不忙的话，一般两天以内肯定会有回复。
           </p>
+          {/* 公众号入口：视频类问题建议发私信，排查更方便、回复更快 */}
+          <div className="flex items-center gap-4 rounded-xl border border-stone-200/70 bg-white/60 p-4">
+            <img
+              src="/images/qr-lingben-mp.jpg"
+              alt="微信公众号「零本」二维码"
+              className="h-20 w-20 shrink-0 rounded-lg border border-stone-100"
+            />
+            <p className="text-sm leading-6 text-stone-500">
+              如果问题需要发送<strong className="text-stone-700">视频</strong>，
+              建议扫码关注公众号「零本」，直接发送到<strong className="text-stone-700">公众号私信</strong>——
+              这样更方便为大家排查，私信的回复速度也会很快。
+            </p>
+          </div>
           {formSection}
           <section className="space-y-3">
             <SectionTitle>大家的反馈</SectionTitle>
