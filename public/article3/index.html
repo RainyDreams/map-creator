@@ -16,93 +16,113 @@
     不积跬步，无以至千里；不积小流，无以成江海。
   </blockquote>
 
-  <img src="images/cover.jpg" alt="墨点之间，添了几点朱砂与金" style="width:100%;display:block;margin:0 0 28px;border-radius:6px;" />
+  <img src="images/cover.jpg" alt="蹭饭图生成器 2.0" style="width:100%;display:block;margin:0 0 28px;border-radius:6px;" />
 
-  <p style="margin:0 0 16px;">一个月，四十多个版本。蹭饭图生成器从一张能用的地图，长成了今天这副模样——我们把它叫作 <strong>2.0</strong>。</p>
+  <p style="margin:0 0 16px;">今天，蹭饭图生成器发布 2.0 版本。从 1.0 到 2.0 共用了一个月、四十多个版本。这篇文章完整地介绍一遍它现在的样子。</p>
 
-  <p style="margin:0 0 16px;">这个版本没有单一的主角，因为变化几乎发生在每一个角落：名字可以只留一个姓，画布可以装点得更满；字体添了新面孔；导出不再让人干等；而你写下的每一条反馈，现在都有回音。</p>
+  <p style="margin:0 0 16px;">蹭饭图生成器是一个为毕业班设计的小工具：录入全班同学的去向，自动生成一幅中国地图——谁去了哪座城市、哪所大学，在图上一目了然。生成的图片可以发到班级群，约好以后每到一地，都有人管饭。</p>
 
-  <p style="margin:0 0 24px;">工具依然完全免费，无需注册，所有数据只保存在你自己的浏览器里。打开 <strong style="color:#2b6cb0;">map.linkbrain.top</strong> 即可使用。</p>
+  <p style="margin:0 0 24px;">工具完全免费，无需注册，数据只保存在你自己的浏览器里。打开 <strong style="color:#2b6cb0;">map.linkbrain.top</strong> 即可使用。</p>
 
   <img src="images/map-full.jpg" alt="示例：2.0 的蹭饭图全貌（人物均为虚构）" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
-  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">示例：一幅 33 人的蹭饭图，卡片角落是人数统计小块（图中人物均为虚构）</p>
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">一幅 33 人的蹭饭图（示例，人物均为虚构），卡片角落为人数统计</p>
 
-  <!-- ============ 大节：每一个人 ============ -->
-  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">每一个人</p>
+  <!-- ============ 大节：名单 ============ -->
+  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">名单</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 名字，可以只留一个姓</p>
-  <p style="margin:0 0 24px;">蹭饭图要被发到群里、朋友圈里，但不是每个人都愿意把全名挂出去。打开「名字一键隐私」，整张图上的名字即刻变成「姓 + 同学」——陈同学、林同学、苏同学。熟悉的人自然认得，陌生的人无从对号。随时可以再关回去，原始数据一个字都不会丢。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 三种录入方式</p>
+  <p style="margin:0 0 24px;">手动逐条录入；下载 Excel 模板填好后上传；或者直接导入 JSON。手机、电脑都能操作，电脑上批量录入效率更高。录入时按「省份—城市」两级下拉选择，覆盖全国所有地级市。</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 画布上的数字与表格</p>
-  <p style="margin:0 0 16px;">每张省份卡片的角落，可以亮起一枚小巧的<strong>人数统计</strong>：北京 6、上海 3，不必逐行去数。它会看卡片的对齐方向——卡片左对齐，它就站到右边去，永远不挡字。</p>
-  <p style="margin:0 0 24px;">画布最下方还可以加一行<strong>分布统计表</strong>：全班 33 人，各地各几人，一行写清。它随导出一起进 PNG，适合放在图尾做一个体面的收束。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 按大学自动推断城市</p>
+  <p style="margin:0 0 24px;">填写大学后，系统会根据内置的大学库自动匹配所在城市，校名里带地名的（如「四川大学」）会直接识别。不方便精确到城市的同学，可以只录省份，图上只标注省份；导入 Excel 和 JSON 时同样支持。</p>
 
-  <img src="images/stats-closeup.jpg" alt="分布统计表：各地人数一行写清" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 老师名单与标题</p>
+  <p style="margin:0 0 24px;">可以录入相伴三年的老师们，在画布上单独成块；大标题、副标题、届数都可以自定义，老师块的标题也可以改。</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 名字一键隐私</p>
+  <p style="margin:0 0 24px;">蹭饭图经常被转发到群和朋友圈，不是每个人都愿意公开全名。打开「名字一键隐私」，整张图的名字变为「姓 + 同学」；随时可以再关回去，原始数据不会丢失。</p>
+
+  <!-- ============ 大节：排版 ============ -->
+  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">排版</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 四种排版方式</p>
+  <p style="margin:0 0 24px;">名单卡片可以排在地图两侧（一列或两列）、全部排在地图下方（竖版），或者完全自定义位置。自定义模式下卡片自由拖动，拖动时出现辅助对齐线，5 像素内自动吸附；一个按钮可以让所有卡片统一为最宽的宽度。画布边界会随卡片位置自动伸缩，不留多余空白。</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 卡片拆分与同校合并</p>
+  <p style="margin:0 0 24px;">人多的省份可以拆成两张甚至更多卡片，人员在卡片之间互相拖动分配；也可以按城市分组。选择同校合并后，同一所大学的名字排在一起，学校之间用细分隔线隔开。选中任意卡片，四条边和四个角都可以拖拽调整大小。</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 人数统计与分布表</p>
+  <p style="margin:0 0 16px;">每张卡片的角落可以显示一个小巧的人数统计，默认关闭，可在设置中开启。它会跟随卡片的对齐方向自动换边，不遮挡文字。</p>
+  <p style="margin:0 0 24px;">画布下方还可以加一行分布统计表：全班人数、各地分布，一行列清。它会随导出一起进入 PNG。</p>
+
+  <img src="images/stats-closeup.jpg" alt="分布统计表：各地人数一行列清" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
   <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">画布下方的分布统计表（示例人物均为虚构）</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 装点留白处</p>
-  <p style="margin:0 0 24px;">地图总有空下来的角落。现在可以往画布上自由添加<strong>文本框和图片</strong>：写一句班训，放一张合照，拖到任何位置。文字可改字号颜色，图片可调宽度，它们会出现在导出的图片里，也会被打包进全量备份。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 画布装饰：文本框与图片</p>
+  <p style="margin:0 0 24px;">可以向画布自由添加文本框和图片，拖动到任意位置。文字支持字号和颜色，图片支持调整宽度；它们会出现在导出的图片里，也会被打包进全量备份。</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 更顺手的小处</p>
-  <p style="margin:0 0 24px;">海外/境外同学的卡片现在可以自由拖动了；选中任何一张卡片，四条边、四个角都能拖拽调整大小；不方便写到城市一级的同学，录入时可以只选省份，导入 Excel 和 JSON 时只填省份也能识别。这些改动都不起眼，但都是真实班级用起来之后提出的。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 主题与字体</p>
+  <p style="margin:0 0 16px;">预设七套主题配色，也可以逐项自定义颜色，包括每个省份在地图上的颜色——有没有人去的省份都可以单独设置。</p>
+  <p style="margin:0 0 24px;">预设字体共十款，全部免费可商用，可以细到每个模块分别设置：新增「手绘体」（与手绘白板 Excalidraw 同款组合，拉丁字符用 Excalifont，中文用落霞孤鹜的小赖字体）和漫画等宽字体 Comic Shanns，标题还可以写成毛笔字。字体下拉里能看清每款字体的全称和适用槽位。</p>
 
-  <!-- ============ 大节：字体与门面 ============ -->
-  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">字体与门面</p>
-
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 手绘体来了</p>
-  <p style="margin:0 0 16px;">新增「手绘体」——与手绘白板 Excalidraw 同款的组合：拉丁字符用 Excalifont，中文用落霞孤鹜的小赖字体。写出来的名字像同学亲手写在黑板上的那样，有一种笨拙的认真。数字和英文槽位还添了漫画等宽字体 Comic Shanns，圆润里带点俏皮。</p>
-  <p style="margin:0 0 24px;">连同此前加入的思源黑体，预设字体到了十款，全部免费可商用。字体下拉里现在能看清每一款的全称和适用槽位，弹层浮在最上层，不会再被面板裁掉。</p>
-
-  <img src="images/font-select.jpg" alt="字体下拉：手绘体、Comic Shanns、思源黑体等新面孔" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
+  <img src="images/font-select.jpg" alt="字体下拉：手绘体、Comic Shanns、思源黑体等" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
   <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">字体选择：手绘体（Excalifont + 小赖）、Comic Shanns、思源黑体</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 每个省份的颜色，都可以单独定</p>
-  <p style="margin:0 0 24px;">在学生名单面板里，每个省份在地图上的颜色都能单独调整——包括没有同学去的省份：可以自定义一个颜色，可以让它跟随主题自动填充，也可以保持默认。有人去的省是暖的，没人去的省是静的，整张图的情绪由你调。</p>
+  <!-- ============ 大节：校徽 ============ -->
+  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">校徽</p>
 
-  <!-- ============ 大节：导出这件小事 ============ -->
-  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">导出这件小事</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 自动匹配，也支持单独定制</p>
+  <p style="margin:0 0 24px;">校徽库覆盖 2986 所高校，全部自托管在自己的服务器上，一次访问、永久缓存，不再依赖第三方站点。大学填写后校徽自动出现在名字旁边；个别学校没有收录或想用别的图，可以为每个人单独上传，大小用滑块调节。</p>
 
-  <p style="margin:0 0 16px;">导出是整个工具的最后一环，也是过去被吐槽最多的一环。2.0 把它彻底收拾了一遍。</p>
+  <!-- ============ 大节：导出 ============ -->
+  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">导出</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 闲时先把活干了</p>
-  <p style="margin:0 0 24px;">字体分片加载、渲染引擎预热这些准备工作，现在趁你录入名单的空当就悄悄做完了。点下「导出为图片」的那一刻，大半的路已经走完——多数时候，一杯水还没端起来，图就好了。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 超清 PNG</p>
+  <p style="margin:0 0 24px;">导出的图片宽度不少于 4000 像素，与设备屏幕分辨率无关——手机屏幕再小，导出的图也一样清楚。右下角带一枚随画布大小缩放的水印。</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 一个小终端，告诉你它在做什么</p>
-  <p style="margin:0 0 24px;">导出时进度框里多了一扇黑色的小窗口，像老派的命令行：加载渲染引擎、克隆画布、嵌入字体、逐层栅格化……每一步都实时滚动。看不懂没关系，它存在的意义是让你知道——程序没有卡住，它正在替你干活。导出依然可以随时取消。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 闲时预加载与进程终端</p>
+  <p style="margin:0 0 16px;">字体分片加载、渲染引擎预热等准备工作，会在你录入名单的空当提前完成，点下「导出为图片」时大部分工作已经就绪。</p>
+  <p style="margin:0 0 24px;">导出时的进度框里有一扇黑色小窗口：加载渲染引擎、克隆画布、嵌入字体、逐层栅格化，每一步实时滚动，让你确认程序没有卡住。导出可以随时取消。</p>
 
   <img src="images/export-terminal.jpg" alt="导出进程终端：每一步实时滚动" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
-  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">导出进程终端：每一步都在明处（示例人物均为虚构）</p>
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">导出进程终端（示例人物均为虚构）</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 好了就是好了</p>
-  <p style="margin:0 0 24px;">导出完成后，会弹出一个明确的「导出成功」确认框，附上完整的文件名，不再默默消失。图片依然是超清 PNG：宽度不少于 4000 像素，与你的屏幕分辨率无关——手机屏幕再小，导出的图也一样清楚。万一失败，页面会给出简略原因和直达问题反馈的按钮，不会让你对着空白猜测。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 成功确认与失败提示</p>
+  <p style="margin:0 0 24px;">导出完成后会弹出「导出成功」确认框，附完整文件名。万一失败，页面会给出简略原因和直达问题反馈的按钮，不会对着空白猜测。</p>
 
   <img src="images/export-success.jpg" alt="导出成功确认框" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
-  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">导出成功确认框：文件名写清楚，点「完成」才关闭</p>
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">导出成功确认框</p>
 
-  <!-- ============ 大节：会回应的工具 ============ -->
-  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">会回应的工具</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 全量备份</p>
+  <p style="margin:0 0 24px;">可以把整个画布打包成 zip：名单、卡片位置、主题、字体设置、上传的校徽和装饰图片，一样不落。换一台电脑导入这个 zip，画布原样恢复。</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 问题反馈，成了一小块社区</p>
-  <p style="margin:0 0 24px;">「问题反馈」页重做成了公开的反馈板：每条反馈像一封帖子，人人可以评论讨论，作者会逐条回复，并标记「进行中」「已完成」或「暂不处理」。你的反馈被回复时，页脚的「问题反馈」会亮起红点提醒你去看。偶尔，作者也会在这里发一些与反馈无关的官方帖子——更新说明、使用技巧，算是这块小黑板上的粉笔字。</p>
+  <!-- ============ 大节：分享与协作 ============ -->
+  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">分享与协作</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 多画布与跨设备接力</p>
+  <p style="margin:0 0 24px;">支持创建多张画布分别管理，新建时先命名，名字就是画布的大标题。在手机上点「分享 → 在其他设备上继续此工作」，画布顺着链接转到电脑上接着做；也可以生成分享链接发给同学，对方打开就能导入一份副本。</p>
+
+  <!-- ============ 大节：反馈 ============ -->
+  <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">反馈</p>
+
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 反馈板</p>
+  <p style="margin:0 0 24px;">「问题反馈」页是一块公开的反馈板：每条反馈公开可见，人人可以评论，作者逐条回复，并标记「进行中」「已完成」或「暂不处理」。你的反馈被回复时，页脚的「问题反馈」会亮起红点。作者也会在这里发布更新说明和使用技巧。</p>
 
   <img src="images/feedback-board.jpg" alt="问题反馈板：可以评论、有状态标记" style="width:100%;display:block;margin:0 0 8px;border-radius:6px;" />
-  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">反馈板：每条反馈都有状态，都有回音</p>
+  <p style="font-size:13px;color:#a39e94;text-align:center;margin:0 0 28px;">反馈板：每条反馈都有状态，都有回复</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 出错时，它会自己举手</p>
-  <p style="margin:0 0 24px;">页面发生任何脚本错误，都会自动上报；提交反馈时还可以选择附带最近的使用日志——控制台记录、页面报错、导出等关键操作的技术细节，帮助定位问题，日志不包含你的名单数据。配合匿名的行为分析标识，我们能看清问题发生在哪一步，却不需要知道你是谁。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 错误自动上报</p>
+  <p style="margin:0 0 24px;">页面发生任何脚本错误都会自动上报。提交反馈时可以选择附带最近的使用日志：控制台记录、页面报错、导出等关键操作的技术细节，不包含名单数据。配合匿名的行为分析标识，我们能定位问题发生在哪一步，而不需要知道你是谁。</p>
 
-  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 那些看不见的地方</p>
-  <p style="margin:0 0 16px;">校徽库扩到了 2961 所高校，全部自托管在自己的服务器上，一次访问、永久缓存，不再依赖任何第三方站点；静态数据与框架代码拆分加载，某个分块加载失败会自动重试而不是白屏；页面之间切换有了全屏的过渡动画；可以建多张画布分别管理；手机上点「分享 → 在其他设备上继续此工作」，画布就顺着链接去了电脑。</p>
-  <p style="margin:0 0 24px;">这些事用户看不见，但它们决定了这个工具能不能被放心地用下去。</p>
+  <p style="margin:0 0 6px;font-weight:700;color:#8a5a2b;font-size:17px;">■ 数据只在你手里</p>
+  <p style="margin:0 0 24px;">名单数据只保存在你自己的浏览器本地，不上传任何服务器。清除浏览器数据前，记得先导出图片或备份 zip。</p>
 
   <!-- ============ 尾声 ============ -->
   <p style="margin:0 0 10px;font-weight:700;color:#2b2620;font-size:19px;">写在后面</p>
 
-  <p style="margin:0 0 16px;">四十多个版本里，绝大多数改动都来自反馈板上的声音。一个人开发和维护，不计成本，免费开放——权当是为社会添一块砖、加一片瓦。你认真写的每一条建议，都会被认真读。</p>
+  <p style="margin:0 0 16px;">这个工具由一个人开发和维护，不计成本，免费开放。2.0 的绝大多数改动来自反馈板上的声音——你认真写的每一条建议，都会被认真读。</p>
 
-  <p style="margin:0 0 16px;">星图还远远没有画完。如果你在使用中遇到任何问题，或者心里装着一个「要是能这样就好了」，欢迎随时到反馈板坐坐。</p>
-
-  <p style="margin:0 0 24px;">散作满天星，聚是一顿饭。2.0 快乐。</p>
+  <p style="margin:0 0 24px;">使用中遇到任何问题，或者有功能建议，欢迎随时到反馈板提交，作者通常会在两天内回复。</p>
 
   <!-- 结尾入口 -->
   <section style="margin:0 0 8px;padding:16px;background:#faf8f4;border-radius:8px;text-align:center;">

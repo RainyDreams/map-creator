@@ -5,6 +5,14 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v1.43.3',
+    date: '2026-08-03 01:05',
+    items: [
+      '校徽库新增「中国人民解放军网络空间部队信息工程大学」（郑州，原战略支援部队信息工程大学更名），录入校名后自动匹配城市与校徽',
+      '2.0 发布文章定稿：完整介绍 2.0 全部功能（名单/排版/校徽/导出/分享/反馈），语言风格重写',
+    ],
+  },
+  {
     version: 'v1.43.2',
     date: '2026-08-03 00:15',
     items: [
