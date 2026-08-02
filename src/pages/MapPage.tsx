@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
-import { Download, Loader2, X } from 'lucide-react'
+import { CheckCircle2, Download, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMapData } from '@/store/MapDataContext'
 import { resolveProvince, diagnoseUnlocated, inferCityFromUniversity } from '@/utils/geo'
@@ -132,9 +132,50 @@ function ExportProgressDialog({
   )
 }
 
+/** 桌面端导出成功模态框（v1.43.1）：导出完成后进度框不直接消失，
+ *  改为明确的成功态——绿色对勾 + 文件名 + 「完成」按钮，用户确认后才关闭 */
+function ExportSuccessDialog({
+  filename,
+  onClose,
+}: {
+  filename: string
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+      <div
+        role="dialog"
+        aria-label="导出成功"
+        className="w-80 rounded-xl border border-stone-200 bg-white p-5 shadow-2xl sm:w-[22rem]"
+      >
+        <div className="flex flex-col items-center gap-2.5 py-1 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50">
+            <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+          </span>
+          <h2 className="text-sm font-semibold text-stone-800">导出成功</h2>
+          <p className="text-xs leading-5 text-stone-400">
+            图片已保存到浏览器的下载目录
+          </p>
+          <p className="max-w-full truncate rounded-md bg-stone-50 px-2.5 py-1 text-[11px] text-stone-500">
+            {filename}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 w-full rounded-lg bg-stone-900 py-2 text-xs font-medium text-white transition-colors hover:bg-stone-700"
+        >
+          完成
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /** 移动端导出完成后的保存弹窗：
  *  - 所有移动设备（手机 / iPad 等平板）：大弹窗展示完整图片预览 + 黑色下载按钮
- *  - 微信内置浏览器：不支持 a[download]，仅展示预览，引导长按保存（无下载按钮） */
+ *  - 微信内置浏览器：不支持 a[download]，仅展示预览，引导长按保存（无下载按钮）
+ *  - 点击下载后弹窗不消失，按钮区切换为绿色「已开始下载」成功标识（v1.43.1） */
 function MobileSaveDialog({
   dataUrl,
   filename,
@@ -148,6 +189,8 @@ function MobileSaveDialog({
 }) {
   // 下载按钮用 Blob URL：大体积 data: URL 在部分浏览器下载时会卡死
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  // 点击下载后显示成功标识，弹窗保持打开（v1.43.1）
+  const [downloaded, setDownloaded] = useState(false)
   useEffect(() => {
     const url = URL.createObjectURL(dataUrlToBlob(dataUrl))
     setBlobUrl(url)
@@ -181,12 +224,30 @@ function MobileSaveDialog({
               <br />
               <strong className="text-stone-700">请长按上方图片 → 保存到相册</strong>
             </p>
+          ) : downloaded ? (
+            <div className="flex flex-col items-center gap-2">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+                <CheckCircle2 className="h-4.5 w-4.5" />
+                已开始下载
+              </p>
+              <p className="text-center text-[11px] leading-4 text-stone-400">
+                请在浏览器的下载列表中查看；没找到可再次点击
+              </p>
+              <a
+                href={blobUrl ?? undefined}
+                download={filename}
+                className="mt-1 text-xs text-stone-500 underline underline-offset-2 hover:text-stone-700"
+              >
+                重新下载
+              </a>
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
               <a
                 href={blobUrl ?? undefined}
                 download={filename}
                 aria-disabled={blobUrl === null}
+                onClick={() => setDownloaded(true)}
                 className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition-colors sm:w-auto sm:min-w-56 ${
                   blobUrl ? 'bg-stone-900 hover:bg-stone-700' : 'pointer-events-none bg-stone-300'
                 }`}
@@ -209,6 +270,8 @@ export default function MapPage() {
   const { data, theme, fontSlots, customFonts, badge } = useMapData()
   const canvasRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState<ExportQuality | null>(null)
+  /** 桌面端导出成功后的成功态模态框（文件名）；非空即显示，点「完成」关闭 */
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [progress, setProgress] = useState<ExportProgress | null>(null)
   /** 移动端导出完成的图片（弹窗预览 + 下载按钮；微信则引导长按保存） */
@@ -442,6 +505,7 @@ export default function MapPage() {
     node.dispatchEvent(new CustomEvent('cf-clear-selection'))
     setExporting(quality)
     setExportError(null)
+    setExportSuccess(null)
     exportStartRef.current = Date.now()
     etaRef.current = null
     anchorRef.current = { pct: 4, stage: '正在启动导出…', at: Date.now() }
@@ -473,6 +537,8 @@ export default function MapPage() {
         })
       } else {
         await exportNodeToPng(node, data.title, quality, onProgress, abort.signal)
+        // 桌面端：下载已触发，进度框切换为成功态模态框（用户点「完成」才关闭）
+        setExportSuccess(exportPngFilename(data.title, quality))
       }
       breadcrumb(`导出成功（${quality}，耗时 ${((Date.now() - exportStartRef.current) / 1000).toFixed(1)}s）`)
       track('export')
@@ -806,6 +872,14 @@ export default function MapPage() {
         <ExportProgressDialog
           progress={progress}
           onCancel={handleCancelExport}
+        />
+      )}
+
+      {/* 桌面端导出成功模态框：进度框消失后接力显示，点「完成」才关闭 */}
+      {exportSuccess !== null && (
+        <ExportSuccessDialog
+          filename={exportSuccess}
+          onClose={() => setExportSuccess(null)}
         />
       )}
 

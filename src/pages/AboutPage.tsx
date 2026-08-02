@@ -5,6 +5,15 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v1.43.1',
+    date: '2026-08-02 22:15',
+    items: [
+      '新增「手绘体」：Excalifont + 小赖字体组合（与手绘白板 Excalidraw 同款——拉丁字符用 Excalifont，中文用落霞孤鹜的小赖字体，均 SIL OFL）；新增漫画等宽 Comic Shanns（MIT，仅数字/英文槽位）',
+      '移除钟齐志莽行书、龙藏体两款手写体（已选过它们的槽位会自动回退为系统默认，重新选择即可）',
+      '导出完成不再默默消失：桌面端导出成功后弹出「导出成功」确认框（绿色对勾 + 文件名，点「完成」才关闭）；移动端点「下载图片」后弹窗保留并切换为「已开始下载」成功标识',
+    ],
+  },
+  {
     version: 'v1.43.0',
     date: '2026-08-02 01:40',
     items: [
@@ -583,8 +592,9 @@ export default function AboutPage() {
         <p>
           画布字体均为<strong>免费可商用字体</strong>，已做子集化与分片加载（只下载用到的字符区间）：
           列表中的<strong>「毛笔体」即马善政毛笔楷书（Ma Shan Zheng）</strong>，
-          手写风格的<strong>钟齐志莽行书</strong>、<strong>龙藏体</strong>，
+          <strong>「手绘体」为 Excalifont 与「小赖字体」的组合</strong>（与手绘白板 Excalidraw 同款——拉丁字符用 Excalifont，中文用落霞孤鹜的小赖字体），
           以及<strong>思源黑体</strong>，均依据 SIL Open Font License 1.1 发布；
+          <strong>Comic Shanns</strong> 为 MIT 许可（仅数字/英文槽位）；
           <strong>站酷小薇体、站酷高端黑</strong>与<strong>阿里妈妈数黑体</strong>为官方免费商用字体；
           右下角网址水印使用 <strong>JetBrains Mono</strong>（SIL OFL 1.1）。
         </p>

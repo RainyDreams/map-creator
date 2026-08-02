@@ -40,8 +40,7 @@ RANGES = [
 ]
 
 SOURCES = [
-    ("ZhiMangXing-Regular.ttf", "ZhiMangXing"),
-    ("LongCang-Regular.ttf", "LongCang"),
+    ("Xiaolai-Regular.ttf", "XiaolaiSC"),
 ]
 
 

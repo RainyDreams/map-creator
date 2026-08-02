@@ -287,7 +287,7 @@ export function FontPanel() {
       )}
 
       <p className="mt-2.5 text-[11px] leading-relaxed text-stone-400">
-        预设字体均为免费可商用字体：「毛笔体」即马善政毛笔体，与钟齐志莽行书、龙藏体、思源黑体同为 SIL OFL 开源许可；站酷系列、阿里妈妈数黑体为官方免费商用。
+        预设字体均为免费可商用字体：「毛笔体」即马善政毛笔体，与思源黑体、小赖字体、Excalifont 同为 SIL OFL 开源许可；Comic Shanns 为 MIT 许可；站酷系列、阿里妈妈数黑体为官方免费商用。
         上传的字体仅保存在你自己的浏览器中。
       </p>
 

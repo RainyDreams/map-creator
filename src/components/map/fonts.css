@@ -2,8 +2,9 @@
  * 画布字体注册（均为免费可商用字体的子集化 woff2）：
  * - AlimamaShuHeiTi：阿里妈妈数黑体，仅 ASCII（8.6KB 不切分），专供年份数字
  * - MaShanZheng：马善政毛笔体（SIL OFL），标题/省份名
- * - ZhiMangXing：钟齐志莽行书（SIL OFL），手写风格
- * - LongCang：龙藏体（SIL OFL），手写风格
+ * - Excalifont + XiaolaiSC：手绘体组合（均 SIL OFL）——拉丁用手绘体 Excalifont（整包 25KB），
+ *   中文用小赖字体（分片加载）；与 Excalidraw 同款组合
+ * - ComicShanns：漫画等宽（MIT），仅拉丁（整包 17KB），专供数字/英文槽位
  * - NotoSansSC：思源黑体（SIL OFL），干净正文
  * - ZCOOLXiaoWei：站酷小薇体（免费可商用），宋体感标题
  * - ZCOOLQingKeHuangYou：站酷高端黑（免费可商用），粗展示
@@ -14,49 +15,39 @@
  * font-display: swap 保证渐进式渲染。
  */
 @font-face {
-  font-family: 'ZhiMangXing';
-  src: url('/fonts/ZhiMangXing-subset-latin.woff2') format('woff2');
+  font-family: 'Excalifont';
+  src: url('/fonts/Excalifont-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
 }
 @font-face {
-  font-family: 'ZhiMangXing';
-  src: url('/fonts/ZhiMangXing-subset-cjk-a.woff2') format('woff2');
+  font-family: 'ComicShanns';
+  src: url('/fonts/ComicShanns-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+4E00-7FFF;
-}
-@font-face {
-  font-family: 'ZhiMangXing';
-  src: url('/fonts/ZhiMangXing-subset-cjk-b.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+8000-9FFF;
 }
 
 @font-face {
-  font-family: 'LongCang';
-  src: url('/fonts/LongCang-subset-latin.woff2') format('woff2');
+  font-family: 'XiaolaiSC';
+  src: url('/fonts/XiaolaiSC-subset-latin.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
   unicode-range: U+0000-00FF, U+2000-206F, U+3000-303F, U+FF00-FFEF;
 }
 @font-face {
-  font-family: 'LongCang';
-  src: url('/fonts/LongCang-subset-cjk-a.woff2') format('woff2');
+  font-family: 'XiaolaiSC';
+  src: url('/fonts/XiaolaiSC-subset-cjk-a.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
   unicode-range: U+4E00-7FFF;
 }
 @font-face {
-  font-family: 'LongCang';
-  src: url('/fonts/LongCang-subset-cjk-b.woff2') format('woff2');
+  font-family: 'XiaolaiSC';
+  src: url('/fonts/XiaolaiSC-subset-cjk-b.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
