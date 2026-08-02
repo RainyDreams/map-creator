@@ -5,6 +5,14 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.0',
+    date: '2026-08-03 01:30',
+    items: [
+      '版本号正式进入 2.0：过去一个月 40 余个版本的累积（名单隐私、排版引擎、导出管线、反馈板、校徽库自托管等）在此合流',
+      '新增《2.0 技术文档》：从用户可感知的细节出发，完整公开排版引擎、导出管线、缓存体系与后端防护的设计与实现',
+    ],
+  },
+  {
     version: 'v1.43.3',
     date: '2026-08-03 01:05',
     items: [
