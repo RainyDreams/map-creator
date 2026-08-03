@@ -15,6 +15,7 @@ import { takeSharePayloadFromHash, type ShareLinkPayload } from '@/utils/shareLi
 import { ShareImportLanding } from '@/components/ShareImportLanding'
 import { RouteLoadingProvider } from '@/components/layout/RouteLoadingOverlay'
 import { RouteErrorBoundary } from '@/components/layout/RouteErrorBoundary'
+import FeedbackJumpDialog from '@/components/layout/FeedbackJumpDialog'
 import { lazyWithReload, clearLazyReloadFlag } from '@/utils/lazyWithReload'
 import { track, trackSessionOnce } from '@/utils/analytics'
 
@@ -352,6 +353,7 @@ export default function App() {
         <ShareImportLanding payload={importPayload} onClose={() => setImportPayload(null)} />
       )}
       <ConsentDialog />
+      <FeedbackJumpDialog />
       <Toaster position="top-center" richColors />
     </MapDataProvider>
   )

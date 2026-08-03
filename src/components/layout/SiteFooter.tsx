@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 import { APP_VERSION } from '@/version'
+import { openFeedbackJump } from '@/utils/feedbackJump'
 
-/** 统一反馈平台入口（v2.0.1 起反馈功能迁移至 feedback.linkbrain.top，带产品参数） */
-const FEEDBACK_URL = 'https://feedback.linkbrain.top/?product=cengfan'
+/** 统一反馈平台入口由 openFeedbackJump() 弹窗接管（v2.0.3 起恢复「附带使用日志」选项） */
 
 /**
  * 全站页脚：版权 + 开发者 + 版本 + 备案信息 + 站点页面链接。
@@ -57,15 +57,14 @@ export default function SiteFooter() {
           关于
         </AppLink>
         <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
-        {/* 统一反馈平台（外链，带产品参数）；移动端暗红突出 */}
-        <a
-          href={FEEDBACK_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-red-800 transition-colors hover:text-red-900 md:text-stone-400 md:hover:text-stone-700"
+        {/* 统一反馈平台：先弹跳转对话框（可选附带使用日志），再带参跳转；移动端暗红突出 */}
+        <button
+          type="button"
+          onClick={openFeedbackJump}
+          className="cursor-pointer text-red-800 transition-colors hover:text-red-900 md:text-stone-400 md:hover:text-stone-700"
         >
           问题反馈
-        </a>
+        </button>
         <span aria-hidden className="text-stone-300">·</span>
         {/* 公众号二维码：桌面悬浮展开、移动端点按展开；再次点击或移出即收起。
             桌面显示「微信公众号 · [零本图]」，移动端窄屏只显示零本图片 */}

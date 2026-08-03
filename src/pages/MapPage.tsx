@@ -11,6 +11,7 @@ import { breadcrumb } from '@/utils/sessionLog'
 import { consumeMapExportRequest, onGotoMapExport } from '@/utils/exportBus'
 import { isWeChatBrowser } from '@/utils/wechat'
 import { isMobileOrPad } from '@/utils/device'
+import { openFeedbackJump } from '@/utils/feedbackJump'
 import { ChinaMap } from '@/components/map/ChinaMap'
 import ExportLogTerminal from '@/components/map/ExportLogTerminal'
 import { APP_VERSION } from '@/version'
@@ -656,12 +657,13 @@ export default function MapPage() {
           <span className="min-w-0 flex-1 truncate" title={exportError}>
             导出失败：{exportError.slice(0, 80)}
           </span>
-          <a
-            href="https://feedback.linkbrain.top/?product=cengfan" target="_blank" rel="noopener noreferrer"
-            className="shrink-0 rounded bg-rose-600 px-2 py-0.5 font-medium text-white hover:bg-rose-500"
+          <button
+            type="button"
+            onClick={openFeedbackJump}
+            className="shrink-0 cursor-pointer rounded bg-rose-600 px-2 py-0.5 font-medium text-white hover:bg-rose-500"
           >
             前往问题反馈
-          </a>
+          </button>
           <button
             type="button"
             aria-label="关闭提示"

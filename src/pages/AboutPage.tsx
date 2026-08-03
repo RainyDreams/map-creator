@@ -5,6 +5,13 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.3',
+    date: '2026-08-03 23:25',
+    items: [
+      '恢复「附带使用日志」：反馈功能迁移到统一平台后，点击「问题反馈」会先弹出选择框——可授权上传使用日志（只含操作与报错记录，不含名单数据，保留 7 天）再跳转反馈，帮助开发者更快定位问题；不附带时仅携带匿名会话标识',
+    ],
+  },
+  {
     version: 'v2.0.2',
     date: '2026-08-03 22:15',
     items: [
