@@ -121,7 +121,7 @@ function json(data: unknown, status = 200, cacheSeconds = 0): Response {
   })
 }
 
-/** 本站允许的 Origin 主机名 */
+/** 本站允许的 Origin 主机名（含统一反馈平台 feedback.linkbrain.top 及其预览域） */
 function originAllowed(request: Request): boolean {
   const raw = request.headers.get('Origin') ?? request.headers.get('Referer')
   if (!raw) return true
@@ -129,13 +129,41 @@ function originAllowed(request: Request): boolean {
     const h = new URL(raw).hostname
     return (
       h === 'map.linkbrain.top' ||
+      h === 'feedback.linkbrain.top' ||
       h === 'localhost' ||
       h === '127.0.0.1' ||
-      h.slice(-22) === '.cengfan-map.pages.dev'
+      h.slice(-22) === '.cengfan-map.pages.dev' ||
+      h.slice(-28) === '.linkbrain-feedback.pages.dev'
     )
   } catch {
     return false
   }
+}
+
+/** 跨域响应头：Origin 合法且存在时回显（反馈平台跨域调用用；同源请求不受影响） */
+function withCors(request: Request, res: Response): Response {
+  const origin = request.headers.get('Origin')
+  if (!origin || !originAllowed(request)) return res
+  const headers = new Headers(res.headers)
+  headers.set('Access-Control-Allow-Origin', origin)
+  headers.set('Vary', 'Origin')
+  return new Response(res.body, { status: res.status, headers })
+}
+
+/** 预检请求（跨域 POST 的 Content-Type: application/json 会触发） */
+export const onRequestOptions: PagesFunction<Env> = async ({ request }) => {
+  const origin = request.headers.get('Origin')
+  if (!origin || !originAllowed(request)) return new Response(null, { status: 403 })
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+      Vary: 'Origin',
+    },
+  })
 }
 
 /** 截断 + 去控制字符（保留换行；逐字符过滤，不用正则转义） */
@@ -204,7 +232,7 @@ function randomId(): string {
   return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+const handleGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.cenfan_db) return json({ error: 'not_configured' }, 503)
   if (!originAllowed(request)) return json({ error: 'forbidden_origin' }, 403)
   if (!rateLimitOk('fb:g:global', GET_GLOBAL_PER_MIN)) return json({ error: 'rate_limited' }, 429)
@@ -234,7 +262,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   }
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+const handlePost: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.cenfan_db) return json({ error: 'not_configured' }, 503)
   if (!originAllowed(request)) return json({ error: 'forbidden_origin' }, 403)
 
@@ -305,5 +333,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 }
 
+export const onRequestGet: PagesFunction<Env> = async (ctx) => withCors(ctx.request, await handleGet(ctx))
+export const onRequestPost: PagesFunction<Env> = async (ctx) => withCors(ctx.request, await handlePost(ctx))
 export const onRequestPut: PagesFunction<Env> = async () => json({ error: 'method_not_allowed' }, 405)
 export const onRequestDelete: PagesFunction<Env> = async () => json({ error: 'method_not_allowed' }, 405)

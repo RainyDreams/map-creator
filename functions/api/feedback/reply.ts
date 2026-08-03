@@ -57,13 +57,41 @@ function originAllowed(request: Request): boolean {
     const h = new URL(raw).hostname
     return (
       h === 'map.linkbrain.top' ||
+      h === 'feedback.linkbrain.top' ||
       h === 'localhost' ||
       h === '127.0.0.1' ||
-      h.slice(-22) === '.cengfan-map.pages.dev'
+      h.slice(-22) === '.cengfan-map.pages.dev' ||
+      h.slice(-28) === '.linkbrain-feedback.pages.dev'
     )
   } catch {
     return false
   }
+}
+
+/** 跨域响应头（统一反馈平台跨域调用用；同源请求不受影响） */
+function withCors(request: Request, res: Response): Response {
+  const origin = request.headers.get('Origin')
+  if (!origin || !originAllowed(request)) return res
+  const headers = new Headers(res.headers)
+  headers.set('Access-Control-Allow-Origin', origin)
+  headers.set('Vary', 'Origin')
+  return new Response(res.body, { status: res.status, headers })
+}
+
+/** 预检请求（跨域 POST 的 Content-Type: application/json 会触发） */
+export const onRequestOptions: PagesFunction<Env> = async ({ request }) => {
+  const origin = request.headers.get('Origin')
+  if (!origin || !originAllowed(request)) return new Response(null, { status: 403 })
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+      Vary: 'Origin',
+    },
+  })
 }
 
 /** 截断 + 去控制字符（保留换行） */
@@ -136,7 +164,7 @@ function parseThread(raw: string | null): ThreadEntry[] {
   }
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+const handlePost: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.cenfan_db) return json({ error: 'not_configured' }, 503)
   if (!originAllowed(request)) return json({ error: 'forbidden_origin' }, 403)
 
@@ -207,6 +235,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 }
 
+export const onRequestPost: PagesFunction<Env> = async (ctx) => withCors(ctx.request, await handlePost(ctx))
 export const onRequestGet: PagesFunction<Env> = async () => json({ error: 'method_not_allowed' }, 405)
 export const onRequestPut: PagesFunction<Env> = async () => json({ error: 'method_not_allowed' }, 405)
 export const onRequestDelete: PagesFunction<Env> = async () => json({ error: 'method_not_allowed' }, 405)
