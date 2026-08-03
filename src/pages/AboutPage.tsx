@@ -5,6 +5,15 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.2',
+    date: '2026-08-03 22:15',
+    items: [
+      '静态资源命名规则整体更换：极个别网络链路会把旧文件地址缓存成错误副本且长期不刷新，本次全部文件地址强制翻新，受影响的访客自动恢复正常',
+      '新增分包加载失败自愈：页面资源加载异常时自动刷新一次拉取干净副本，不再白屏',
+      '联系邮箱更换为 contact@linkbrain.top（用户协议、隐私政策、关于页同步更新）',
+    ],
+  },
+  {
     version: 'v2.0.1',
     date: '2026-08-03 21:20',
     items: [
@@ -539,10 +548,10 @@ export default function AboutPage() {
           <dt className="text-stone-400">联系方式</dt>
           <dd>
             <a
-              href="mailto:linkbrain@lingben.top"
+              href="mailto:contact@linkbrain.top"
               className="text-amber-700 underline-offset-2 hover:underline"
             >
-              linkbrain@lingben.top
+              contact@linkbrain.top
             </a>
           </dd>
           <dt className="text-stone-400">当前版本</dt>

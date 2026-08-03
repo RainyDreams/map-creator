@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           （个人开发者，下同「我们」）。
         </p>
         <p>
-          联系方式：<a href="mailto:linkbrain@lingben.top" className="text-amber-700 underline-offset-2 hover:underline">linkbrain@lingben.top</a>。
+          联系方式：<a href="mailto:contact@linkbrain.top" className="text-amber-700 underline-offset-2 hover:underline">contact@linkbrain.top</a>。
         </p>
       </section>
 

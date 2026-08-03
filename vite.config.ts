@@ -53,10 +53,13 @@ export default defineConfig(({ command }) => ({
       output: {
         // 产物文件名只保留「名称+哈希」的纯字母数字形式：
         // 不用连字符/下划线分隔，且哈希强制为 hex，
-        // 避免个别浏览器/网关对带 - 或 _ 的静态资源名识别异常
+        // 避免个别浏览器/网关对带 - 或 _ 的静态资源名识别异常。
+        // v2.0.2 起命名规则整体更换（index/chunk → app/ck）：
+        // 个别用户曾踩到「旧 URL 被中间链路缓存成 HTML」的毒缓存，
+        // 内容哈希不变 URL 就不变，无法自愈；改名规则后所有 URL 强制翻新
         hashCharacters: 'hex',
-        entryFileNames: 'assets/[name][hash].js',
-        chunkFileNames: 'assets/chunk[hash].js',
+        entryFileNames: 'assets/app[hash].js',
+        chunkFileNames: 'assets/ck[hash].js',
         assetFileNames: 'assets/[hash][extname]',
         // 分包策略：把「几乎不变的静态数据」和「框架/依赖代码」拆成独立 chunk。
         // 业务代码每次迭代都会变，但数据表和依赖库不变——拆开后它们的哈希稳定，

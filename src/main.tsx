@@ -38,6 +38,28 @@ try {
 }
 
 /**
+ * 分包加载失败自愈：
+ * 个别链路（浏览器/网关/运营商缓存）可能把某个 chunk URL 缓存成 HTML 副本，
+ * Vite 动态 import 预加载失败时会派发 vite:preloadError。此处拦截并强制刷新一次
+ * 拉取干净副本；同一会话只刷新一次，避免故障持续时陷入刷新死循环。
+ * 必须在任何动态 import 发生前注册（模块顶层即注册）。
+ */
+try {
+  window.addEventListener('vite:preloadError', (ev) => {
+    ev.preventDefault()
+    try {
+      if (sessionStorage.getItem('cenfan-chunk-reload') === '1') return
+      sessionStorage.setItem('cenfan-chunk-reload', '1')
+    } catch {
+      // 存储不可用时仍尝试刷新
+    }
+    location.reload()
+  })
+} catch {
+  // 监听注册失败不影响应用
+}
+
+/**
  * Clarity 脚本自身偶发内部异常（如 unhandledrejection: reading 'sequence'，
  * 最新版 1.0.2 仍存在，无法靠升级修）。它不是应用错误：
  * - 就地 preventDefault，不在用户控制台刷「Uncaught (in promise)」；
@@ -94,4 +116,12 @@ if (_allow) {
   // 闲时预热导出（引擎 chunk + 字体嵌入 CSS）：用户浏览/填名单的空档完成，
   // 点导出时直接命中缓存进入渲染；省流量模式与弱网自动跳过
   scheduleExportPrewarm()
+  // 应用存活 30s 视为本轮分包加载正常，解除自愈刷新的一次性限制
+  setTimeout(() => {
+    try {
+      sessionStorage.removeItem('cenfan-chunk-reload')
+    } catch {
+      // 存储不可用时静默
+    }
+  }, 30_000)
 }

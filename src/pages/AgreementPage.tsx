@@ -308,7 +308,7 @@ export default function AgreementPage() {
           本协议各条标题仅为方便阅读而设，不具有法律含义，不影响本协议的解释。
         </Clause>
         <Clause n="12.4">
-          开发者联系方式：<a href="mailto:linkbrain@lingben.top" className="text-amber-700 underline-offset-2 hover:underline">linkbrain@lingben.top</a>
+          开发者联系方式：<a href="mailto:contact@linkbrain.top" className="text-amber-700 underline-offset-2 hover:underline">contact@linkbrain.top</a>
           （用于协议、隐私、素材授权等相关事宜的联系与通知）。
         </Clause>
         <Clause n="12.5">

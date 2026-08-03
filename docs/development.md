@@ -76,7 +76,7 @@ app/
 1. **按需分包**：Excel 导入导出、JSON 导入导出、图片导出、静态页面均为独立 chunk 动态加载；未加载时界面必须有骨架/加载动画；
 2. **资源不入主包**：GeoJSON、字体、图片走 `public/` 异步加载——保证主 JS 哈希在大多数版本间稳定（配合版本检测：localStorage 存哈希，变了才展示「功能更新」进度条）;
 3. **字体子集化**：预设字体按用到的字符区间裁剪（`scripts/subset-fonts.py`），可 CDN 并行加载；
-4. **产物命名**：`assets/index<8位hex>.js`，无下划线（某些 CDN 对下划线不友好）；
+4. **产物命名**：`assets/app<8位hex>.js` / `assets/ck<8位hex>.js`，无下划线（某些 CDN 对下划线不友好）；v2.0.2 由 index/chunk 改名而来——旧 URL 曾被中间链路缓存成 HTML 形成毒缓存，改规则可强制翻新全部 URL；
 5. **双产物**：`npm run build` 出正式版；`npm run build:debug` 出带模块路径标注的 `/debug` 版并合并进 dist；
 6. **日志钩子**：关键操作（导出各阶段、排版决策、错误）都写会话日志，用户反馈时可选择附带——排查问题以日志为第一抓手；
 7. **限流与防护**：所有写接口（反馈/日志/错误上报）带限流与长度限制，防刷防撞库。
@@ -111,7 +111,7 @@ npm run build:mirror # 额外生成镜像包（备用 CDN 分发）
 npx wrangler pages deploy dist --project-name=cengfan-map --branch=main
 ```
 
-- 自定义域 `map.linkbrain.top` 部署后有约 20 秒传播延迟，核对方式：比较线上 `index.html` 引用的 `assets/index<hash>.js` 与本地 dist 是否一致；
+- 自定义域 `map.linkbrain.top` 部署后有约 20 秒传播延迟，核对方式：比较线上 `index.html` 引用的 `assets/app<hash>.js` 与本地 dist 是否一致；
 - `_headers`（`public/_headers`）配置安全响应头：禁止 iframe 嵌套、严格 MIME 等；
 - 前端另有多处混淆实现的正版域名校验，非授权域名访问会提示并重定向。
 
