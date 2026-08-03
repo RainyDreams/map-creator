@@ -5,6 +5,13 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.4',
+    date: '2026-08-03 23:40',
+    items: [
+      '反馈跳转简化：点击「问题反馈」自动上传使用日志并跳转统一反馈平台，不再弹出选择框，过程中显示「反馈页面正在加载」动画（上传失败或超时也会照常跳转，不堵反馈入口）',
+    ],
+  },
+  {
     version: 'v2.0.3',
     date: '2026-08-03 23:25',
     items: [

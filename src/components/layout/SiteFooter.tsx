@@ -3,7 +3,7 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 import { APP_VERSION } from '@/version'
 import { openFeedbackJump } from '@/utils/feedbackJump'
 
-/** 统一反馈平台入口由 openFeedbackJump() 弹窗接管（v2.0.3 起恢复「附带使用日志」选项） */
+/** 统一反馈平台入口由 openFeedbackJump() 接管：自动上传使用日志后带参跳转（v2.0.4 起不再询问） */
 
 /**
  * 全站页脚：版权 + 开发者 + 版本 + 备案信息 + 站点页面链接。
