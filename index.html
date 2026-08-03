@@ -126,7 +126,8 @@
         try {
           var _m = document.querySelector('script[type="module"]')
           var _src = _m ? _m.getAttribute('src') || '' : ''
-          var _mm = _src.match(/index([0-9a-f]{8})\.js/)
+          // v2.0.2 起入口文件改名 app<hash>.js（毒缓存修复），正则同步兼容两种命名
+          var _mm = _src.match(/(?:app|index)([0-9a-f]{8})\.js/)
           if (!_mm) return
           var _hash = _mm[1]
           var _KEY = 'cenfan-app-hash'

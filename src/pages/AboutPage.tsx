@@ -5,6 +5,13 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.7',
+    date: '2026-08-04 00:55',
+    items: [
+      '修复「软件正在进行功能更新」提示不显示：v2.0.2 更换构建文件命名后，首页检测版本哈希的规则没有同步，更新提示一直不触发；现已兼容新旧两种命名',
+    ],
+  },
+  {
     version: 'v2.0.6',
     date: '2026-08-04 00:35',
     items: [
