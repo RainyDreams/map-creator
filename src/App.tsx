@@ -22,7 +22,6 @@ import { track, trackSessionOnce } from '@/utils/analytics'
 const AgreementPage = lazyWithReload(() => import('@/pages/AgreementPage'))
 const PrivacyPage = lazyWithReload(() => import('@/pages/PrivacyPage'))
 const AboutPage = lazyWithReload(() => import('@/pages/AboutPage'))
-const FeedbackPage = lazyWithReload(() => import('@/pages/FeedbackPage'))
 
 /**
  * 路由级全屏加载动画（v1.42.7）：懒加载页面 chunk 下载期间覆盖全屏，
@@ -345,7 +344,6 @@ export default function App() {
               <Route path="/agreement" element={<AgreementPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/about" element={<AboutPage />} />
-              <Route path="/feedback" element={<FeedbackPage />} />
             </Routes>
           </Suspense>
         </RouteLoadingProvider>

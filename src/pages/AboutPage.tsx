@@ -5,6 +5,13 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.1',
+    date: '2026-08-03 21:20',
+    items: [
+      '反馈功能迁移至统一反馈平台 feedback.linkbrain.top：页脚与导出失败提示的「问题反馈」改为外链（自动带产品参数），站内 /feedback 页面下线；以后的 Bug 反馈、功能建议都在新平台统一讨论',
+    ],
+  },
+  {
     version: 'v2.0.0',
     date: '2026-08-03 01:30',
     items: [
@@ -701,9 +708,14 @@ export default function AboutPage() {
           <AppLink to="/privacy" className="text-amber-700 underline-offset-2 hover:underline">
             隐私政策
           </AppLink>
-          <AppLink to="/feedback" className="text-amber-700 underline-offset-2 hover:underline">
+          <a
+            href="https://feedback.linkbrain.top/?product=cengfan"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-amber-700 underline-offset-2 hover:underline"
+          >
             问题反馈
-          </AppLink>
+          </a>
         </p>
       </section>
     </StaticPageLayout>

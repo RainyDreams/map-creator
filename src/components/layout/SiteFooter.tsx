@@ -1,19 +1,9 @@
-import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router'
+import { useState } from 'react'
 import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 import { APP_VERSION } from '@/version'
-import { checkNewReplies, REPLY_EVENT } from '@/utils/replyNotify'
 
-/** 「问题反馈」红点引导标记：未点击过时显示，点击或进入反馈页后消失；此后若我的反馈被回复会再次出现（本机记忆） */
-const FEEDBACK_SEEN_KEY = 'cenfan-feedback-seen'
-
-function loadFeedbackSeen(): boolean {
-  try {
-    return localStorage.getItem(FEEDBACK_SEEN_KEY) === '1'
-  } catch {
-    return false
-  }
-}
+/** 统一反馈平台入口（v2.0.1 起反馈功能迁移至 feedback.linkbrain.top，带产品参数） */
+const FEEDBACK_URL = 'https://feedback.linkbrain.top/?product=cengfan'
 
 /**
  * 全站页脚：版权 + 开发者 + 版本 + 备案信息 + 站点页面链接。
@@ -24,48 +14,6 @@ function loadFeedbackSeen(): boolean {
 export default function SiteFooter() {
   const year = new Date().getFullYear()
   const [qrOpen, setQrOpen] = useState(false)
-  const [feedbackSeen, setFeedbackSeen] = useState<boolean>(loadFeedbackSeen)
-  /** 我的反馈被管理员回复（未读）时也显示红点 */
-  const [replyNotify, setReplyNotify] = useState(false)
-  const { pathname } = useLocation()
-
-  // 通过任何路径到达反馈页都视为已读，红点不再出现
-  useEffect(() => {
-    if (pathname === '/feedback' && !feedbackSeen) {
-      setFeedbackSeen(true)
-      try {
-        localStorage.setItem(FEEDBACK_SEEN_KEY, '1')
-      } catch {
-        // 忽略
-      }
-    }
-  }, [pathname, feedbackSeen])
-
-  // 启动时 + 收到已读广播时，检查「我的反馈」是否有新回复
-  useEffect(() => {
-    let cancelled = false
-    const run = (force: boolean) => {
-      void checkNewReplies(force).then((v) => {
-        if (!cancelled) setReplyNotify(v)
-      })
-    }
-    run(false)
-    const onEvent = () => run(false)
-    window.addEventListener(REPLY_EVENT, onEvent)
-    return () => {
-      cancelled = true
-      window.removeEventListener(REPLY_EVENT, onEvent)
-    }
-  }, [])
-
-  const markFeedbackSeen = () => {
-    setFeedbackSeen(true)
-    try {
-      localStorage.setItem(FEEDBACK_SEEN_KEY, '1')
-    } catch {
-      // 忽略
-    }
-  }
 
   return (
     <footer className="shrink-0 border-t border-stone-200 bg-stone-50 px-3 py-2.5 text-center text-[11px] leading-5 text-stone-400">
@@ -109,19 +57,15 @@ export default function SiteFooter() {
           关于
         </AppLink>
         <span aria-hidden className="hidden text-stone-300 md:inline">·</span>
-        <AppLink
-          to="/feedback"
-          onClick={markFeedbackSeen}
-          className="relative text-red-800 transition-colors hover:text-red-900 md:text-stone-400 md:hover:text-stone-700"
+        {/* 统一反馈平台（外链，带产品参数）；移动端暗红突出 */}
+        <a
+          href={FEEDBACK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-red-800 transition-colors hover:text-red-900 md:text-stone-400 md:hover:text-stone-700"
         >
           问题反馈
-          {(!feedbackSeen || replyNotify) && (
-            <span
-              aria-hidden
-              className="absolute -right-1 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500"
-            />
-          )}
-        </AppLink>
+        </a>
         <span aria-hidden className="text-stone-300">·</span>
         {/* 公众号二维码：桌面悬浮展开、移动端点按展开；再次点击或移出即收起。
             桌面显示「微信公众号 · [零本图]」，移动端窄屏只显示零本图片 */}

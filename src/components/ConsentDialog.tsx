@@ -29,7 +29,7 @@ function hasConsented(): boolean {
  * - 内容刻意精简：一句话软件介绍 + 协议链接 + 一个按钮
  */
 /** 不弹同意窗的路径（阅读协议/隐私/关于/反馈板不需要先同意协议） */
-const CONSENT_FREE_PATHS = new Set(['/agreement', '/privacy', '/about', '/feedback'])
+const CONSENT_FREE_PATHS = new Set(['/agreement', '/privacy', '/about'])
 
 export function ConsentDialog() {
   const { pathname } = useLocation()

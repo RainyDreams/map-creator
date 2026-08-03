@@ -657,7 +657,7 @@ export default function MapPage() {
             导出失败：{exportError.slice(0, 80)}
           </span>
           <a
-            href="/feedback"
+            href="https://feedback.linkbrain.top/?product=cengfan" target="_blank" rel="noopener noreferrer"
             className="shrink-0 rounded bg-rose-600 px-2 py-0.5 font-medium text-white hover:bg-rose-500"
           >
             前往问题反馈
