@@ -5,6 +5,13 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.6',
+    date: '2026-08-04 00:35',
+    items: [
+      '修复使用日志上传失败：本机日志缓冲上限（约 200KB）大于服务端接收闸门（64KB），日志积累较多时上传一直被拒绝、反馈带不上日志；现在上传前会自动截断最旧记录对齐闸门，任何积累量都能正常上传',
+    ],
+  },
+  {
     version: 'v2.0.5',
     date: '2026-08-04 00:10',
     items: [

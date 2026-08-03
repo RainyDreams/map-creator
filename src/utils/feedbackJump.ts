@@ -14,7 +14,7 @@
 
 import Clarity from '@microsoft/clarity'
 import { APP_VERSION } from '@/version'
-import { getSessionLog, clearSessionLog } from '@/utils/sessionLog'
+import { breadcrumb, getSessionLog, clearSessionLog } from '@/utils/sessionLog'
 
 /** 反馈平台源（postMessage 回执的 origin 校验也用） */
 export const FEEDBACK_ORIGIN = 'https://feedback.linkbrain.top'
@@ -112,10 +112,17 @@ export function buildFeedbackUrl(logIds = ''): string {
 /**
  * 上传累积使用日志到 /api/logs，返回日志 ID（无内容/失败返回 ''）。
  * 成功即清空本机累积（「从上次上传完开始记录」语义），并在 Clarity 会话打 logId 标签。
+ *
+ * 体积对齐服务端 64KB 闸门：本机缓冲上限约 200KB，超限直接 POST 会被 413 拒绝
+ * （v2.0.5 前真实故障——老用户日志全被闸门挡下，反馈永远不带日志）。
+ * 超限则丢弃最旧条目并插入截断标记，保证任何积累量都能上传。
  */
+/** 上传体积上限（字符数）：服务端 64KB 闸门留 meta 余量 */
+const MAX_UPLOAD_CHARS = 60_000
+
 export async function uploadSessionLog(): Promise<string> {
   try {
-    const entries = getSessionLog()
+    let entries = getSessionLog()
     if (entries.length === 0) return ''
     let net = 'unknown'
     try {
@@ -125,24 +132,39 @@ export async function uploadSessionLog(): Promise<string> {
     } catch {
       // 忽略
     }
+    const meta = {
+      version: APP_VERSION,
+      ua: navigator.userAgent,
+      page: location.pathname,
+      viewport: `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio}x`,
+      lang: navigator.language,
+      net,
+      clarityUser: clarityCookie('_clck'),
+      claritySession: clarityCookie('_clsk'),
+    }
+    // 体积闸门：每次丢弃最旧 20%，直到装得进 60KB
+    let trimmed = false
+    let bodyLen = JSON.stringify({ entries, meta }).length
+    while (entries.length > 1 && bodyLen > MAX_UPLOAD_CHARS) {
+      entries = entries.slice(Math.max(1, Math.ceil(entries.length * 0.2)))
+      trimmed = true
+      bodyLen = JSON.stringify({ entries, meta }).length
+    }
+    if (trimmed) {
+      entries = [
+        { t: Date.now(), level: 'warn' as const, text: '…（早期日志因上传体积限制已截断）' },
+        ...entries,
+      ]
+    }
     const res = await fetch('/api/logs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        entries,
-        meta: {
-          version: APP_VERSION,
-          ua: navigator.userAgent,
-          page: location.pathname,
-          viewport: `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio}x`,
-          lang: navigator.language,
-          net,
-          clarityUser: clarityCookie('_clck'),
-          claritySession: clarityCookie('_clsk'),
-        },
-      }),
+      body: JSON.stringify({ entries, meta }),
     })
-    if (!res.ok) return ''
+    if (!res.ok) {
+      breadcrumb(`使用日志上传失败：HTTP ${res.status}`)
+      return ''
+    }
     const data = (await res.json()) as { id?: unknown }
     const id = typeof data.id === 'string' ? data.id : ''
     if (id !== '') {
