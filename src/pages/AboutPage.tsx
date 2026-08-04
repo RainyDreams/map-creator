@@ -5,6 +5,13 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.9',
+    date: '2026-08-04 12:35',
+    items: [
+      '国内镜像加速正式启用：主站 JS/CSS 超过 6 秒未加载完成或加载失败时，自动改从国内镜像 CDN（cdn-beijing.linkbrain.top，阿里云北京）获取，先到先生效；镜像内容每 5 分钟与主站自动对账',
+    ],
+  },
+  {
     version: 'v2.0.8',
     date: '2026-08-04 11:45',
     items: [
