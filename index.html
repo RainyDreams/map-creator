@@ -121,30 +121,6 @@
         <div class="cf-update-pct"><span id="cfUpdateHash"></span>&nbsp;·&nbsp;<span id="cfUpdatePct">0%</span></div>
       </div>
     </div>
-    <div
-      id="cf-maint"
-      style="display:none;position:fixed;inset:0;z-index:100000;background:#fafaf9;align-items:center;justify-content:center;font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif"
-      role="status"
-    >
-      <div style="text-align:center;padding:24px">
-        <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:0.18em;color:#a8a29e;margin-bottom:14px">蹭饭图生成器</div>
-        <div style="font-size:16px;font-weight:600;color:#292524;margin-bottom:10px">系统维护中</div>
-        <div style="font-size:13px;color:#78716c;line-height:1.8">维护时间：今日 13:00 – 14:00<br />维护期间访问可能不稳定，请稍后再来</div>
-      </div>
-    </div>
-    <script>
-      !(function () {
-        try {
-          // 维护窗口：2026-08-04 13:00 ~ 14:00（访客本地时间），窗口外此层永不显示
-          var _s = new Date(2026, 7, 4, 13, 0, 0).getTime()
-          var _e = new Date(2026, 7, 4, 14, 0, 0).getTime()
-          var _n = Date.now()
-          if (_n < _s || _n >= _e) return
-          var _m = document.getElementById('cf-maint')
-          if (_m) _m.style.display = 'flex'
-        } catch (e) {}
-      })()
-    </script>
     <script>
       !(function () {
         try {
