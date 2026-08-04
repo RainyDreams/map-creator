@@ -1,0 +1,10 @@
+[Unit]
+Description=蹭饭图镜像同步（从 map.linkbrain.top 抓取最新构建产物）
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mirror-sync.sh
+Nice=10
+# 同步失败不影响下次定时触发；日志见 /var/log/mirror-sync.log

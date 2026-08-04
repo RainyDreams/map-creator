@@ -1,0 +1,11 @@
+[Unit]
+Description=每 5 分钟同步一次蹭饭图镜像
+
+[Timer]
+# 开机 2 分钟后第一次同步，之后每 5 分钟一次
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
