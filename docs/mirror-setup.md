@@ -52,6 +52,8 @@ nginx -t && systemctl reload nginx
 # 1. 脚本就位并加执行权限
 cp mirror-sync.sh /usr/local/bin/mirror-sync.sh
 chmod +x /usr/local/bin/mirror-sync.sh
+# 如果从 Windows 上传后运行报 `\r` 相关错误，是行尾问题，执行一次：
+sed -i 's/\r$//' /usr/local/bin/mirror-sync.sh
 
 # 2. 先手动跑一次，确认能同步（看到「同步完成」即成功）
 bash /usr/local/bin/mirror-sync.sh

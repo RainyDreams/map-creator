@@ -1,0 +1,5 @@
+# 服务器上执行的脚本与配置必须保持 LF 行尾（Windows 检出会被 git 转 CRLF，bash 无法运行）
+mirror/*.sh text eol=lf
+mirror/*.service text eol=lf
+mirror/*.timer text eol=lf
+mirror/*.example text eol=lf
