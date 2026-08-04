@@ -5,6 +5,14 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.10',
+    date: '2026-08-04 12:50',
+    items: [
+      '修复防盗版域名校验误伤自家域名：直接访问国内镜像站（cdn-beijing.linkbrain.top）时会被误判并跳转主站；现已放行 linkbrain.top 全系子域，仅站外盗版域名会被拦截',
+      '新增系统维护提示能力：维护时段内访问会显示维护公告，时段结束自动恢复正常，不影响已打开页面',
+    ],
+  },
+  {
     version: 'v2.0.9',
     date: '2026-08-04 12:35',
     items: [

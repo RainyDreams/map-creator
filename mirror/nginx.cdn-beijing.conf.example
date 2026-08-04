@@ -13,6 +13,16 @@ server {
     root /www/wwwroot/cdn-beijing;   # mirror-sync.sh 的 MIRROR_ROOT
     index index.html;
 
+    # 手动刷新接口：浏览器访问 /sync-mirror?token=XXX 立即触发同步对账
+    # 反代到本机 mirror-api.service（python3，127.0.0.1:8975）
+    location = /sync-mirror {
+        proxy_pass http://127.0.0.1:8975;
+        proxy_read_timeout 300s;
+        proxy_set_header Host $host;
+        # 不缓存、不走静态 root
+        add_header Cache-Control "no-store" always;
+    }
+
     # 关键：跨域许可。主站 https://map.linkbrain.top 会以跨域方式加载这里的 JS，
     # module script 与字体强制走 CORS，必须带这个头，否则浏览器拦截
     add_header Access-Control-Allow-Origin "https://map.linkbrain.top" always;

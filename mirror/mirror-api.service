@@ -1,0 +1,12 @@
+[Unit]
+Description=cdn-beijing mirror manual sync trigger API
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/bin/mirror-api.py
+Restart=always
+RestartSec=3
+# 最小权限：同步脚本需要对站点目录可写，沿用 root（与 mirror-sync.timer 一致）
+
+[Install]
+WantedBy=multi-user.target
