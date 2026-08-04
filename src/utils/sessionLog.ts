@@ -176,6 +176,8 @@ export function initSessionLog(): void {
     window.addEventListener('error', (ev) => {
       const e = ev as ErrorEvent
       if ((e.filename ?? '').includes('clarity') || (e.error?.stack ?? '').includes('clarity')) return
+      // 镜像 6 秒竞速：后到的那份入口被启动锁丢弃，属预期行为不记日志
+      if (typeof e.message === 'string' && e.message.includes('[boot]')) return
       const errStack: string = typeof e.error?.stack === 'string' ? e.error.stack : ''
       const stackTop = errStack
         .split('\n')

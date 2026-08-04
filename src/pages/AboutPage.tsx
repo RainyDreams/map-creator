@@ -5,6 +5,13 @@ import { AppLink } from '@/components/layout/RouteLoadingOverlay'
 
 const changelog = [
   {
+    version: 'v2.0.8',
+    date: '2026-08-04 11:45',
+    items: [
+      '静态资源加载提速：主站 JS/CSS 超过 6 秒未加载完成时，自动改从国内镜像 CDN（cdn-beijing.linkbrain.top，待开启）获取，先到先生效，不再干等',
+    ],
+  },
+  {
     version: 'v2.0.7',
     date: '2026-08-04 00:55',
     items: [

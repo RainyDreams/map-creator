@@ -227,7 +227,10 @@
           for (var i = 0; i < links.length; i++) fallback(pathOf(links[i].href), 'css')
           var m = document.querySelector('script[type="module"]')
           if (m && m.src) fallback(pathOf(m.src), 'js')
-        }, 12000)
+          // 6 秒竞速（v2.0.8）：主站资源 6 秒未就位即注入镜像副本；
+          // 两份副本谁先执行谁生效——main.tsx 的 __CF_APP_BOOTED__ 启动锁
+          // 会让后到的那份安静退出（重复启动错误已被日志过滤，不污染上报）
+        }, 6000)
       })()
     </script>
   </body>
